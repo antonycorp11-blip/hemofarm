@@ -12,6 +12,9 @@ export interface GameEvents {
   CONTRACT_ACCEPTED: { contractId: string };
   CONTRACT_COMPLETED: { contractId: string; delivered: number; gold: number };
   CONTRACT_FAILED: { contractId: string };
+  BOND_FORMED: { a: number; b: number; arranged: boolean };
+  HEIR_ARRIVED: { humanId: number; parents: number[]; quality: string; blood: string; code: string; parentNames: string[] };
+  HEIR_BLOCKED: { reason: 'capacity' };
   NIGHT_STARTED: { night: number; quota: number };
   CARRIAGE_ARRIVED: { night: number };
   TITHE_PAID: { night: number; amount: number; prestige: number };

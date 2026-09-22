@@ -2,7 +2,7 @@
 export type BubbleState =
   | 'idle' | 'hungry' | 'well_fed' | 'queued_collection' | 'recovering'
   | 'high_morale' | 'low_morale' | 'sleepy'
-  | 'carriage' | 'taken' | 'tithe_paid' | 'tithe_failed' | 'boarding';
+  | 'carriage' | 'taken' | 'tithe_paid' | 'tithe_failed' | 'boarding' | 'bond' | 'arranged' | 'heir';
 
 export const LINES: Record<BubbleState, string[]> = {
   idle: [
@@ -51,6 +51,20 @@ export const LINES: Record<BubbleState, string[]> = {
     'Fui escolhido. Ainda não sei se é elogio.',
     'Se perguntarem, sempre quis conhecer o castelo.',
     'Pátio de Embarque. O nome já diz tudo, e não diz nada de bom.',
+  ],
+  bond: [
+    'Acho que encontrei alguém. Ou alguém me encontrou na fila.',
+    'Não é o fim do mundo se for com você. Quer dizer, é, mas melhora.',
+    'Dividimos o colchão ruim. É praticamente um noivado.',
+  ],
+  arranged: [
+    'Fomos "registrados como parceria estratégica". Que romântico.',
+    'Um vampiro escolheu meu par. Honestamente, gosto mais do que da minha tia escolhendo.',
+  ],
+  heir: [
+    'Cheguei. Me disseram que aqui tinha família. E contrato.',
+    'Oi, parentes! Por que todo mundo está pálido? Ah.',
+    'Recebi uma carta dizendo "venha, a comida é garantida". Tecnicamente não mentiram.',
   ],
   tithe_paid: [
     'Cota batida. Parabéns a nós, eu acho.',

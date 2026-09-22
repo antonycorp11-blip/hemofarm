@@ -158,4 +158,19 @@ export const TUTORIAL: Step[] = [
       { who: 'boris', text: 'Classifiquei como aumento.' },
     ],
   },
+  {
+    id: 't10_familia',
+    lines: [
+      { who: 'lia', text: 'Posso dar uma ideia? Gente vendida, gente levada… a fazenda vai esvaziar.' },
+      { who: 'lia', text: 'Casais daqui podem mandar buscar parentes. Adultos, com carta e mala. Só precisamos de uma Casa das Famílias.' },
+      { who: 'boris', text: 'E o parente herda o sangue dos dois. Pares bem escolhidos, parentes melhores. Anotei como "planejamento de estoque".' },
+      { who: 'davi', text: 'O romantismo desta fazenda me comove.' },
+    ],
+    objective: obj({ text: 'Construa a Casa das Famílias', event: 'BUILDING_BUILT', match: p => p.kind === 'family' }),
+    target: { slot: 'family' },
+    hint: { who: 'lia', text: 'O lote ao lado da torre de vigia, no sudeste.' },
+    done: [
+      { who: 'lia', text: 'Pronto! Casais se formam sozinhos quando convivem. Ou toque num humano e escolha um par, se quiser caprichar na herança.' },
+    ],
+  },
 ];

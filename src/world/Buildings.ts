@@ -93,9 +93,10 @@ export class Buildings {
     site.plot.setVisible(lv === 0 && !building);
     (site.plot.getData('art') as Phaser.GameObjects.Image | undefined)?.setVisible(lv === 0 && !building);
     if (lv > 0) {
-      const tex = def.levels[lv - 1].tex;
-      if (!site.sprite) site.sprite = this.place(slot, tex);
-      else site.sprite.setTexture(tex);
+      const L = def.levels[lv - 1];
+      if (!site.sprite) site.sprite = this.place(slot, L.tex);
+      else site.sprite.setTexture(L.tex);
+      if (L.tint) site.sprite.setTint(L.tint); else site.sprite.clearTint();
       if (!site.lit && def.light) {
         const { center, front } = slotGeometry(slot);
         const L = def.light;
@@ -192,6 +193,7 @@ export class Buildings {
       if (kind === 'housing') return `${l.capacity} moradores`;
       if (kind === 'collect') return `${l.blood} Sangue por coleta · ${(l.collectMs! / 1000).toFixed(1)} s`;
       if (kind === 'food') return `refeição de ${(l.eatMs! / 1000).toFixed(1)} s`;
+      if (kind === 'family') return `um parente a cada ~${Math.round(100 / l.kinRate! / 60)} min por casal`;
       return '';
     };
     const out: string[] = [];

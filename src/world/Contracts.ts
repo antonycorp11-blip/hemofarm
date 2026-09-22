@@ -5,6 +5,7 @@ import { bus } from '../core/events';
 import { state } from '../core/state';
 import { CONTRACTS, ContractDef, Requirement, BUYER_NAMES, MAX_OFFERS } from '../data/contracts';
 import { BLOOD, QUALITY, TEMPER, TRAIT } from '../data/humans';
+import { heirOdds } from '../sim/genetics';
 import { slotGeometry, FarmMap } from '../map/bosque';
 import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';
@@ -78,11 +79,58 @@ export class Contracts {
       html: `<div class="tags">${tag(`blood_${t.blood}`, BLOOD[t.blood].name)}${tag(`quality_${t.quality}`, QUALITY[t.quality].name)}` +
         `${tag(`temper_${t.temper}`, TEMPER[t.temper].name)}${t.trait ? tag(`trait_${t.trait}`, TRAIT[t.trait].name) : ''}</div>` +
         meter('Vitalidade', h.vitality, '#d8122a') + meter('Moral', h.morale, '#6fbf73') + meter('Fome', h.hunger, '#e8b54a') +
-        `<p class="muted" style="margin:8px 0">${TEMPER[t.temper].desc}${t.trait ? ` ${TRAIT[t.trait].desc}` : ''}</p>${action}`,
+        `<p class="muted" style="margin:8px 0">${TEMPER[t.temper].desc}${t.trait ? ` ${TRAIT[t.trait].desc}` : ''}</p>` + this.bondHtml(h) + action,
       bind: root => {
         root.querySelector<HTMLButtonElement>('[data-a="assign"]')?.addEventListener('click', () => this.assign(h));
         root.querySelector<HTMLButtonElement>('[data-a="unassign"]')?.addEventListener('click', () => { this.humans.unassign(h); this.openHuman(h); });
+        root.querySelector<HTMLButtonElement>('[data-a="pair"]')?.addEventListener('click', () => this.openPairing(h));
+        root.querySelector<HTMLButtonElement>('[data-a="unpair"]')?.addEventListener('click', () => {
+          if (confirm('Desfazer o par? O progresso do parente se perde.')) { this.humans.unbond(h); this.openHuman(h); }
+        });
       },
+      onClose: () => this.select(undefined),
+    });
+  }
+
+  // ---------- bonds (GDD_ADENDO A2) ----------
+  private label(h: Human) { return h.name ?? `Unidade ${h.traits.code}`; }
+
+  private bondHtml(h: Human) {
+    const p = this.humans.partnerOf(h);
+    if (!p) {
+      return `<div class="row" style="margin:6px 0"><span>♡ Sem par</span></div>` +
+        (h.contract ? '' : `<button class="go" data-a="pair" style="margin-bottom:8px">Formar par</button>`);
+    }
+    const family = this.buildings.built('family').length > 0;
+    const kin = Math.round(this.humans.kinOf(h));
+    const odds = heirOdds(h.traits, p.traits);
+    return `<div class="card"><div>❤ Par: <b>${this.label(p)}</b> · ${BLOOD[p.traits.blood].name} · ${QUALITY[p.traits.quality].name}</div>` +
+      (family ? `<div class="row"><span style="width:74px">Parente</span><div class="meter"><i style="width:${kin}%;background:#ff8a8a"></i></div><span style="width:28px;text-align:right">${kin}</span></div>`
+        : `<div class="muted">Construa a Casa das Famílias para o casal mandar buscar parentes.</div>`) +
+      `<div class="muted">Chance de o parente subir de qualidade: ${odds.upgrade}%${odds.combo ? ` · ${odds.combo.pct}% de sair ${BLOOD[odds.combo.out].name}` : ''}</div>` +
+      `<button class="go" data-a="unpair" style="margin-top:6px">Desfazer par</button></div>`;
+  }
+
+  // Arranged pairing: pick a partner, best candidates first, with the odds for their heirs.
+  private openPairing(h: Human) {
+    const cands = this.humans.singles().filter(x => x !== h && !x.contract)
+      .sort((a, b) => QUALITY[b.traits.quality].rank - QUALITY[a.traits.quality].rank);
+    const row = (c: Human) => {
+      const o = heirOdds(h.traits, c.traits);
+      return `<div class="card"><h4>${this.label(c)}</h4><div class="muted">${BLOOD[c.traits.blood].name} · ${QUALITY[c.traits.quality].name} · ${TEMPER[c.traits.temper].name}` +
+        `${c.traits.trait ? ` · ${TRAIT[c.traits.trait].name}` : ''}</div><div class="muted">Qualidade do parente sobe: ${o.upgrade}%` +
+        `${o.combo ? ` · ${o.combo.pct}% ${BLOOD[o.combo.out].name}` : ''}</div><button class="go" data-pair="${c.id}">Formar par</button></div>`;
+    };
+    this.panel.open({
+      title: `Par para ${this.label(h)}`,
+      subtitle: 'Bóris registra como "parceria estratégica"',
+      desc: '',
+      stats: [],
+      html: cands.length ? cands.map(row).join('') : '<p class="muted">Ninguém disponível. Todo mundo já tem par.</p>',
+      bind: root => root.querySelectorAll<HTMLButtonElement>('[data-pair]').forEach(b => b.addEventListener('click', () => {
+        const c = this.humans.all.find(x => x.id === Number(b.dataset.pair));
+        if (c) { this.humans.bond(h, c, true); this.openHuman(h); }
+      })),
       onClose: () => this.select(undefined),
     });
   }

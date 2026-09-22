@@ -9,6 +9,9 @@ import { Buildings } from '../world/Buildings';
 import { BuildPanel } from '../ui/BuildPanel';
 import { Farms } from '../world/Farms';
 import { Contracts } from '../world/Contracts';
+import { BLOOD, QUALITY } from '../data/humans';
+const BLOOD_NAME = Object.fromEntries(Object.entries(BLOOD).map(([k, v]) => [k, v.name]));
+const QUALITY_NAME = Object.fromEntries(Object.entries(QUALITY).map(([k, v]) => [k, v.name]));
 import { Dialogue } from '../ui/Dialogue';
 import { applySkin } from '../ui/skin';
 import { Tutorial } from '../core/tutorial';
@@ -290,6 +293,9 @@ export class FarmScene extends Phaser.Scene {
   private setupFeedback() {
     const [i, j] = this.humans.collectSpot;
     const c = tileCenter(i, j);
+    bus.on('HEIR_ARRIVED', e => this.hud.toast(`Lia: Chegou Unidade ${e.code}, parente de ${e.parentNames.join(' e ')}. ${QUALITY_NAME[e.quality] ?? e.quality}, sangue ${BLOOD_NAME[e.blood] ?? e.blood}.`, 'good', 7000));
+    bus.on('HEIR_BLOCKED', () => this.hud.toast('Bóris: Um parente quer vir, mas não há camas. Construa ou melhore habitações.', 'bad', 7000));
+    bus.on('BOND_FORMED', e => { if (!e.arranged) this.hud.toast('Lia: Temos um casal novo na fazenda. Não conte ao Bóris, ele vai querer registrar.'); });
     bus.on('BLOOD_COLLECTED', ({ amount }) => {
       this.floatText(c.x, c.y - 40, `+${amount} Sangue`, '#ff3348');
       this.fx('fx_blood_drop', c.x + 20, c.y - 70, 1.2);

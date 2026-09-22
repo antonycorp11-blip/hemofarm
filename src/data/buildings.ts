@@ -1,5 +1,5 @@
 // Building definitions: every level has a visible sprite and a concrete gameplay effect (GDD §14: visible incremental).
-export type BuildingKind = 'housing' | 'food' | 'collect' | 'boarding' | 'watch';
+export type BuildingKind = 'housing' | 'food' | 'collect' | 'boarding' | 'watch' | 'family';
 
 export interface Level {
   tex: string;
@@ -10,6 +10,8 @@ export interface Level {
   blood?: number;      // collect: Blood per collection
   collectMs?: number;  // collect: time inside the station
   eatMs?: number;      // food: time to eat
+  kinRate?: number;    // family: heir progress per second for each couple
+  tint?: number;       // placeholder colouring until a dedicated sprite exists
 }
 
 export interface LightPreset { h: number; radius: number; color: number; intensity: number; flicker: number; dx?: number }
@@ -46,6 +48,16 @@ export const BUILDINGS: Record<BuildingKind, BuildingDef> = {
     name: 'Pátio de Embarque',
     levels: [
       { tex: 'bld_boarding', cost: 200, buildMs: 12000, desc: 'Onde humanos vendidos aguardam o comprador. Necessário para entregar contratos.' },
+    ],
+  },
+  family: {
+    name: 'Casa das Famílias',
+    light: { h: 20, radius: 95, color: 0xff8a8a, intensity: 0.8, flicker: 0.08 },
+    levels: [
+      { tex: 'bld_housing_2', tint: 0xffc8c8, cost: 300, buildMs: 14000, kinRate: 0.45,
+        desc: 'Casais registrados mandam buscar parentes adultos que herdam o sangue dos dois. Burocracia afetiva.' },
+      { tex: 'bld_housing_3', tint: 0xffc8c8, cost: 700, buildMs: 22000, kinRate: 0.75,
+        desc: 'Mais quartos, mais cartas para a família, mais parentes chegando. E mais formulários.' },
     ],
   },
   watch: {

@@ -12,6 +12,7 @@ import type { Buildings } from './Buildings';
 import type { Farms, FarmJob } from './Farms';
 import { HumanTraits, NAMED_TRAITS, QUALITY, randomTraits } from '../data/humans';
 import { state } from '../core/state';
+import { heirOf } from '../sim/genetics';
 import { FOOD_PER_MEAL } from '../data/crops';
 
 type P = [number, number];
@@ -53,6 +54,9 @@ export class Human implements Speaker {
   name?: string;
   traits!: HumanTraits;
   contract?: string;   // assigned to this contract: waits at the Boarding Yard
+  partner?: number;    // uid of the bonded partner
+  kin = 0;             // 0..100 progress towards sending for a relative (kept on the couple's lower uid)
+  lovedUntil = 0;
   offset = { x: Phaser.Math.Between(-12, 12), y: Phaser.Math.Between(-5, 5) };
   path: P[] = [];
   onArrive?: () => void;
@@ -70,6 +74,9 @@ export class Humans {
   private nextAmbient = 4000;
   private downAt?: { x: number; y: number };
   onSelect?: (h: Human) => void;
+  private affinity = new Map<string, number>();
+  private bondTick = 0;
+  private noRoomWarned = false;
 
   constructor(private scene: Phaser.Scene, private map: FarmMap, private bubbles: Bubbles, private buildings: Buildings, private farms: Farms) {
     this.makeAnims();
@@ -81,30 +88,45 @@ export class Humans {
     const cells = [...this.map.walkable].map(k => k.split(',').map(Number) as P);
     for (let k = 0; k < Math.max(n, saved.length); k++) {
       const sv = saved[k];
-      const tile = sv && this.map.walkable.has(sv.tile.join(',')) ? sv.tile : Phaser.Utils.Array.GetRandom(cells);
       const named = !saved.length ? NAMED[k] : undefined;
-      const look = sv?.look ?? named?.look ?? Phaser.Utils.Array.GetRandom(ANONYMOUS_LOOKS);
-      const sprite = this.scene.add.sprite(0, 0, look === 'base' ? 'human_actions' : look, 0).setOrigin(0.5, 1).setScale(S);
-      if (look === 'base') sprite.setTint(Phaser.Utils.Array.GetRandom(TINTS));
-      const h = new Human(k, sprite, tile, '');
-      h.look = look;
-      h.name = sv?.name ?? named?.name;
-      // New farms always get two sellable Rubra, so Lady Rubélia's first order is doable (named humans aren't for sale).
-      h.traits = sv?.traits ?? randomTraits(h.name ? NAMED_TRAITS[h.name] : !saved.length && (k === 2 || k === 3) ? { blood: 'rubra' } : {});
-      h.contract = sv?.contract;
-      this.makeTappable(h);
-      h.home = sv && this.buildings.level(sv.home) > 0 && this.residents(sv.home) < this.buildings.capacity(sv.home) ? sv.home : this.findHome();
-      if (sv) Object.assign(h, { hunger: sv.hunger, energy: sv.energy, morale: sv.morale, vitality: sv.vitality });
-      this.place(h, tile);
-      this.list.push(h);
-      bus.emit('HUMAN_CREATED', { humanId: h.id, source: sv ? 'save' : 'initial' });
-      this.scene.time.delayedCall(Phaser.Math.Between(0, 2500), () => this.decide(h));
+      const name = sv?.name ?? named?.name;
+      this.create({
+        tile: sv && this.map.walkable.has(sv.tile.join(',')) ? sv.tile : Phaser.Utils.Array.GetRandom(cells),
+        look: sv?.look ?? named?.look,
+        name,
+        // New farms always get two sellable Rubra, so Lady Rubélia's first order is doable (named humans aren't for sale).
+        traits: sv?.traits ?? randomTraits(name ? NAMED_TRAITS[name] : !saved.length && (k === 2 || k === 3) ? { blood: 'rubra' } : {}),
+        save: sv,
+      });
     }
+  }
+
+  private create(o: { tile: P; look?: string; name?: string; traits: HumanTraits; save?: HumanSave; source?: string }) {
+    const sv = o.save;
+    const look = o.look ?? Phaser.Utils.Array.GetRandom(ANONYMOUS_LOOKS);
+    const sprite = this.scene.add.sprite(0, 0, look === 'base' ? 'human_actions' : look, 0).setOrigin(0.5, 1).setScale(S);
+    if (look === 'base') sprite.setTint(Phaser.Utils.Array.GetRandom(TINTS));
+    const h = new Human(sv?.uid ?? state.nextUid++, sprite, o.tile, '');
+    h.look = look;
+    h.name = o.name;
+    h.traits = o.traits;
+    h.contract = sv?.contract;
+    h.partner = sv?.partner;
+    h.kin = sv?.kin ?? 0;
+    this.makeTappable(h);
+    h.home = sv && this.buildings.level(sv.home) > 0 && this.residents(sv.home) < this.buildings.capacity(sv.home) ? sv.home : this.findHome();
+    if (sv) Object.assign(h, { hunger: sv.hunger, energy: sv.energy, morale: sv.morale, vitality: sv.vitality });
+    this.place(h, o.tile);
+    this.list.push(h);
+    bus.emit('HUMAN_CREATED', { humanId: h.id, source: o.source ?? (sv ? 'save' : 'initial') });
+    this.scene.time.delayedCall(Phaser.Math.Between(0, 2500), () => this.decide(h));
+    return h;
   }
 
   export(): HumanSave[] {
     const r = (v: number) => Math.round(v);
-    return this.list.map(h => ({ hunger: r(h.hunger), energy: r(h.energy), morale: r(h.morale), vitality: r(h.vitality), home: h.home, tile: h.tile, look: h.look, name: h.name, traits: h.traits, contract: h.contract }));
+    return this.list.map(h => ({ uid: h.id, hunger: r(h.hunger), energy: r(h.energy), morale: r(h.morale), vitality: r(h.vitality), home: h.home,
+      tile: h.tile, look: h.look, name: h.name, traits: h.traits, contract: h.contract, partner: h.partner, kin: Math.round(h.kin) }));
   }
 
   get population() { return this.list.length; }
@@ -121,6 +143,7 @@ export class Humans {
       h.sprite.setDepth(h.sprite.y);
       this.updateMarker(h, now);
     }
+    this.updateBonds(dt);
     if (now > this.nextAmbient) {
       this.nextAmbient = now + Phaser.Math.Between(6000, 12000);
       this.ambientLine();
@@ -208,7 +231,9 @@ export class Humans {
   }
 
   private goSocialize(h: Human) {
-    const spot = this.near(Phaser.Utils.Array.GetRandom(this.map.social));
+    const p = this.partnerOf(h);
+    // Couples look for each other at the gathering spots.
+    const spot = p && p.state === 'socializing' && Math.random() < 0.7 ? this.near(p.tile) : this.near(Phaser.Utils.Array.GetRandom(this.map.social));
     this.walkTo(h, spot, () => {
       h.state = 'socializing';
       this.anim(h, Math.random() < 0.6 ? 'talk' : 'idle').setFlipX(Math.random() < 0.5);
@@ -284,7 +309,7 @@ export class Humans {
           onComplete: () => {
             h.sprite.destroy();
             h.marker?.destroy();
-            this.list = this.list.filter(x => x !== h);
+            this.drop(h);
             bus.emit('HUMAN_TAKEN', { humanId: h.id, by: 'tithe' });
             onBoarded();
           },
@@ -339,9 +364,85 @@ export class Humans {
       targets: h.sprite, x: to.x, y: to.y, alpha: 0, duration: 1800,
       onComplete: () => {
         h.sprite.destroy(); h.marker?.destroy();
-        this.list = this.list.filter(x => x !== h);
+        this.drop(h);
       },
     });
+  }
+
+  // ---------- bonds & heirs (GDD_ADENDO A2) ----------
+  partnerOf(h: Human) { return h.partner !== undefined ? this.list.find(x => x.id === h.partner && !x.taken) : undefined; }
+
+  bond(a: Human, b: Human, arranged = false) {
+    for (const x of [a, b]) { const old = this.partnerOf(x); if (old) old.partner = undefined; }
+    a.partner = b.id; b.partner = a.id;
+    a.kin = b.kin = 0;
+    const now = this.scene.time.now;
+    a.lovedUntil = b.lovedUntil = now + 10000;
+    this.bubbles.say(Math.random() < 0.5 ? a : b, arranged ? 'arranged' : 'bond', true);
+    bus.emit('BOND_FORMED', { a: a.id, b: b.id, arranged });
+  }
+
+  unbond(h: Human) {
+    const p = this.partnerOf(h);
+    if (p) p.partner = undefined;
+    h.partner = undefined;
+  }
+
+  singles() { return this.list.filter(h => !h.taken && this.partnerOf(h) === undefined); }
+
+  // Progress of the couple towards their next relative (0..100), stored on the lower uid.
+  kinOf(h: Human) {
+    const p = this.partnerOf(h);
+    return p ? (h.id < p.id ? h : p).kin : 0;
+  }
+
+  private drop(h: Human) {
+    this.list = this.list.filter(x => x !== h);
+    const p = this.list.find(x => x.partner === h.id);
+    if (p) p.partner = undefined;
+  }
+
+  private updateBonds(dt: number) {
+    this.bondTick += dt;
+    if (this.bondTick < 1000) return;
+    const s = this.bondTick / 1000;
+    this.bondTick = 0;
+    // Spontaneous bonds: singles who keep socializing side by side.
+    const social = this.list.filter(h => h.state === 'socializing' && !h.taken && !this.partnerOf(h));
+    for (let i = 0; i < social.length; i++) for (let j = i + 1; j < social.length; j++) {
+      const a = social[i], b = social[j];
+      if (Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, b.sprite.x, b.sprite.y) > 80) continue;
+      const k = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
+      const v = (this.affinity.get(k) ?? 0) + 6 * s * (a.morale + b.morale > 100 ? 1.3 : 0.8);
+      this.affinity.set(k, v);
+      if (v >= 100) { this.affinity.delete(k); this.bond(a, b); return; }
+    }
+    // Heirs: only with a Family House, and only if there's a free bed.
+    const rate = Math.max(0, ...this.buildings.built('family').map(id => this.buildings.levelDef(id)?.kinRate ?? 0));
+    if (!rate) return;
+    for (const h of this.list) {
+      const p = this.partnerOf(h);
+      if (!p || h.id > p.id || h.taken) continue;
+      h.kin = Math.min(100, h.kin + rate * s * (h.morale + p.morale > 80 ? 1 : 0.4));
+      if (h.kin < 100) continue;
+      if (this.list.length >= this.buildings.totalCapacity) {
+        if (!this.noRoomWarned) { this.noRoomWarned = true; bus.emit('HEIR_BLOCKED', { reason: 'capacity' }); }
+        continue;
+      }
+      this.noRoomWarned = false;
+      h.kin = 0;
+      this.heir(h, p);
+    }
+  }
+
+  private heir(a: Human, b: Human) {
+    const gate: P = [21, 33];
+    const c = this.create({ tile: gate, traits: heirOf(a.traits, b.traits), source: 'bond' });
+    c.sprite.setAlpha(0);
+    this.scene.tweens.add({ targets: c.sprite, alpha: 1, duration: 800 });
+    this.scene.time.delayedCall(900, () => this.bubbles.say(c, 'heir', true));
+    bus.emit('HEIR_ARRIVED', { humanId: c.id, parents: [a.id, b.id], quality: c.traits.quality, blood: c.traits.blood,
+      code: c.traits.code, parentNames: [a.name ?? `Unidade ${a.traits.code}`, b.name ?? `Unidade ${b.traits.code}`] });
   }
 
   // A few visible humans comment on something that just happened.
@@ -435,6 +536,7 @@ export class Humans {
   // Overhead status icon (GDD Anexo B): the most urgent state wins.
   private markerFor(h: Human, now: number): string | null {
     if (h.taken || h.contract) return 'mk_contract';
+    if (now < h.lovedUntil) return 'mk_happy';
     if (h.state === 'resting') return 'mk_sleep';
     if (h.hunger > 80) return 'mk_hungry';
     if (now < h.recoveringUntil) return 'mk_recover';
