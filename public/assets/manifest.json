@@ -1,0 +1,822 @@
+{
+ "tile_grass_a": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_grass_b": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_forest_floor": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_cobble_a": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_cobble_b": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_dirt_road": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_soil": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_water": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "decal_0": {
+  "w": 19.0,
+  "h": 11.0
+ },
+ "decal_1": {
+  "w": 19.5,
+  "h": 9.5
+ },
+ "decal_2": {
+  "w": 19.0,
+  "h": 15.5
+ },
+ "decal_3": {
+  "w": 20.0,
+  "h": 13.0
+ },
+ "decal_4": {
+  "w": 13.0,
+  "h": 9.0
+ },
+ "decal_5": {
+  "w": 14.0,
+  "h": 10.5
+ },
+ "decal_6": {
+  "w": 14.0,
+  "h": 10.5
+ },
+ "decal_7": {
+  "w": 15.0,
+  "h": 9.0
+ },
+ "decal_8": {
+  "w": 15.5,
+  "h": 8.5
+ },
+ "decal_9": {
+  "w": 17.5,
+  "h": 12.0
+ },
+ "decal_10": {
+  "w": 14.0,
+  "h": 8.0
+ },
+ "decal_11": {
+  "w": 16.0,
+  "h": 13.0
+ },
+ "decal_12": {
+  "w": 17.0,
+  "h": 12.0
+ },
+ "decal_13": {
+  "w": 21.0,
+  "h": 12.0
+ },
+ "decal_14": {
+  "w": 23.0,
+  "h": 15.0
+ },
+ "decal_15": {
+  "w": 22.0,
+  "h": 11.0
+ },
+ "decal_16": {
+  "w": 21.0,
+  "h": 12.0
+ },
+ "_decals": [
+  "decal_0",
+  "decal_1",
+  "decal_2",
+  "decal_3",
+  "decal_4",
+  "decal_5",
+  "decal_6",
+  "decal_7",
+  "decal_8",
+  "decal_9",
+  "decal_10",
+  "decal_11",
+  "decal_12",
+  "decal_13",
+  "decal_14",
+  "decal_15",
+  "decal_16"
+ ],
+ "gate_main": {
+  "w": 320.0,
+  "h": 333.5
+ },
+ "lamp_post": {
+  "w": 53.5,
+  "h": 105.0
+ },
+ "torch_stand": {
+  "w": 37.5,
+  "h": 95.0
+ },
+ "banner_bat": {
+  "w": 57.5,
+  "h": 105.0
+ },
+ "pine_a": {
+  "w": 128.5,
+  "h": 240.0
+ },
+ "pine_b": {
+  "w": 129.0,
+  "h": 210.0
+ },
+ "pine_c": {
+  "w": 92.5,
+  "h": 150.0
+ },
+ "dead_tree_a": {
+  "w": 149.5,
+  "h": 200.0
+ },
+ "dead_tree_b": {
+  "w": 104.0,
+  "h": 140.0
+ },
+ "bush_a": {
+  "w": 63.5,
+  "h": 62.0
+ },
+ "bush_b": {
+  "w": 65.5,
+  "h": 50.0
+ },
+ "rock_a": {
+  "w": 71.0,
+  "h": 78.0
+ },
+ "rock_b": {
+  "w": 59.5,
+  "h": 64.0
+ },
+ "rock_c": {
+  "w": 46.0,
+  "h": 46.0
+ },
+ "bld_housing_1": {
+  "w": 250.0,
+  "h": 243.0
+ },
+ "bld_housing_2": {
+  "w": 270.0,
+  "h": 267.5
+ },
+ "bld_food_1": {
+  "w": 250.0,
+  "h": 232.0
+ },
+ "bld_food_2": {
+  "w": 290.0,
+  "h": 266.5
+ },
+ "bld_collect_1": {
+  "w": 240.0,
+  "h": 281.0
+ },
+ "bld_collect_2": {
+  "w": 320.0,
+  "h": 258.5
+ },
+ "bld_boarding": {
+  "w": 330.0,
+  "h": 281.5
+ },
+ "bld_watchtower": {
+  "w": 141.5,
+  "h": 260.0
+ },
+ "castle_cliff": {
+  "w": 350.0,
+  "h": 360.5
+ },
+ "crates": {
+  "w": 58.0,
+  "h": 61.0
+ },
+ "barrel": {
+  "w": 30.0,
+  "h": 43.0
+ },
+ "bench": {
+  "w": 62.0,
+  "h": 60.5
+ },
+ "carriage": {
+  "w": 190.0,
+  "h": 144.5
+ },
+ "well": {
+  "w": 88.0,
+  "h": 124.5
+ },
+ "fence_palisade_ne": {
+  "w": 80.0,
+  "h": 82.0
+ },
+ "fence_palisade_nw": {
+  "w": 75.5,
+  "h": 86.0
+ },
+ "fence_palisade_post": {
+  "w": 28.5,
+  "h": 75.0
+ },
+ "rail_fence_ne": {
+  "w": 76.0,
+  "h": 68.5
+ },
+ "rail_fence_nw": {
+  "w": 81.0,
+  "h": 81.0
+ },
+ "rail_fence_post": {
+  "w": 19.5,
+  "h": 64.5
+ },
+ "stone_wall_ne": {
+  "w": 140.0,
+  "h": 108.0
+ },
+ "stone_wall_nw": {
+  "w": 173.0,
+  "h": 133.0
+ },
+ "backdrop_sky": {
+  "w": 1536,
+  "h": 1024
+ },
+ "human_walk_front": {
+  "w": 114.0,
+  "h": 44.0,
+  "frameW": 57,
+  "frameH": 88,
+  "frames": 4
+ },
+ "human_walk_back": {
+  "w": 88.0,
+  "h": 44.0,
+  "frameW": 44,
+  "frameH": 88,
+  "frames": 4
+ },
+ "human_actions": {
+  "w": 492.0,
+  "h": 44.0,
+  "frameW": 82,
+  "frameH": 88,
+  "frames": 12
+ },
+ "human_b": {
+  "w": 704.0,
+  "h": 44.0,
+  "frameW": 88,
+  "frameH": 88,
+  "frames": 16
+ },
+ "human_c": {
+  "w": 704.0,
+  "h": 46.0,
+  "frameW": 88,
+  "frameH": 92,
+  "frames": 16
+ },
+ "davi": {
+  "w": 608.0,
+  "h": 54.5,
+  "frameW": 76,
+  "frameH": 109,
+  "frames": 16
+ },
+ "lia": {
+  "w": 432.0,
+  "h": 44.0,
+  "frameW": 54,
+  "frameH": 88,
+  "frames": 16
+ },
+ "boris": {
+  "w": 584.0,
+  "h": 53.0,
+  "frameW": 73,
+  "frameH": 106,
+  "frames": 16
+ },
+ "ghoul_worker": {
+  "w": 616.0,
+  "h": 54.5,
+  "frameW": 77,
+  "frameH": 109,
+  "frames": 16
+ },
+ "ghoul_guard": {
+  "w": 976.0,
+  "h": 53.0,
+  "frameW": 122,
+  "frameH": 106,
+  "frames": 16
+ },
+ "vampire_buyer": {
+  "w": 632.0,
+  "h": 57.5,
+  "frameW": 79,
+  "frameH": 115,
+  "frames": 16
+ },
+ "rubelia": {
+  "w": 560.0,
+  "h": 51.5,
+  "frameW": 70,
+  "frameH": 103,
+  "frames": 16
+ },
+ "hematico": {
+  "w": 704.0,
+  "h": 58.0,
+  "frameW": 88,
+  "frameH": 116,
+  "frames": 16
+ },
+ "aureliano": {
+  "w": 952.0,
+  "h": 60.5,
+  "frameW": 119,
+  "frameH": 121,
+  "frames": 16
+ },
+ "vesper": {
+  "w": 624.0,
+  "h": 56.0,
+  "frameW": 78,
+  "frameH": 112,
+  "frames": 16
+ },
+ "wolf_scout": {
+  "w": 1184.0,
+  "h": 75.0,
+  "frameW": 148,
+  "frameH": 150,
+  "frames": 16
+ },
+ "wolf_hunter": {
+  "w": 1088.0,
+  "h": 69.5,
+  "frameW": 136,
+  "frameH": 139,
+  "frames": 16
+ },
+ "wolf_brute": {
+  "w": 1432.0,
+  "h": 89.5,
+  "frameW": 179,
+  "frameH": 179,
+  "frames": 16
+ },
+ "wolf_alpha": {
+  "w": 1496.0,
+  "h": 93.5,
+  "frameW": 187,
+  "frameH": 187,
+  "frames": 16
+ },
+ "sentinel_vampire": {
+  "w": 1056.0,
+  "h": 54.0,
+  "frameW": 132,
+  "frameH": 108,
+  "frames": 16
+ },
+ "gargoyle": {
+  "w": 1232.0,
+  "h": 77.0,
+  "frameW": 154,
+  "frameH": 154,
+  "frames": 16
+ },
+ "alchemist_unit": {
+  "w": 968.0,
+  "h": 49.5,
+  "frameW": 121,
+  "frameH": 99,
+  "frames": 16
+ },
+ "human_actions_2": {
+  "w": 528.0,
+  "h": 45.0,
+  "frameW": 66,
+  "frameH": 90,
+  "frames": 16
+ },
+ "fx_dust": {
+  "w": 156.0,
+  "h": 23.0,
+  "frameW": 78,
+  "frameH": 46,
+  "frames": 4
+ },
+ "fx_hit": {
+  "w": 116.0,
+  "h": 29.0,
+  "frameW": 58,
+  "frameH": 58,
+  "frames": 4
+ },
+ "fx_smoke": {
+  "w": 168.0,
+  "h": 41.0,
+  "frameW": 84,
+  "frameH": 82,
+  "frames": 4
+ },
+ "fx_sparkle": {
+  "w": 152.0,
+  "h": 37.0,
+  "frameW": 76,
+  "frameH": 74,
+  "frames": 4
+ },
+ "fx_blood_drop": {
+  "w": 84.0,
+  "h": 43.0,
+  "frameW": 42,
+  "frameH": 86,
+  "frames": 4
+ },
+ "fx_bolt": {
+  "w": 184.0,
+  "h": 9.0,
+  "frameW": 92,
+  "frameH": 18,
+  "frames": 4
+ },
+ "fx_bomb": {
+  "w": 124.0,
+  "h": 30.0,
+  "frameW": 62,
+  "frameH": 60,
+  "frames": 4
+ },
+ "fx_bell_wave": {
+  "w": 136.0,
+  "h": 41.0,
+  "frameW": 68,
+  "frameH": 82,
+  "frames": 4
+ },
+ "fx_fear": {
+  "w": 136.0,
+  "h": 20.0,
+  "frameW": 68,
+  "frameH": 40,
+  "frames": 4
+ },
+ "fx_coins": {
+  "w": 116.0,
+  "h": 25.0,
+  "frameW": 58,
+  "frameH": 50,
+  "frames": 4
+ },
+ "portrait_vesper": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_boris": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_rubelia": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_hematico": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_aureliano": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_davi": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_lia": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_ulf": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_inspector": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "portrait_merchant": {
+  "w": 128.0,
+  "h": 128.0
+ },
+ "bld_housing_3": {
+  "w": 290.0,
+  "h": 266.5
+ },
+ "bld_lab": {
+  "w": 260.0,
+  "h": 269.5
+ },
+ "bld_market": {
+  "w": 270.0,
+  "h": 262.5
+ },
+ "bld_shelter": {
+  "w": 230.0,
+  "h": 184.0
+ },
+ "bld_bell": {
+  "w": 86.5,
+  "h": 150.0
+ },
+ "gate_reinforced": {
+  "w": 320.0,
+  "h": 340.0
+ },
+ "bld_guard_post": {
+  "w": 200.0,
+  "h": 199.5
+ },
+ "bld_sentinel_tower": {
+  "w": 124.0,
+  "h": 250.0
+ },
+ "bld_site_small": {
+  "w": 250.0,
+  "h": 230.0
+ },
+ "bld_site_large": {
+  "w": 330.0,
+  "h": 297.5
+ },
+ "palisade_broken_ne": {
+  "w": 150.0,
+  "h": 125.0
+ },
+ "palisade_broken_nw": {
+  "w": 150.0,
+  "h": 166.0
+ },
+ "hand_cart": {
+  "w": 90.0,
+  "h": 72.0
+ },
+ "fire_pit": {
+  "w": 80.0,
+  "h": 110.0
+ },
+ "rubble": {
+  "w": 200.0,
+  "h": 147.0
+ },
+ "plot_marker": {
+  "w": 250.0,
+  "h": 198.0
+ },
+ "mattress_pile": {
+  "w": 70.0,
+  "h": 55.0
+ },
+ "crate_vials": {
+  "w": 60.0,
+  "h": 57.5
+ },
+ "mk_hungry": {
+  "w": 26.0,
+  "h": 20.0
+ },
+ "mk_sleep": {
+  "w": 23.5,
+  "h": 20.0
+ },
+ "mk_event": {
+  "w": 8.5,
+  "h": 20.0
+ },
+ "mk_happy": {
+  "w": 24.0,
+  "h": 20.0
+ },
+ "mk_angry": {
+  "w": 18.0,
+  "h": 20.0
+ },
+ "mk_contract": {
+  "w": 15.0,
+  "h": 20.0
+ },
+ "mk_recover": {
+  "w": 16.0,
+  "h": 20.0
+ },
+ "mk_talk": {
+  "w": 25.5,
+  "h": 20.0
+ },
+ "mk_star": {
+  "w": 21.0,
+  "h": 20.0
+ },
+ "mk_danger": {
+  "w": 20.0,
+  "h": 20.0
+ },
+ "_markers": 10,
+ "prop_0": {
+  "w": 78.5,
+  "h": 99.0
+ },
+ "prop_1": {
+  "w": 82.0,
+  "h": 88.5
+ },
+ "prop_2": {
+  "w": 60.0,
+  "h": 47.0
+ },
+ "prop_3": {
+  "w": 58.0,
+  "h": 74.5
+ },
+ "prop_4": {
+  "w": 64.5,
+  "h": 97.0
+ },
+ "prop_5": {
+  "w": 62.0,
+  "h": 125.5
+ },
+ "prop_6": {
+  "w": 59.5,
+  "h": 132.5
+ },
+ "prop_7": {
+  "w": 74.0,
+  "h": 83.0
+ },
+ "prop_8": {
+  "w": 66.5,
+  "h": 103.0
+ },
+ "prop_9": {
+  "w": 71.5,
+  "h": 80.5
+ },
+ "prop_10": {
+  "w": 56.0,
+  "h": 119.0
+ },
+ "prop_11": {
+  "w": 76.0,
+  "h": 108.5
+ },
+ "_props_misc": 12,
+ "icon_blood": {
+  "w": 18.0,
+  "h": 32.0
+ },
+ "icon_gold": {
+  "w": 31.0,
+  "h": 32.0
+ },
+ "icon_prestige": {
+  "w": 21.5,
+  "h": 32.0
+ },
+ "icon_population": {
+  "w": 31.0,
+  "h": 32.0
+ },
+ "icon_morale": {
+  "w": 19.5,
+  "h": 32.0
+ },
+ "icon_tension": {
+  "w": 18.5,
+  "h": 32.0
+ },
+ "icon_defense": {
+  "w": 23.0,
+  "h": 32.0
+ },
+ "icon_vitality": {
+  "w": 32.5,
+  "h": 32.0
+ },
+ "icon_research": {
+  "w": 22.0,
+  "h": 32.0
+ },
+ "icon_time": {
+  "w": 18.0,
+  "h": 32.0
+ },
+ "blood_rubra": {
+  "w": 21.0,
+  "h": 32.0
+ },
+ "blood_lunar": {
+  "w": 20.5,
+  "h": 32.0
+ },
+ "blood_ambar": {
+  "w": 21.0,
+  "h": 32.0
+ },
+ "blood_umbra": {
+  "w": 21.0,
+  "h": 32.0
+ },
+ "blood_carmesim": {
+  "w": 21.0,
+  "h": 32.0
+ },
+ "quality_comum": {
+  "w": 28.5,
+  "h": 32.0
+ },
+ "quality_especial": {
+  "w": 26.5,
+  "h": 32.0
+ },
+ "quality_raro": {
+  "w": 26.0,
+  "h": 32.0
+ },
+ "quality_excepcional": {
+  "w": 25.0,
+  "h": 32.0
+ },
+ "icon_lock": {
+  "w": 20.5,
+  "h": 32.0
+ },
+ "icon_build": {
+  "w": 31.0,
+  "h": 32.0
+ },
+ "icon_contracts": {
+  "w": 32.0,
+  "h": 32.0
+ },
+ "icon_map": {
+  "w": 37.5,
+  "h": 32.0
+ },
+ "icon_codex": {
+  "w": 25.5,
+  "h": 32.0
+ },
+ "icon_settings": {
+  "w": 45.0,
+  "h": 32.0
+ },
+ "icon_bell": {
+  "w": 31.5,
+  "h": 32.0
+ },
+ "icon_collect": {
+  "w": 19.0,
+  "h": 32.0
+ },
+ "icon_classify": {
+  "w": 31.5,
+  "h": 32.0
+ },
+ "icon_upgrade": {
+  "w": 26.5,
+  "h": 32.0
+ },
+ "icon_quest": {
+  "w": 33.5,
+  "h": 32.0
+ }
+}

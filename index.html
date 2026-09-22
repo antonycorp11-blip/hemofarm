@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#070b14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Hemofazenda</title>
+  <style>
+    html,body{margin:0;height:100%;height:100dvh;background:#070b14;overflow:hidden;touch-action:none;overscroll-behavior:none;
+      -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+    #game{width:100%;height:100%}
+    #loading{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+      background:#070b14;color:#f3e2c8;font:600 18px Georgia,serif;transition:opacity .4s}
+    #loading .t{letter-spacing:4px;color:#d8122a;font-size:24px}
+    #loading .bar{width:min(260px,70vw);height:6px;background:#2a1016;border-radius:3px;overflow:hidden}
+    #loading .fill{height:100%;width:0;background:#d8122a;transition:width .2s}
+    #loading .s{font-size:13px;color:#9a8a80;font-weight:400}
+  </style>
+</head>
+<body>
+  <div id="loading"><div class="t">HEMOFAZENDA</div><div class="bar"><div class="fill"></div></div><div class="s">Preparando a noite…</div></div>
+  <div id="game"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
