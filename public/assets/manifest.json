@@ -427,6 +427,20 @@
   "frameH": 90,
   "frames": 16
  },
+ "wolf_leaper": {
+  "w": 1176.0,
+  "h": 86.0,
+  "frameW": 147,
+  "frameH": 172,
+  "frames": 16
+ },
+ "blood_orb": {
+  "w": 728.0,
+  "h": 36.0,
+  "frameW": 91,
+  "frameH": 72,
+  "frames": 16
+ },
  "fx_dust": {
   "w": 156.0,
   "h": 23.0,
@@ -495,6 +509,20 @@
   "h": 25.0,
   "frameW": 58,
   "frameH": 50,
+  "frames": 4
+ },
+ "fx_vampire_poof": {
+  "w": 256.0,
+  "h": 55.5,
+  "frameW": 128,
+  "frameH": 111,
+  "frames": 4
+ },
+ "wave_flag": {
+  "w": 256.0,
+  "h": 64.0,
+  "frameW": 128,
+  "frameH": 128,
   "frames": 4
  },
  "portrait_vesper": {
@@ -818,5 +846,196 @@
  "icon_quest": {
   "w": 33.5,
   "h": 32.0
+ },
+ "crop_potato_1": {
+  "w": 120.0,
+  "h": 87.0
+ },
+ "crop_potato_2": {
+  "w": 120.0,
+  "h": 66.5
+ },
+ "crop_potato_3": {
+  "w": 120.0,
+  "h": 78.5
+ },
+ "crop_cabbage_1": {
+  "w": 120.0,
+  "h": 65.5
+ },
+ "crop_cabbage_2": {
+  "w": 120.0,
+  "h": 74.5
+ },
+ "crop_cabbage_3": {
+  "w": 120.0,
+  "h": 97.0
+ },
+ "crop_turnip_1": {
+  "w": 120.0,
+  "h": 87.0
+ },
+ "crop_turnip_2": {
+  "w": 120.0,
+  "h": 85.5
+ },
+ "crop_turnip_3": {
+  "w": 120.0,
+  "h": 102.5
+ },
+ "harvest_basket": {
+  "w": 44.0,
+  "h": 38.5
+ },
+ "frame_panel": {
+  "w": 240.0,
+  "h": 236.0,
+  "ui": true
+ },
+ "frame_dialog": {
+  "w": 240.0,
+  "h": 226.0,
+  "ui": true
+ },
+ "frame_portrait": {
+  "w": 240.0,
+  "h": 237.0,
+  "ui": true
+ },
+ "frame_tooltip": {
+  "w": 240.0,
+  "h": 113.0,
+  "ui": true
+ },
+ "frame_card": {
+  "w": 240.0,
+  "h": 280.0,
+  "ui": true
+ },
+ "frame_bubble": {
+  "w": 240.0,
+  "h": 116.0,
+  "ui": true
+ },
+ "button_normal": {
+  "w": 240.0,
+  "h": 67.0,
+  "ui": true
+ },
+ "button_pressed": {
+  "w": 240.0,
+  "h": 79.0,
+  "ui": true
+ },
+ "bar_frame": {
+  "w": 240.0,
+  "h": 35.0,
+  "ui": true
+ },
+ "bar_fills": {
+  "w": 240.0,
+  "h": 137.0,
+  "ui": true
+ },
+ "card_unit": {
+  "w": 200.0,
+  "h": 268.0,
+  "ui": true
+ },
+ "codex_page": {
+  "w": 600.0,
+  "h": 522.0,
+  "ui": true
+ },
+ "title_logo": {
+  "w": 900.0,
+  "h": 534.0,
+  "ui": true
+ },
+ "temper_calmo": {
+  "w": 23.0,
+  "h": 32.0
+ },
+ "temper_cinico": {
+  "w": 27.0,
+  "h": 32.0
+ },
+ "temper_dramatico": {
+  "w": 26.0,
+  "h": 32.0
+ },
+ "temper_lider": {
+  "w": 23.5,
+  "h": 32.0
+ },
+ "temper_curioso": {
+  "w": 25.5,
+  "h": 32.0
+ },
+ "trait_lunar": {
+  "w": 22.0,
+  "h": 32.0
+ },
+ "trait_especiado": {
+  "w": 27.5,
+  "h": 32.0
+ },
+ "trait_mente": {
+  "w": 24.5,
+  "h": 32.0
+ },
+ "icon_raid": {
+  "w": 23.0,
+  "h": 32.0
+ },
+ "icon_offline": {
+  "w": 24.0,
+  "h": 32.0
+ },
+ "pin_farm": {
+  "w": 16.5,
+  "h": 32.0
+ },
+ "pin_locked": {
+  "w": 22.5,
+  "h": 32.0
+ },
+ "pin_threat": {
+  "w": 29.0,
+  "h": 32.0
+ },
+ "pin_opportunity": {
+  "w": 38.5,
+  "h": 32.0
+ },
+ "cursor_arrow": {
+  "w": 18.0,
+  "h": 32.0,
+  "ui": true
+ },
+ "cursor_hand": {
+  "w": 22.0,
+  "h": 32.0,
+  "ui": true
+ },
+ "cursor_hammer": {
+  "w": 28.0,
+  "h": 32.0,
+  "ui": true
+ },
+ "loading_bat": {
+  "w": 384.0,
+  "h": 48.0,
+  "ui": true
+ },
+ "title_background": {
+  "w": 1536,
+  "h": 1024,
+  "jpg": true
+ },
+ "regional_map": {
+  "w": 1536,
+  "h": 1024,
+  "jpg": true
  }
 }

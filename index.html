@@ -16,16 +16,27 @@
     html,body{margin:0;height:100%;height:100dvh;background:#070b14;overflow:hidden;touch-action:none;overscroll-behavior:none;
       -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
     #game{width:100%;height:100%}
-    #loading{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-      background:#070b14;color:#f3e2c8;font:600 18px Georgia,serif;transition:opacity .4s}
-    #loading .t{letter-spacing:4px;color:#d8122a;font-size:24px}
+    #loading{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+      background:#070b14 url(/assets/title_background.jpg) center/cover no-repeat;color:#f3e2c8;font:600 18px Georgia,serif;transition:opacity .5s}
+    #loading::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,#07091460 0%,#070914d0 75%)}
+    #loading>*{position:relative}
+    #loading .logo{width:min(560px,86vw);height:auto;filter:drop-shadow(0 6px 18px #000)}
+    #loading .bat{width:96px;height:48px;background:url(/assets/loading_bat.webp) 0 0/384px 48px no-repeat;animation:bat .5s steps(4) infinite}
+    @keyframes bat{to{background-position:-384px 0}}
     #loading .bar{width:min(260px,70vw);height:6px;background:#2a1016;border-radius:3px;overflow:hidden}
     #loading .fill{height:100%;width:0;background:#d8122a;transition:width .2s}
-    #loading .s{font-size:13px;color:#9a8a80;font-weight:400}
+    #loading .s{font-size:13px;color:#c9b8a8;font-weight:400}
+    #loading .play{display:none;min-width:200px;min-height:52px;font:700 20px Georgia,serif;color:#fff3e0;cursor:pointer;letter-spacing:2px;
+      border:8px solid transparent;border-image:url(/assets/button_normal.webp) 18 fill / 8px stretch;background:none;text-shadow:0 2px 3px #000;
+      animation:glow 1.4s ease-in-out infinite alternate}
+    #loading .play:active{border-image-source:url(/assets/button_pressed.webp)}
+    @keyframes glow{to{filter:drop-shadow(0 0 10px #d8122a)}}
+    #loading.ready .bar,#loading.ready .bat,#loading.ready .s{display:none}
+    #loading.ready .play{display:block}
   </style>
 </head>
 <body>
-  <div id="loading"><div class="t">HEMOFAZENDA</div><div class="bar"><div class="fill"></div></div><div class="s">Preparando a noite…</div></div>
+  <div id="loading"><img class="logo" src="/assets/title_logo.webp" alt="Hemofazenda: Cultivando para a Noite"><div class="bat"></div><div class="bar"><div class="fill"></div></div><div class="s">Preparando a noite…</div><button class="play">JOGAR</button></div>
   <div id="game"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

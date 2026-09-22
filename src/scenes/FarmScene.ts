@@ -9,6 +9,7 @@ import { Buildings } from '../world/Buildings';
 import { BuildPanel } from '../ui/BuildPanel';
 import { Farms } from '../world/Farms';
 import { Dialogue } from '../ui/Dialogue';
+import { applySkin } from '../ui/skin';
 import { Tutorial } from '../core/tutorial';
 import { SHORT, Step } from '../data/tutorial';
 import { slotGeometry } from '../map/bosque';
@@ -31,7 +32,7 @@ const NIGHT = { color: 0x050918, alpha: 0.5 };
 
 interface Manifest { [k: string]: any }
 // Art for later systems (battle, dialogue, UI) isn't needed by the farm scene: skipping it keeps mobile loading fast.
-const NOT_ON_FARM = /^(portrait_|icon_|blood_|quality_|wolf_|prop_|fx_(bolt|bomb|bell_wave|fear))|^(sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(lab|market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
+const NOT_ON_FARM = /^(portrait_|icon_|blood_|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof))|^(wave_flag|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(lab|market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
 export interface Glow { core: Phaser.GameObjects.Image; pool: Phaser.GameObjects.Image; light: Light; phase: number }
 
 export class FarmScene extends Phaser.Scene {
@@ -63,7 +64,7 @@ export class FarmScene extends Phaser.Scene {
     this.load.json('manifest', 'assets/manifest.json');
     this.load.once('filecomplete-json-manifest', (_k: string, _t: string, m: Manifest) => {
       for (const k of Object.keys(m)) {
-        if (k.startsWith('_') || k === 'backdrop_sky' || NOT_ON_FARM.test(k)) continue;
+        if (k.startsWith('_') || k === 'backdrop_sky' || m[k].ui || m[k].jpg || NOT_ON_FARM.test(k)) continue;
         if (m[k].frameW) this.load.spritesheet(k, `assets/${k}.webp`, { frameWidth: m[k].frameW, frameHeight: m[k].frameH });
         else this.load.image(k, `assets/${k}.webp`);
       }
@@ -98,8 +99,20 @@ export class FarmScene extends Phaser.Scene {
     this.setupCamera();
     this.scale.on('resize', () => this.onResize());
     this.setupTutorial();
+    applySkin(); // after every UI module injected its base styles, so the art frames win
+    // Title screen stays until the player taps "Jogar" (also a natural moment to unlock audio later).
     const loading = document.getElementById('loading');
-    if (loading) { loading.style.opacity = '0'; setTimeout(() => loading.remove(), 450); }
+    const begin = () => this.time.delayedCall(1200, () => this.tutorial.start()); // let the farm show itself first
+    if (loading) {
+      loading.classList.add('ready');
+      this.scene.pause(); // night clock and simulation wait for the player
+      loading.querySelector<HTMLButtonElement>('.play')!.onclick = () => {
+        loading.style.opacity = '0';
+        setTimeout(() => loading.remove(), 500);
+        this.scene.resume();
+        begin();
+      };
+    } else begin();
   }
 
   // ---------- world ----------
@@ -223,7 +236,6 @@ export class FarmScene extends Phaser.Scene {
       clearHint: () => { for (const o of this.hintObjs) o.destroy(); this.hintObjs = []; },
       toast: msg => this.hud.toast(msg, 'good', 7000),
     });
-    this.time.delayedCall(1200, () => this.tutorial.start()); // let the farm show itself first
   }
 
   // Adaptive hint in the world: a pulsing ring, then an arrow and a camera pan. Never takes control (GDD §9.1).

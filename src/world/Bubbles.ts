@@ -8,7 +8,7 @@ const DEPTH = 2.2e6; // above the night overlay so text stays readable
 
 export interface Speaker { sprite: Phaser.GameObjects.Sprite; lastSpoke: number; name?: string }
 
-interface Active { box: Phaser.GameObjects.Container; speaker: Speaker; until: number; w: number }
+interface Active { box: Phaser.GameObjects.Container; speaker: Speaker; until: number; w: number; h: number }
 
 export class Bubbles {
   private active: Active[] = [];
@@ -50,18 +50,26 @@ export class Bubbles {
 
     const duration = Phaser.Math.Clamp(1800 + line.length * 30, 2500, 4000);
     s.lastSpoke = this.scene.time.now;
-    this.active.push({ box, speaker: s, until: this.scene.time.now + duration, w });
+    this.active.push({ box, speaker: s, until: this.scene.time.now + duration, w, h: h + 8 });
     return true;
   }
 
   update() {
     const cam = this.scene.cameras.main, now = this.scene.time.now, zoom = cam.zoom, view = cam.worldView;
+    const placed: Active[] = [];
     for (const a of [...this.active]) {
       const sp = a.speaker.sprite;
       // Keep the whole bubble on screen (narrow phones cut bubbles near the edges).
       const half = (a.w / 2 + 6) / zoom;
       const x = view.width > half * 2 ? Phaser.Math.Clamp(sp.x, view.x + half, view.right - half) : sp.x;
-      a.box.setPosition(x, sp.y - sp.displayHeight - 4).setScale(1 / zoom);
+      let y = sp.y - sp.displayHeight - 4;
+      // Stack instead of overlapping another bubble already placed this frame.
+      for (const o of placed) {
+        const ow = (o.w / 2 + a.w / 2) / zoom, oh = (o.h + a.h) / 2 / zoom;
+        if (Math.abs(o.box.x - x) < ow && Math.abs((o.box.y - o.h / 2 / zoom) - (y - a.h / 2 / zoom)) < oh) y = o.box.y - o.h / zoom - 4 / zoom;
+      }
+      a.box.setPosition(x, y).setScale(1 / zoom);
+      placed.push(a);
       if (now < a.until && sp.visible) continue;
       this.active = this.active.filter(x => x !== a);
       this.scene.tweens.add({ targets: a.box, alpha: 0, duration: 200, onComplete: () => a.box.destroy() });

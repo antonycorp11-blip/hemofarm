@@ -61,3 +61,8 @@ Arquivos em `assets_raw/`. Fundo transparente ou magenta #FF00FF.
 ## Deploy
 - GitHub: https://github.com/antonycorp11-blip/hemofarm (branch main). Vercel: importar o repo; `vercel.json` já define build e saída.
 - Assets publicados em WebP (4,8 MB); a fazenda carrega só o que usa.
+
+## Assets recebidos (22/09/2026, 3ª leva)
+- ✅ Bloco 15 (temperamentos, traços, ícones raid/offline), 16 (molduras 9-slice, botões, barras), 17 (logo, fundo de título, mapa regional, pinos, morcego, cursores, página do codex), 19 (plantas: 3 culturas × 3 estágios + cesto).
+- Bloco 18 parcial: wave_flag, wolf_leaper, fx_vampire_poof, blood_orb, card_unit. Faltam: wolf_howler, ghoul_wall, blood_chalice, fx_bat_swarm, fx_flask.
+- Em uso: pele da interface (`src/ui/skin.ts`), tela de título com botão Jogar, morcego no carregamento, cursor no desktop, plantas reais na horta.

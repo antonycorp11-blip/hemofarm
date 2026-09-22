@@ -145,7 +145,7 @@ export function buildBosque(seed = 7): FarmMap {
     ['well', 15, 19], ['bench', 19, 14], ['bench', 19, 29], ['crates', 24, 16], ['crates', 28, 20],
     ['barrel', 29, 13], ['barrel', 29, 14], ['crates', 29, 24], ['barrel', 24, 29], ['banner_bat', 24, 11],
     ['torch_stand', 11, 11], ['torch_stand', 32, 11], ['torch_stand', 11, 32],
-    ['fire_pit', 19, 19], ['crate_vials', 28, 15], ['mattress_pile', 11, 14], ['hand_cart', 16, 24],
+    ['fire_pit', 19, 19], ['crate_vials', 28, 15], ['mattress_pile', 11, 14], ['hand_cart', 16, 24], ['harvest_basket', 16, 27],
   ];
   for (const [k, i, j] of props) {
     const c = tileCenter(i, j); occupied.add(key(i, j)); put(k, c.x, c.y + 10);

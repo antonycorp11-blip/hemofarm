@@ -20,10 +20,11 @@ def trim(im, thr=24):
     return im.crop(a.getbbox())
 
 
-def save(name, im, **meta):
+def save(name, im, px=False, **meta):
     # WebP with alpha: ~4x smaller than PNG, supported by every current mobile browser.
+    # px=True: sizes are real pixels (HTML UI), otherwise world units (stored at 2x).
     im.save(f'{OUT}/{name}.webp', 'WEBP', quality=90, method=4)
-    manifest[name] = {'w': im.width / S, 'h': im.height / S, **meta}
+    manifest[name] = {'w': im.width / (1 if px else S), 'h': im.height / (1 if px else S), **({'ui': True} if px else {}), **meta}
 
 
 def fit(im, w=None, h=None):
@@ -139,7 +140,7 @@ def exists(n): return os.path.exists(f'{RAW}/{n}.png')
 CHARS = {'human_b': 44, 'human_c': 44, 'davi': 44, 'lia': 44, 'boris': 50, 'ghoul_worker': 46, 'ghoul_guard': 48,
          'vampire_buyer': 50, 'rubelia': 50, 'hematico': 48, 'aureliano': 50, 'vesper': 52, 'wolf_scout': 60,
          'wolf_hunter': 66, 'wolf_brute': 80, 'wolf_alpha': 88, 'sentinel_vampire': 48, 'gargoyle': 56,
-         'alchemist_unit': 42, 'human_actions_2': 44}
+         'alchemist_unit': 42, 'human_actions_2': 44, 'wolf_leaper': 62, 'blood_orb': 26}
 for n, h in CHARS.items():
     if not exists(n): continue
     im = load(n); cw, ch = im.width / 4, im.height / 4
@@ -156,7 +157,8 @@ for n, h in CHARS.items():
     save(n, out, frameW=fw, frameH=fh, frames=16)
 
 # ---- effects: row 1 of a 4x4 grid = 4 frames sharing one box
-for n in ['fx_dust', 'fx_hit', 'fx_smoke', 'fx_sparkle', 'fx_blood_drop', 'fx_bolt', 'fx_bomb', 'fx_bell_wave', 'fx_fear', 'fx_coins']:
+for n in ['fx_dust', 'fx_hit', 'fx_smoke', 'fx_sparkle', 'fx_blood_drop', 'fx_bolt', 'fx_bomb', 'fx_bell_wave', 'fx_fear', 'fx_coins',
+          'fx_vampire_poof', 'wave_flag']:
     if not exists(n): continue
     im = load(n); cw = im.width / 4
     cells = [im.crop((round(c * cw), 0, round((c + 1) * cw), round(cw))) for c in range(4)]
@@ -210,6 +212,39 @@ if exists('icons_hud3'):
 for n in ['icon_build', 'icon_contracts', 'icon_map', 'icon_codex', 'icon_settings', 'icon_bell', 'icon_collect',
           'icon_classify', 'icon_upgrade', 'icon_quest']:
     if exists(n): save(n, fit(trim(load(n)), h=32 * S))
+
+# ---- crops: one patch per tile, 120 world px wide so neighbouring patches touch
+for crop in ['potato', 'cabbage', 'turnip']:
+    for st in (1, 2, 3):
+        n = f'crop_{crop}_{st}'
+        if exists(n): save(n, fit(trim(load(n)), w=120 * S))
+if exists('harvest_basket'): save('harvest_basket', fit(trim(load('harvest_basket')), w=44 * S))
+
+# ---- HTML UI kit (not loaded by Phaser): frames keep their proportions at a fixed width for CSS border-image
+UI = {'frame_panel': 240, 'frame_dialog': 240, 'frame_portrait': 240, 'frame_tooltip': 240, 'frame_card': 240,
+      'frame_bubble': 240, 'button_normal': 240, 'button_pressed': 240, 'bar_frame': 240, 'bar_fills': 240, 'card_unit': 200,
+      'codex_page': 600, 'title_logo': 900}
+for n, w in UI.items():
+    if exists(n): save(n, fit(trim(load(n)), w=w), px=True)
+for n in ['temper_calmo', 'temper_cinico', 'temper_dramatico', 'temper_lider', 'temper_curioso', 'trait_lunar', 'trait_especiado',
+          'trait_mente', 'icon_raid', 'icon_offline', 'pin_farm', 'pin_locked', 'pin_threat', 'pin_opportunity']:
+    if exists(n): save(n, fit(trim(load(n)), h=32 * S))
+if exists('cursors'):
+    for name, pc in zip(['cursor_arrow', 'cursor_hand', 'cursor_hammer'], slice_sheet(load('cursors'))):
+        save(name, fit(pc, h=32), px=True)
+        fit(pc, h=32).save(f'{OUT}/{name}.png')  # CSS cursors: PNG works in every desktop browser
+if exists('loading_bat'):
+    im = load('loading_bat'); cw = im.width / 4
+    frames = [trim(im.crop((round(c * cw), 0, round((c + 1) * cw), round(cw)))) for c in range(4)]
+    fh = 48; out = Image.new('RGBA', (96 * 4, fh))
+    for i, f in enumerate(frames):
+        f = fit(f, h=fh) if f.width / f.height < 2 else fit(f, w=96)
+        out.alpha_composite(f, (i * 96 + (96 - f.width) // 2, (fh - f.height) // 2))
+    save('loading_bat', out, px=True)
+for n, q in [('title_background', 80), ('regional_map', 85)]:
+    if exists(n):
+        im = load(n).convert('RGB'); im = im.resize((1536, round(im.height * 1536 / im.width)), Image.LANCZOS)
+        im.save(f'{OUT}/{n}.jpg', quality=q); manifest[n] = {'w': im.width, 'h': im.height, 'jpg': True}
 
 json.dump(manifest, open(f'{OUT}/manifest.json', 'w'), indent=1)
 print(len(manifest), 'assets; decals:', len(decals))

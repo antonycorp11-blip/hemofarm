@@ -72,7 +72,7 @@ export class Farms {
     for (const [i, j] of this.tiles(v.pen)) {
       const c = tileCenter(i, j);
       const img = this.scene.textures.exists(real)
-        ? this.scene.add.image(c.x, c.y, real).setScale(0.5)
+        ? this.scene.add.image(c.x, c.y + 4, real).setOrigin(0.5, 0.62).setScale(0.5)
         : this.scene.add.image(c.x, c.y + 10, PLACEHOLDER[stage].tex).setOrigin(0.5, 1).setScale(PLACEHOLDER[stage].scale);
       v.sprites.push(img.setDepth(c.y));
     }
