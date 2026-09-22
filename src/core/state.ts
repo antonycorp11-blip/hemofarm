@@ -25,7 +25,7 @@ export const takenFor = (deficit: number, quota: number) => Math.min(3, Math.max
 
 export const state = {
   resources: { blood: 0, gold: 300, prestige: 0, food: 40 } as Resources,
-  plots: { pen_a: { crop: 'potato', growth: 0, phase: 'plant' } } as Record<string, PlotState>,
+  plots: { pen_a: { crop: 'potato', growth: 0, phase: 'growing' } } as Record<string, PlotState>,
   night: { night: 1, elapsed: 0, strikes: 0 } as NightState,
   // New game (GDD T0): two shabby houses, a humble table and a small collection station.
   buildings: { house_a: { level: 1 }, house_b: { level: 1 }, food_b: { level: 1 }, collect: { level: 1 } } as Record<string, BuildingState>,

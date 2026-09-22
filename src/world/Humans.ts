@@ -160,7 +160,7 @@ export class Humans {
     if (h.hunger > 65) return this.goEat(h);
     const canCollect = this.buildings.level('collect') > 0 && h.vitality > 70 && now > h.recoveringUntil
       && this.queue.members.length < this.queue.spots.length;
-    if (Math.random() < 0.4) {
+    if (Math.random() < 0.7) {
       const job = this.farms.claimJob();
       if (job) return this.goFarm(h, job);
     }
