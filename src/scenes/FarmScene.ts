@@ -32,7 +32,7 @@ const NIGHT = { color: 0x050918, alpha: 0.5 };
 
 interface Manifest { [k: string]: any }
 // Art for later systems (battle, dialogue, UI) isn't needed by the farm scene: skipping it keeps mobile loading fast.
-const NOT_ON_FARM = /^(portrait_|icon_|blood_|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof))|^(wave_flag|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(lab|market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
+const NOT_ON_FARM = /^(portrait_|icon_|blood_|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof|bat_swarm|flask))|^(wave_flag|ghoul_wall|blood_chalice|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(lab|market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
 export interface Glow { core: Phaser.GameObjects.Image; pool: Phaser.GameObjects.Image; light: Light; phase: number }
 
 export class FarmScene extends Phaser.Scene {

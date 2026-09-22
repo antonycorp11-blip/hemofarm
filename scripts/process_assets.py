@@ -140,7 +140,8 @@ def exists(n): return os.path.exists(f'{RAW}/{n}.png')
 CHARS = {'human_b': 44, 'human_c': 44, 'davi': 44, 'lia': 44, 'boris': 50, 'ghoul_worker': 46, 'ghoul_guard': 48,
          'vampire_buyer': 50, 'rubelia': 50, 'hematico': 48, 'aureliano': 50, 'vesper': 52, 'wolf_scout': 60,
          'wolf_hunter': 66, 'wolf_brute': 80, 'wolf_alpha': 88, 'sentinel_vampire': 48, 'gargoyle': 56,
-         'alchemist_unit': 42, 'human_actions_2': 44, 'wolf_leaper': 62, 'blood_orb': 26}
+         'alchemist_unit': 42, 'human_actions_2': 44, 'wolf_leaper': 62, 'blood_orb': 26,
+         'wolf_howler': 60, 'ghoul_wall': 52, 'blood_chalice': 50, 'fx_bat_swarm': 60, 'fx_flask': 22}
 for n, h in CHARS.items():
     if not exists(n): continue
     im = load(n); cw, ch = im.width / 4, im.height / 4
