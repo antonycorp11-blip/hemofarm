@@ -17,7 +17,7 @@
 | 3 | Núcleo | 🟡 Recursos, economia por eventos, save, HUD provisório |
 | 4 | Noites + Dízimo | 🟡 Relógio de noites (5 min), cota crescente, carruagem do castelo, humanos aleatórios levados se falhar, strikes (3 = confisco). Feito: `src/world/Tithe.ts`, HUD da noite, avisos. Falta: vampiro descendo da carruagem (bloco 6) e o confisco real (Fase 12) |
 | 5 | Construção + Hortas | 🟡 Feito: `src/world/Buildings.ts` (lotes, obra com prévia e barra, upgrade, capacidade das casas), `src/world/Farms.ts` (3 culturas, plantar→crescer→colher por humanos, recurso Comida), painel `src/ui/BuildPanel.ts`, Dízimo pago rende Ouro. Falta: arte das plantas (bloco 19) e canteiro de obras (bloco 9). Original: Lotes vazios, construir/melhorar com Ouro e nível visual; recurso Comida, hortas plantar→crescer→colher, humanos alocados (bloco 19 de assets) |
-| 6 | Missões / diálogo / tutorial | Motor orientado a dados + tutorial reescrito para o loop novo (retratos bloco 8) |
+| 6 | Missões / diálogo / tutorial | 🟡 Feito: `src/core/tutorial.ts` + `src/data/tutorial.ts` (T0–T5: herança, teto, comida, horta, coleta, Dízimo), diálogo com retratos, objetivo no HUD, dicas 12/25/45 s (fala, anel, seta + câmera), pular tutorial. Falta: missões de personagens além do tutorial. Original: Motor orientado a dados + tutorial reescrito para o loop novo (retratos bloco 8) |
 | 7 | Humanos como produto | Ficha, perfis sanguíneos, qualidade, traços, classificação, contratos/mercado |
 | 8 | Vínculos + genética | Vínculos espontâneos, Casa das Famílias, parente adulto herdando perfil/traços |
 | 9 | Pesquisa | Árvore do Dr. Hemático: Coleta, Bem-estar, Agricultura, Genética, Defesa, Logística |
@@ -57,3 +57,7 @@ Arquivos em `assets_raw/`. Fundo transparente ou magenta #FF00FF.
 - Guardados para as próximas fases: retratos (diálogos, Fase 6), lobisomens/defensores (Fase 11), laboratório/mercado/abrigo/sino/torres/portão reforçado, props diversos.
 - Não identificados (em `assets_raw/_unused`): imagens das 17:25, 17:32 e 17:34.
 - Faltam: blocos 15, 16, 17, 18, 19.
+
+## Deploy
+- GitHub: https://github.com/antonycorp11-blip/hemofarm (branch main). Vercel: importar o repo; `vercel.json` já define build e saída.
+- Assets publicados em WebP (4,8 MB); a fazenda carrega só o que usa.
