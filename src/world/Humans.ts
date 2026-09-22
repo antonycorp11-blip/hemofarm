@@ -10,11 +10,12 @@ import type { BubbleState } from '../data/lines';
 import type { HumanSave } from '../core/state';
 import type { Buildings } from './Buildings';
 import type { Farms, FarmJob } from './Farms';
+import { HumanTraits, NAMED_TRAITS, QUALITY, randomTraits } from '../data/humans';
 import { state } from '../core/state';
 import { FOOD_PER_MEAL } from '../data/crops';
 
 type P = [number, number];
-type State = 'idle' | 'walking' | 'eating' | 'socializing' | 'queued' | 'collecting' | 'inside' | 'resting' | 'farming';
+type State = 'idle' | 'walking' | 'eating' | 'socializing' | 'queued' | 'collecting' | 'inside' | 'resting' | 'farming' | 'boarding';
 
 const S = 0.5;
 const STEP_MS = 1700;          // one tile at normal pace
@@ -36,7 +37,7 @@ const ANONYMOUS_LOOKS = ['base', 'base', 'human_b', 'human_c'];
 // Recurring humans from the GDD (§7) join every new farm; the tithe never picks them.
 const NAMED = [{ name: 'Davi 17-B', look: 'davi' }, { name: 'Lia 04-A', look: 'lia' }];
 
-class Human implements Speaker {
+export class Human implements Speaker {
   state: State = 'idle';
   tile: P;
   lastSpoke = -1e9;
@@ -50,6 +51,8 @@ class Human implements Speaker {
   look = 'base';
   marker?: Phaser.GameObjects.Image;
   name?: string;
+  traits!: HumanTraits;
+  contract?: string;   // assigned to this contract: waits at the Boarding Yard
   offset = { x: Phaser.Math.Between(-12, 12), y: Phaser.Math.Between(-5, 5) };
   path: P[] = [];
   onArrive?: () => void;
@@ -65,10 +68,13 @@ export class Humans {
   private list: Human[] = [];
   private queue!: Station;
   private nextAmbient = 4000;
+  private downAt?: { x: number; y: number };
+  onSelect?: (h: Human) => void;
 
   constructor(private scene: Phaser.Scene, private map: FarmMap, private bubbles: Bubbles, private buildings: Buildings, private farms: Farms) {
     this.makeAnims();
     this.queue = this.makeStation('collect');
+    scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => { this.downAt = { x: p.x, y: p.y }; });
   }
 
   spawn(n: number, saved: HumanSave[] = []) {
@@ -83,6 +89,10 @@ export class Humans {
       const h = new Human(k, sprite, tile, '');
       h.look = look;
       h.name = sv?.name ?? named?.name;
+      // New farms always get two sellable Rubra, so Lady Rubélia's first order is doable (named humans aren't for sale).
+      h.traits = sv?.traits ?? randomTraits(h.name ? NAMED_TRAITS[h.name] : !saved.length && (k === 2 || k === 3) ? { blood: 'rubra' } : {});
+      h.contract = sv?.contract;
+      this.makeTappable(h);
       h.home = sv && this.buildings.level(sv.home) > 0 && this.residents(sv.home) < this.buildings.capacity(sv.home) ? sv.home : this.findHome();
       if (sv) Object.assign(h, { hunger: sv.hunger, energy: sv.energy, morale: sv.morale, vitality: sv.vitality });
       this.place(h, tile);
@@ -94,7 +104,7 @@ export class Humans {
 
   export(): HumanSave[] {
     const r = (v: number) => Math.round(v);
-    return this.list.map(h => ({ hunger: r(h.hunger), energy: r(h.energy), morale: r(h.morale), vitality: r(h.vitality), home: h.home, tile: h.tile, look: h.look, name: h.name }));
+    return this.list.map(h => ({ hunger: r(h.hunger), energy: r(h.energy), morale: r(h.morale), vitality: r(h.vitality), home: h.home, tile: h.tile, look: h.look, name: h.name, traits: h.traits, contract: h.contract }));
   }
 
   get population() { return this.list.length; }
@@ -120,6 +130,7 @@ export class Humans {
   // ---------- decisions ----------
   private decide(h: Human) {
     if (h.taken) return;
+    if (h.contract) return this.goBoard(h);
     h.state = 'idle';
     const now = this.scene.time.now;
     if (h.energy < 25) return this.goSleep(h);
@@ -243,7 +254,7 @@ export class Humans {
     if (q.busy || !h || h.state !== 'queued') return;
     q.busy = true;
     const def = this.buildings.levelDef('collect');
-    const amount = def?.blood ?? 10;
+    const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult);
     this.enter(h, def?.collectMs ?? 4000, () => {
       h.vitality = Math.max(0, h.vitality - 30);
       h.morale = Math.max(0, h.morale - 4);
@@ -259,7 +270,7 @@ export class Humans {
 
   // ---------- tithe: random humans are pulled out of whatever they're doing ----------
   summon(count: number, gate: P, carriage: { x: number; y: number }, onBoarded: () => void) {
-    const pool = this.list.filter(h => h.state !== 'collecting' && !h.taken && !h.name);
+    const pool = this.list.filter(h => h.state !== 'collecting' && !h.taken && !h.name && !h.contract);
     const chosen = Phaser.Utils.Array.Shuffle(pool).slice(0, count);
     for (const h of chosen) {
       h.taken = true;
@@ -281,6 +292,56 @@ export class Humans {
       }, true);
     }
     return chosen.length;
+  }
+
+  // ---------- selection & contracts ----------
+  get all(): readonly Human[] { return this.list; }
+
+  // Generous hit area: humans are tiny on a phone screen.
+  private makeTappable(h: Human) {
+    const f = h.sprite.frame, pad = 36;
+    h.sprite.setInteractive(new Phaser.Geom.Rectangle(-pad, -pad, f.width + pad * 2, f.height + pad * 2), Phaser.Geom.Rectangle.Contains);
+    h.sprite.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (this.downAt && Phaser.Math.Distance.Between(this.downAt.x, this.downAt.y, p.x, p.y) > 8) return;
+      this.onSelect?.(h);
+    });
+  }
+
+  assign(h: Human, contractId: string) {
+    h.contract = contractId;
+    this.leaveQueue(h);
+    h.sprite.setVisible(true).setAlpha(1);
+    this.bubbles.say(h, 'boarding', true);
+    this.goBoard(h);
+  }
+
+  unassign(h: Human) {
+    h.contract = undefined;
+    this.decide(h);
+  }
+
+  // Walk to the Boarding Yard and wait there for the buyer.
+  private goBoard(h: Human) {
+    const yard = this.map.entries['boarding'];
+    if (!yard) return;
+    this.walkTo(h, this.near(yard), () => {
+      h.state = 'boarding';
+      this.anim(h, 'idle').setFlipX(Math.random() < 0.5);
+    }, true);
+  }
+
+  // Delivered to a buyer: leaves the farm for good.
+  sell(h: Human, to: { x: number; y: number }) {
+    h.taken = true;
+    this.scene.tweens.killTweensOf(h.sprite);
+    this.anim(h, 'front').setFlipX(true);
+    this.scene.tweens.add({
+      targets: h.sprite, x: to.x, y: to.y, alpha: 0, duration: 1800,
+      onComplete: () => {
+        h.sprite.destroy(); h.marker?.destroy();
+        this.list = this.list.filter(x => x !== h);
+      },
+    });
   }
 
   // A few visible humans comment on something that just happened.
@@ -353,6 +414,7 @@ export class Humans {
   // ---------- ambient chatter ----------
   private bubbleState(h: Human): BubbleState {
     const now = this.scene.time.now;
+    if (h.state === 'boarding') return 'boarding';
     if (h.state === 'queued') return 'queued_collection';
     if (now < h.recoveringUntil) return 'recovering';
     if (h.hunger > 65) return 'hungry';
@@ -372,7 +434,7 @@ export class Humans {
 
   // Overhead status icon (GDD Anexo B): the most urgent state wins.
   private markerFor(h: Human, now: number): string | null {
-    if (h.taken) return 'mk_contract';
+    if (h.taken || h.contract) return 'mk_contract';
     if (h.state === 'resting') return 'mk_sleep';
     if (h.hunger > 80) return 'mk_hungry';
     if (now < h.recoveringUntil) return 'mk_recover';

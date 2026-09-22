@@ -13,6 +13,8 @@ const CSS = `
 .hud .res .v{font-variant-numeric:tabular-nums;min-width:14px}
 .hud .res.low{background:#5a0f1a;animation:pulse 1s infinite alternate}@keyframes pulse{to{background:#8a1424}}
 .hud .res.food .dot{width:12px;height:12px;border-radius:40% 40% 50% 50%;background:#9fd86b}
+.hud .deals{pointer-events:auto;position:relative;background:none;border:0;padding:0 4px 0 6px;cursor:pointer}.hud .deals img{height:22px;display:block}
+.hud .deals .badge{position:absolute;top:-6px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:#d8122a;color:#fff;font:700 10px/15px system-ui;text-align:center;padding:0 3px}
 .hud .menu{pointer-events:auto;background:none;border:0;color:#e0c8a8;font-size:20px;line-height:1;padding:2px 8px;cursor:pointer}
 .hud .tithe{pointer-events:auto;position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:3px 12px;
   background:#120a10e8;border:1px solid #4a1620;border-radius:8px;font-size:12px;box-shadow:0 3px 10px #000a}
@@ -50,7 +52,7 @@ const CSS = `
 `;
 
 export interface HudSource { population: number; avgMorale: number }
-export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void }
+export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void }
 
 export class Hud {
   private root: HTMLDivElement;
@@ -60,6 +62,7 @@ export class Hud {
   private quest: HTMLDivElement;
   private toasts: HTMLDivElement;
   private menu: HTMLDivElement;
+  private deals!: HTMLButtonElement;
 
   constructor(private src: HudSource, private actions: HudActions) {
     const style = document.createElement('style');
@@ -88,6 +91,13 @@ export class Hud {
       this.res[k] = r;
       bar.appendChild(r);
     }
+    const deals = document.createElement('button');
+    deals.className = 'deals';
+    deals.setAttribute('aria-label', 'Contratos');
+    deals.innerHTML = '<img src="assets/icon_contracts.webp" alt=""><span class="badge"></span>';
+    deals.onclick = () => actions.onContracts();
+    this.deals = deals;
+    bar.appendChild(deals);
     this.root.appendChild(bar);
 
     this.tithe = document.createElement('div');
@@ -126,6 +136,10 @@ export class Hud {
     this.vals.pop.textContent = String(this.src.population);
     this.vals.morale.textContent = String(Math.round(this.src.avgMorale));
     this.res.food.classList.toggle('low', r.food < 10);
+    const c = state.contracts;
+    const badge = this.deals.querySelector<HTMLElement>('.badge')!;
+    badge.textContent = c.active ? '!' : c.offers.length ? String(c.offers.length) : '';
+    badge.style.display = badge.textContent ? 'block' : 'none';
 
     const n = state.night, quota = quotaFor(n.night);
     const left = Math.max(0, NIGHT_MS - n.elapsed), mm = Math.floor(left / 60000), ss = Math.floor(left / 1000) % 60;
@@ -171,8 +185,8 @@ export class Hud {
     const t = document.createElement('div');
     t.className = `toast ${kind}`;
     // A character speaking ("Bóris: ...") gets their portrait next to the line.
-    const who = msg.match(/(Bóris|Vesper|Rubélia|Hemático|Aureliano|Davi|Lia):/)?.[1];
-    const key = who && { 'Bóris': 'boris', Vesper: 'vesper', 'Rubélia': 'rubelia', 'Hemático': 'hematico', Aureliano: 'aureliano', Davi: 'davi', Lia: 'lia' }[who];
+    const who = msg.match(/(Bóris|Vesper|Rubélia|Hemático|Aureliano|Davi|Lia|Mercador):/)?.[1];
+    const key = who && { 'Bóris': 'boris', Vesper: 'vesper', 'Rubélia': 'rubelia', 'Hemático': 'hematico', Aureliano: 'aureliano', Davi: 'davi', Lia: 'lia', Mercador: 'merchant' }[who];
     if (key) {
       const img = document.createElement('img');
       img.src = `assets/portrait_${key}.webp`;

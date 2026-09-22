@@ -13,6 +13,12 @@ const CSS = `
 .bpanel .go{width:100%;min-height:44px;padding:10px;border-radius:6px;border:1px solid #2a0a10;background:#8a1424;color:#fff3e0;font:600 15px Georgia,serif;cursor:pointer}
 .bpanel .ch{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.bpanel .ch button{flex:1 1 90px;min-height:40px;padding:8px 4px;border-radius:6px;border:1px solid #5a1a24;background:#241218;color:#f3e2c8;font:13px Georgia,serif;cursor:pointer}
 .bpanel .ch button.on{background:#5a1a24;border-color:#e8b54a}
+.bpanel .row{display:flex;align-items:center;gap:8px;margin:4px 0}.bpanel .row img{height:22px}
+.bpanel .meter{flex:1;height:7px;background:#2a1016;border-radius:4px;overflow:hidden}.bpanel .meter i{display:block;height:100%}
+.bpanel .tags{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.bpanel .tag{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;background:#241218;font-size:13px}
+.bpanel .tag img{height:18px}.bpanel .muted{color:#9a8a80;font-size:12px}
+.bpanel .card{border:1px solid #4a1620;border-radius:8px;padding:8px 10px;margin:0 0 8px;background:#1a0f14}
+.bpanel .card h4{margin:0 0 3px;font-size:15px;color:#f6d9a0}.bpanel .card .go{margin-top:6px;min-height:38px;font-size:14px}
 .bpanel .go:disabled{background:#3a2a2e;color:#9a8a80;cursor:not-allowed}
 `;
 
@@ -23,6 +29,9 @@ export interface PanelInfo {
   stats: string[];
   action?: { label: string; disabled?: boolean; onClick?: () => void };
   choices?: { label: string; active: boolean; onClick: () => void }[];
+  html?: string;                         // custom body (sheets, lists)
+  bind?: (root: HTMLElement) => void;    // wire events inside the custom body
+  onClose?: () => void;
 }
 
 export class BuildPanel {
@@ -41,15 +50,25 @@ export class BuildPanel {
   open(info: PanelInfo) {
     const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
     this.el.innerHTML = `<button class="x" aria-label="Fechar">×</button><h3>${esc(info.title)}</h3><div class="sub">${esc(info.subtitle)}</div>` +
-      `<p class="desc">${esc(info.desc)}</p>` + (info.stats.length ? `<ul>${info.stats.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : '') +
+      (info.desc ? `<p class="desc">${esc(info.desc)}</p>` : '') + (info.html ?? '') + (info.stats.length ? `<ul>${info.stats.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : '') +
       (info.choices ? `<div class="ch">${info.choices.map((c, i) => `<button data-i="${i}" class="${c.active ? 'on' : ''}">${esc(c.label)}</button>`).join('')}</div>` : '') +
       (info.action ? `<button class="go"${info.action.disabled ? ' disabled' : ''}>${esc(info.action.label)}</button>` : '');
     this.el.querySelector<HTMLButtonElement>('.x')!.onclick = () => this.close();
     const go = this.el.querySelector<HTMLButtonElement>('.go');
     if (go && info.action?.onClick) go.onclick = info.action.onClick;
     this.el.querySelectorAll<HTMLButtonElement>('.ch button').forEach(b => { b.onclick = () => info.choices![Number(b.dataset.i)].onClick(); });
+    info.bind?.(this.el);
+    this.onClose?.();
+    this.onClose = info.onClose;
     this.el.classList.add('on');
   }
 
-  close() { this.el.classList.remove('on'); }
+  private onClose?: () => void;
+
+  close() {
+    this.el.classList.remove('on');
+    const cb = this.onClose;
+    this.onClose = undefined;
+    cb?.();
+  }
 }

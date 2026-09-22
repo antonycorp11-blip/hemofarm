@@ -45,7 +45,7 @@ export const BUILDINGS: Record<BuildingKind, BuildingDef> = {
   boarding: {
     name: 'Pátio de Embarque',
     levels: [
-      { tex: 'bld_boarding', cost: 350, buildMs: 14000, desc: 'Onde humanos classificados aguardam os compradores. (Contratos em breve.)' },
+      { tex: 'bld_boarding', cost: 200, buildMs: 12000, desc: 'Onde humanos vendidos aguardam o comprador. Necessário para entregar contratos.' },
     ],
   },
   watch: {

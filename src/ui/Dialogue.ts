@@ -16,6 +16,7 @@ const CSS = `
 .dlg .foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:#9a8a80}
 .dlg .dots{display:flex;gap:4px}.dlg .dots i{width:6px;height:6px;border-radius:50%;background:#4a2a30}.dlg .dots i.on{background:#e0a060}
 .dlg .skip{background:none;border:1px solid #4a2a30;color:#c9a98a;border-radius:6px;font:12px Georgia,serif;padding:6px 10px;cursor:pointer}
+body.dlg-open .bpanel{bottom:calc(150px + env(safe-area-inset-bottom,0px));max-height:calc(100vh - 290px)}
 @media (max-width:520px){.dlg{font-size:14px;padding-left:92px}.dlg .pic{width:74px;height:90px}}
 `;
 
@@ -58,6 +59,7 @@ export class Dialogue {
     const line = this.lines[this.i];
     if (!line) {
       this.el.classList.remove('on');
+      document.body.classList.remove('dlg-open');
       const done = this.onDone;
       this.onDone = undefined;
       done?.();
@@ -68,5 +70,6 @@ export class Dialogue {
     this.el.querySelector('.txt')!.textContent = line.text;
     this.el.querySelector('.dots')!.innerHTML = this.lines.map((_, k) => `<i class="${k <= this.i ? 'on' : ''}"></i>`).join('');
     this.el.classList.add('on');
+    document.body.classList.add('dlg-open'); // panels move up so both stay usable
   }
 }

@@ -2,12 +2,14 @@
 import { bus } from './events';
 
 export interface Resources { blood: number; gold: number; prestige: number; food: number }
+export interface ContractState { offers: string[]; active?: { id: string; night: number }; done: string[] }
 export interface TutorialState { step: number; count: number; done: boolean }
 export interface PlotState { crop: string; growth: number; phase: 'plant' | 'growing' | 'harvest' }
-export interface HumanSave { hunger: number; energy: number; morale: number; vitality: number; home: string; tile: [number, number]; look?: string; name?: string }
+export interface HumanSave { hunger: number; energy: number; morale: number; vitality: number; home: string; tile: [number, number]; look?: string; name?: string;
+  traits?: import('../data/humans').HumanTraits; contract?: string }
 export interface NightState { night: number; elapsed: number; strikes: number }
 export interface BuildingState { level: number; buildLeft?: number }  // buildLeft: ms until the next level is done
-export interface SaveData { v: 2; resources: Resources; humans: HumanSave[]; night: NightState; buildings?: Record<string, BuildingState>; plots?: Record<string, PlotState>; tutorial?: TutorialState; savedAt: number }
+export interface SaveData { v: 2; resources: Resources; humans: HumanSave[]; night: NightState; buildings?: Record<string, BuildingState>; plots?: Record<string, PlotState>; tutorial?: TutorialState; contracts?: ContractState; savedAt: number }
 
 const KEY = 'hemo.save';
 
@@ -28,6 +30,7 @@ export const state = {
   // New game (GDD T0): two shabby houses, a humble table and a small collection station.
   buildings: { house_a: { level: 1 }, house_b: { level: 1 }, food_b: { level: 1 }, collect: { level: 1 } } as Record<string, BuildingState>,
   tutorial: { step: 0, count: 0, done: false } as TutorialState,
+  contracts: { offers: ['rub_recepcao'], done: [] } as ContractState,
   loaded: null as SaveData | null,
 };
 
@@ -40,6 +43,7 @@ export function load() {
       state.resources = { food: 40, ...data.resources };
       if (data.plots) state.plots = data.plots;
       if (data.tutorial) state.tutorial = data.tutorial;
+      if (data.contracts) state.contracts = data.contracts;
       if (data.night) state.night = { ...data.night };
       if (data.buildings) state.buildings = data.buildings;
     }
@@ -47,7 +51,7 @@ export function load() {
 }
 
 export function save(humans: HumanSave[]) {
-  const data: SaveData = { v: 2, resources: state.resources, humans, night: state.night, buildings: state.buildings, plots: state.plots, tutorial: state.tutorial, savedAt: Date.now() };
+  const data: SaveData = { v: 2, resources: state.resources, humans, night: state.night, buildings: state.buildings, plots: state.plots, tutorial: state.tutorial, contracts: state.contracts, savedAt: Date.now() };
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* storage unavailable */ }
 }
 

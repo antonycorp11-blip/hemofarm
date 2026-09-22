@@ -98,6 +98,48 @@ export const TUTORIAL: Step[] = [
     objective: obj({ text: 'Acompanhe 3 coletas de Sangue', event: 'BLOOD_COLLECTED', count: 3 }),
     target: { slot: 'collect' },
     hint: { who: 'hematico', text: 'A fila fica ao lado dos tanques, a nordeste. Humanos cansados ou famintos não coletam bem.' },
+    reward: { gold: 150 },
+  },
+  {
+    id: 't5_ficha',
+    lines: [
+      { who: 'rubelia', text: 'Perdão pela interrupção. Disseram que sua nova remessa já sabe ficar em fila. Promissor.' },
+      { who: 'vesper', text: 'Lady Rubélia compra para a alta sociedade. Ela sente um erro de classificação a três bairros de distância.' },
+      { who: 'rubelia', text: 'Toque em um humano. Quero ver o que você anda criando aqui.' },
+    ],
+    objective: obj({ text: 'Toque em um humano para ver a ficha', event: 'HUMAN_INSPECTED' }),
+    hint: { who: 'rubelia', text: 'Qualquer um serve. Os pequenos que andam por aí. Eles não mordem. Nós mordemos.' },
+  },
+  {
+    id: 't6_pedido',
+    lines: [
+      { who: 'rubelia', text: 'Perfil sanguíneo, qualidade, temperamento. Tudo que importa numa boa recepção.' },
+      { who: 'rubelia', text: 'Tenho um pedido para você. Abra o pergaminho de contratos, no alto da tela.' },
+      { who: 'davi', text: '"Recepção" é uma palavra muito otimista.' },
+    ],
+    objective: obj({ text: 'Aceite o contrato da Lady Rubélia', event: 'CONTRACT_ACCEPTED' }),
+    hint: { who: 'rubelia', text: 'O pergaminho com selo vermelho, ao lado dos seus números. Não me faça esperar.' },
+  },
+  {
+    id: 't7_patio',
+    lines: [
+      { who: 'boris', text: 'Entregas saem pelo Pátio de Embarque. Nós ainda não temos um. Detalhe administrativo.' },
+      { who: 'boris', text: 'Construa o Pátio. O castelo adiantou o Ouro da coleta para isso.' },
+    ],
+    objective: obj({ text: 'Construa o Pátio de Embarque', event: 'BUILDING_BUILT', match: p => p.kind === 'boarding' }),
+    target: { slot: 'boarding' },
+    hint: { who: 'boris', text: 'O lote grande ao sul da praça, perto da torre.' },
+  },
+  {
+    id: 't8_entrega',
+    lines: [
+      { who: 'rubelia', text: 'Agora escolha. Dois Rubra, bem alimentados, moral acima de 50. Toque neles e envie ao Pátio.' },
+      { who: 'davi', text: 'E se eles levarem a gente?' },
+      { who: 'boris', text: 'Chamaremos de venda. É a parte do negócio que paga os colchões.' },
+    ],
+    objective: obj({ text: 'Entregue o contrato da Rubélia', event: 'CONTRACT_COMPLETED' }),
+    target: { slot: 'boarding' },
+    hint: { who: 'boris', text: 'Na ficha de cada humano aparece se ele atende ao pedido. Rubra, moral acima de 50.' },
   },
   {
     id: 't5_dizimo',

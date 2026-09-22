@@ -31,6 +31,7 @@ interface Site {
 export class Buildings {
   private sites = new Map<string, Site>();
   private downAt?: { x: number; y: number };
+  onBoarding?: () => void;   // the Boarding Yard opens the contracts board once built
 
   constructor(private scene: Phaser.Scene & LightHost, private map: FarmMap, private hud: Hud, private panel: BuildPanel,
     private editorActive: () => boolean) {
@@ -180,6 +181,7 @@ export class Buildings {
       stats: this.stats(slot.kind, cur, next),
       action: building ? { label: 'Em obras…', disabled: true }
         : next ? { label: `${lv === 0 ? 'Construir' : 'Melhorar'} · ${next.cost} Ouro`, disabled: state.resources.gold < next.cost, onClick: () => this.start(slot) }
+        : slot.kind === 'boarding' && this.onBoarding ? { label: 'Ver contratos', onClick: () => this.onBoarding!() }
         : undefined,
     });
   }

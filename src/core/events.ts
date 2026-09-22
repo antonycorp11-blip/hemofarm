@@ -8,6 +8,10 @@ export interface GameEvents {
   BUILDING_UPGRADED: { buildingId: string; kind: string; oldLevel: number; newLevel: number };
   CROP_PLANTED: { plotId: string; crop: string };
   CROP_HARVESTED: { plotId: string; crop: string; food: number };
+  HUMAN_INSPECTED: { humanId: number };
+  CONTRACT_ACCEPTED: { contractId: string };
+  CONTRACT_COMPLETED: { contractId: string; delivered: number; gold: number };
+  CONTRACT_FAILED: { contractId: string };
   NIGHT_STARTED: { night: number; quota: number };
   CARRIAGE_ARRIVED: { night: number };
   TITHE_PAID: { night: number; amount: number; prestige: number };

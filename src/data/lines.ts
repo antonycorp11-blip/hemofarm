@@ -2,7 +2,7 @@
 export type BubbleState =
   | 'idle' | 'hungry' | 'well_fed' | 'queued_collection' | 'recovering'
   | 'high_morale' | 'low_morale' | 'sleepy'
-  | 'carriage' | 'taken' | 'tithe_paid' | 'tithe_failed';
+  | 'carriage' | 'taken' | 'tithe_paid' | 'tithe_failed' | 'boarding';
 
 export const LINES: Record<BubbleState, string[]> = {
   idle: [
@@ -46,6 +46,11 @@ export const LINES: Record<BubbleState, string[]> = {
     'Se perguntarem, sempre quis conhecer o castelo.',
     'Acho que fui promovido. Para fora da fazenda.',
     'Guardem meu lugar na fila. Brincadeira. Não guardem.',
+  ],
+  boarding: [
+    'Fui escolhido. Ainda não sei se é elogio.',
+    'Se perguntarem, sempre quis conhecer o castelo.',
+    'Pátio de Embarque. O nome já diz tudo, e não diz nada de bom.',
   ],
   tithe_paid: [
     'Cota batida. Parabéns a nós, eu acho.',

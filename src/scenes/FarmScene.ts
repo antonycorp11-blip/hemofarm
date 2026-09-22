@@ -8,6 +8,7 @@ import { state, load, save, resetSave, NIGHT_MS, CARRIAGE_LEAD_MS, START_HUMANS 
 import { Buildings } from '../world/Buildings';
 import { BuildPanel } from '../ui/BuildPanel';
 import { Farms } from '../world/Farms';
+import { Contracts } from '../world/Contracts';
 import { Dialogue } from '../ui/Dialogue';
 import { applySkin } from '../ui/skin';
 import { Tutorial } from '../core/tutorial';
@@ -48,6 +49,7 @@ export class FarmScene extends Phaser.Scene {
   private tithe!: Tithe;
   private buildings!: Buildings;
   private farms!: Farms;
+  private contracts!: Contracts;
   private tutorial!: Tutorial;
   private hintObjs: Phaser.GameObjects.GameObject[] = [];
   private pinchDist = 0;
@@ -90,6 +92,8 @@ export class FarmScene extends Phaser.Scene {
     this.farms = new Farms(this, this.map, this.hud, panel, () => this.editor.isActive);
     this.humans = new Humans(this, this.map, this.bubbles, this.buildings, this.farms);
     this.humans.spawn(state.loaded ? 0 : START_HUMANS, state.loaded?.humans);
+    this.contracts = new Contracts(this, this.map, this.humans, this.buildings, panel, this.hud);
+    this.buildings.onBoarding = () => this.contracts.openBoard();
     this.tithe = new Tithe(this, this.humans, this.hud);
     if (import.meta.env.DEV) {
       // Dev shortcut: jump to just before the carriage arrives.
@@ -278,6 +282,7 @@ export class FarmScene extends Phaser.Scene {
       onSkipTutorial: () => this.tutorial.skip(),
       tutorialActive: () => !state.tutorial.done,
       onWhere: () => this.tutorial.where(),
+      onContracts: () => this.contracts.openBoard(),
     });
   }
 
@@ -406,6 +411,7 @@ export class FarmScene extends Phaser.Scene {
     this.tithe.update(delta);
     this.buildings.update(delta);
     this.farms.update(delta);
+    this.contracts.update();
     this.tutorial.update(delta);
     this.bubbles.update();
     this.updateLighting(time);
