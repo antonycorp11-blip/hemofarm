@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { bus } from '../core/events';
 import { state } from '../core/state';
 import { CROPS, CropId, WORK_MS } from '../data/crops';
+import { has } from '../data/research';
 import type { FarmMap, Pen } from '../map/bosque';
 import { iso, tileCenter } from '../map/iso';
 import type { BuildPanel } from '../ui/BuildPanel';
@@ -87,7 +88,7 @@ export class Farms {
     for (const v of this.views) {
       const st = state.plots[v.pen.id];
       if (st?.phase === 'growing') {
-        st.growth += dt;
+        st.growth += dt * (has('a1') ? 1.25 : 1) * (has('a3') ? 1.25 : 1);
         if (st.growth >= CROPS[st.crop as CropId].growMs) st.phase = 'harvest';
       }
       this.redraw(v);
@@ -114,7 +115,7 @@ export class Farms {
     const st = state.plots[job.penId];
     if (!st || st.phase !== job.type) return;
     const pen = this.views.find(v => v.pen.id === job.penId)!.pen;
-    const food = Math.round(this.tiles(pen).length * CROPS[st.crop as CropId].yieldPerTile);
+    const food = Math.round(this.tiles(pen).length * CROPS[st.crop as CropId].yieldPerTile * (has('a2') ? 1.25 : 1) * (has('a3') ? 1.25 : 1));
     state.resources.food += food;
     st.phase = 'growing'; st.growth = 0; // replanted right away with the same crop
     bus.emit('CROP_HARVESTED', { plotId: job.penId, crop: st.crop, food });

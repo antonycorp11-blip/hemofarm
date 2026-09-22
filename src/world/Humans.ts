@@ -13,6 +13,7 @@ import type { Farms, FarmJob } from './Farms';
 import { HumanTraits, NAMED_TRAITS, QUALITY, randomTraits } from '../data/humans';
 import { state } from '../core/state';
 import { heirOf } from '../sim/genetics';
+import { has } from '../data/research';
 import { FOOD_PER_MEAL } from '../data/crops';
 
 type P = [number, number];
@@ -138,7 +139,8 @@ export class Humans {
     for (const h of this.list) {
       if (h.state !== 'eating') h.hunger = Math.min(100, h.hunger + HUNGER_RATE * s);
       if (h.state !== 'inside') h.energy = Math.max(0, h.energy - ENERGY_RATE * s);
-      if (h.state !== 'collecting') h.vitality = Math.min(100, h.vitality + (h.hunger < 50 ? 0.6 : 0.25) * s);
+      if (h.state !== 'collecting') h.vitality = Math.min(100, h.vitality + (h.hunger < 50 ? 0.6 : 0.25) * (has('w1') ? 1.5 : 1) * s);
+      if (has('w3') && h.hunger < 70) h.morale = Math.min(100, h.morale + 0.04 * s);
       if (h.hunger > 85) h.morale = Math.max(0, h.morale - 0.2 * s);
       h.sprite.setDepth(h.sprite.y);
       this.updateMarker(h, now);
@@ -182,7 +184,11 @@ export class Humans {
     if (!h.home || this.buildings.level(h.home) === 0) h.home = this.findHome();
     if (!h.home) return this.sleepOutside(h);
     this.walkTo(h, this.map.entries[h.home], () => {
-      this.enter(h, Phaser.Math.Between(9000, 14000), () => { h.energy = 100; this.decide(h); });
+      this.enter(h, Phaser.Math.Between(9000, 14000) * (has('w2') ? 0.7 : 1), () => {
+        h.energy = 100;
+        if (has('w2')) h.morale = Math.min(100, h.morale + 2);
+        this.decide(h);
+      });
     });
   }
 
@@ -279,9 +285,9 @@ export class Humans {
     if (q.busy || !h || h.state !== 'queued') return;
     q.busy = true;
     const def = this.buildings.levelDef('collect');
-    const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult);
-    this.enter(h, def?.collectMs ?? 4000, () => {
-      h.vitality = Math.max(0, h.vitality - 30);
+    const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult * (has('c1') ? 1.2 : 1));
+    this.enter(h, (def?.collectMs ?? 4000) * (has('c3') ? 0.7 : 1), () => {
+      h.vitality = Math.max(0, h.vitality - (has('c2') ? 20 : 30));
       h.morale = Math.max(0, h.morale - 4);
       h.recoveringUntil = this.scene.time.now + 25000;
       bus.emit('BLOOD_COLLECTED', { humanId: h.id, amount, vitalityAfter: h.vitality });
@@ -413,12 +419,12 @@ export class Humans {
       const a = social[i], b = social[j];
       if (Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, b.sprite.x, b.sprite.y) > 80) continue;
       const k = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
-      const v = (this.affinity.get(k) ?? 0) + 6 * s * (a.morale + b.morale > 100 ? 1.3 : 0.8);
+      const v = (this.affinity.get(k) ?? 0) + 6 * s * (a.morale + b.morale > 100 ? 1.3 : 0.8) * (has('g3') ? 2 : 1);
       this.affinity.set(k, v);
       if (v >= 100) { this.affinity.delete(k); this.bond(a, b); return; }
     }
     // Heirs: only with a Family House, and only if there's a free bed.
-    const rate = Math.max(0, ...this.buildings.built('family').map(id => this.buildings.levelDef(id)?.kinRate ?? 0));
+    const rate = Math.max(0, ...this.buildings.built('family').map(id => this.buildings.levelDef(id)?.kinRate ?? 0)) * (has('g1') ? 1.3 : 1);
     if (!rate) return;
     for (const h of this.list) {
       const p = this.partnerOf(h);
@@ -437,7 +443,7 @@ export class Humans {
 
   private heir(a: Human, b: Human) {
     const gate: P = [21, 33];
-    const c = this.create({ tile: gate, traits: heirOf(a.traits, b.traits), source: 'bond' });
+    const c = this.create({ tile: gate, traits: heirOf(a.traits, b.traits, has('g2') ? 0.1 : 0), source: 'bond' });
     c.sprite.setAlpha(0);
     this.scene.tweens.add({ targets: c.sprite, alpha: 1, duration: 800 });
     this.scene.time.delayedCall(900, () => this.bubbles.say(c, 'heir', true));

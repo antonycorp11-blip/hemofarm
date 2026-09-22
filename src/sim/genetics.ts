@@ -14,7 +14,7 @@ const COMBOS: { a: BloodType; b: BloodType; out: BloodType; chance: number }[] =
 
 const pick = <T,>(a: T, b: T) => (Math.random() < 0.5 ? a : b);
 
-export function heirOf(p: HumanTraits, q: HumanTraits): HumanTraits {
+export function heirOf(p: HumanTraits, q: HumanTraits, bonus = 0): HumanTraits {
   // Blood: special combination first, otherwise one of the parents (rarely a random drift).
   const combo = COMBOS.find(c => (c.a === p.blood && c.b === q.blood) || (c.a === q.blood && c.b === p.blood));
   let blood: BloodType = pick(p.blood, q.blood);
@@ -25,7 +25,7 @@ export function heirOf(p: HumanTraits, q: HumanTraits): HumanTraits {
   const avg = (QUALITY[p.quality].rank + QUALITY[q.quality].rank) / 2;
   const r = Math.random();
   let rank = Math.floor(avg) + (avg % 1 >= 0.5 && Math.random() < 0.5 ? 1 : 0);
-  if (r < 0.28 + avg * 0.06) rank++;
+  if (r < 0.28 + avg * 0.06 + bonus) rank++;
   else if (r > 0.88) rank--;
   const quality = QUALITIES[Math.max(0, Math.min(3, rank))];
 
@@ -42,8 +42,8 @@ export function heirOf(p: HumanTraits, q: HumanTraits): HumanTraits {
 }
 
 // Odds shown to the player on the couple's sheet (rough, for decision-making).
-export function heirOdds(p: HumanTraits, q: HumanTraits) {
+export function heirOdds(p: HumanTraits, q: HumanTraits, bonus = 0) {
   const avg = (QUALITY[p.quality].rank + QUALITY[q.quality].rank) / 2;
   const combo = COMBOS.find(c => (c.a === p.blood && c.b === q.blood) || (c.a === q.blood && c.b === p.blood));
-  return { upgrade: Math.round((0.28 + avg * 0.06) * 100), combo: combo ? { out: combo.out, pct: Math.round(combo.chance * 100) } : undefined };
+  return { upgrade: Math.round((0.28 + avg * 0.06 + bonus) * 100), combo: combo ? { out: combo.out, pct: Math.round(combo.chance * 100) } : undefined };
 }

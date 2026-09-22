@@ -9,6 +9,7 @@ import { Buildings } from '../world/Buildings';
 import { BuildPanel } from '../ui/BuildPanel';
 import { Farms } from '../world/Farms';
 import { Contracts } from '../world/Contracts';
+import { Research } from '../world/Research';
 import { BLOOD, QUALITY } from '../data/humans';
 const BLOOD_NAME = Object.fromEntries(Object.entries(BLOOD).map(([k, v]) => [k, v.name]));
 const QUALITY_NAME = Object.fromEntries(Object.entries(QUALITY).map(([k, v]) => [k, v.name]));
@@ -36,7 +37,7 @@ const NIGHT = { color: 0x050918, alpha: 0.5 };
 
 interface Manifest { [k: string]: any }
 // Art for later systems (battle, dialogue, UI) isn't needed by the farm scene: skipping it keeps mobile loading fast.
-const NOT_ON_FARM = /^(portrait_|icon_|blood_|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof|bat_swarm|flask))|^(wave_flag|ghoul_wall|blood_chalice|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(lab|market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
+const NOT_ON_FARM = /^(portrait_|icon_|blood_|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof|bat_swarm|flask))|^(wave_flag|ghoul_wall|blood_chalice|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
 export interface Glow { core: Phaser.GameObjects.Image; pool: Phaser.GameObjects.Image; light: Light; phase: number }
 
 export class FarmScene extends Phaser.Scene {
@@ -53,6 +54,7 @@ export class FarmScene extends Phaser.Scene {
   private buildings!: Buildings;
   private farms!: Farms;
   private contracts!: Contracts;
+  private research!: Research;
   private tutorial!: Tutorial;
   private hintObjs: Phaser.GameObjects.GameObject[] = [];
   private pinchDist = 0;
@@ -97,6 +99,8 @@ export class FarmScene extends Phaser.Scene {
     this.humans.spawn(state.loaded ? 0 : START_HUMANS, state.loaded?.humans);
     this.contracts = new Contracts(this, this.map, this.humans, this.buildings, panel, this.hud);
     this.buildings.onBoarding = () => this.contracts.openBoard();
+    this.research = new Research(panel, this.hud, () => this.buildings.level('lab') > 0);
+    this.buildings.onLab = () => this.research.open();
     this.tithe = new Tithe(this, this.humans, this.hud);
     if (import.meta.env.DEV) {
       // Dev shortcut: jump to just before the carriage arrives.
@@ -418,6 +422,7 @@ export class FarmScene extends Phaser.Scene {
     this.buildings.update(delta);
     this.farms.update(delta);
     this.contracts.update();
+    this.research.update(delta);
     this.tutorial.update(delta);
     this.bubbles.update();
     this.updateLighting(time);

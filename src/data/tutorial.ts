@@ -173,4 +173,26 @@ export const TUTORIAL: Step[] = [
       { who: 'lia', text: 'Pronto! Casais se formam sozinhos quando convivem. Ou toque num humano e escolha um par, se quiser caprichar na herança.' },
     ],
   },
+  {
+    id: 't11_laboratorio',
+    lines: [
+      { who: 'hematico', text: 'Agora que possuímos recursos, podemos desperdiçá-los com método!' },
+      { who: 'hematico', text: 'Construa um Laboratório. Eu cuido do resto. Dos incêndios também, dentro do possível.' },
+    ],
+    objective: obj({ text: 'Construa o Laboratório', event: 'BUILDING_BUILT', match: p => p.kind === 'lab' }),
+    target: { slot: 'lab' },
+    hint: { who: 'hematico', text: 'O lote a leste, perto dos tanques. Toque nele!' },
+  },
+  {
+    id: 't12_pesquisa',
+    lines: [
+      { who: 'hematico', text: 'Quero pesquisar Ração Nutritiva. Humanos saudáveis recuperam sangue mais rápido.' },
+      { who: 'boris', text: 'A proposta foi aprovada pelo departamento responsável.' },
+      { who: 'vesper', text: 'Qual departamento?' },
+      { who: 'boris', text: 'Eu.' },
+    ],
+    objective: obj({ text: 'Inicie a pesquisa Ração Nutritiva', event: 'RESEARCH_STARTED', match: p => p.nodeId === 'w1' }),
+    target: { slot: 'lab' },
+    hint: { who: 'hematico', text: 'Toque no Laboratório e depois em Pesquisas. Bem-estar, a primeira da lista!' },
+  },
 ];

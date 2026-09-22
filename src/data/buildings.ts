@@ -1,5 +1,5 @@
 // Building definitions: every level has a visible sprite and a concrete gameplay effect (GDD §14: visible incremental).
-export type BuildingKind = 'housing' | 'food' | 'collect' | 'boarding' | 'watch' | 'family';
+export type BuildingKind = 'housing' | 'food' | 'collect' | 'boarding' | 'watch' | 'family' | 'lab';
 
 export interface Level {
   tex: string;
@@ -58,6 +58,13 @@ export const BUILDINGS: Record<BuildingKind, BuildingDef> = {
         desc: 'Casais registrados mandam buscar parentes adultos que herdam o sangue dos dois. Burocracia afetiva.' },
       { tex: 'bld_housing_3', tint: 0xffc8c8, cost: 700, buildMs: 22000, kinRate: 0.75,
         desc: 'Mais quartos, mais cartas para a família, mais parentes chegando. E mais formulários.' },
+    ],
+  },
+  lab: {
+    name: 'Laboratório',
+    light: { h: 40, radius: 110, color: 0xb04aff, intensity: 0.7, flicker: 0.12 },
+    levels: [
+      { tex: 'bld_lab', cost: 250, buildMs: 12000, desc: 'O domínio do Dr. Hemático. Pesquisas que melhoram a fazenda inteira. Poucos incêndios, por enquanto.' },
     ],
   },
   watch: {

@@ -15,6 +15,8 @@ export interface GameEvents {
   BOND_FORMED: { a: number; b: number; arranged: boolean };
   HEIR_ARRIVED: { humanId: number; parents: number[]; quality: string; blood: string; code: string; parentNames: string[] };
   HEIR_BLOCKED: { reason: 'capacity' };
+  RESEARCH_STARTED: { nodeId: string };
+  RESEARCH_DONE: { nodeId: string };
   NIGHT_STARTED: { night: number; quota: number };
   CARRIAGE_ARRIVED: { night: number };
   TITHE_PAID: { night: number; amount: number; prestige: number };

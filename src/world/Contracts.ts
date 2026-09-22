@@ -6,6 +6,10 @@ import { state } from '../core/state';
 import { CONTRACTS, ContractDef, Requirement, BUYER_NAMES, MAX_OFFERS } from '../data/contracts';
 import { BLOOD, QUALITY, TEMPER, TRAIT } from '../data/humans';
 import { heirOdds } from '../sim/genetics';
+import { has } from '../data/research';
+
+// Research can raise what buyers pay.
+const goldOf = (d: ContractDef) => Math.round(d.reward.gold * (has('l2') ? 1.2 : 1));
 import { slotGeometry, FarmMap } from '../map/bosque';
 import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';
@@ -103,7 +107,7 @@ export class Contracts {
     }
     const family = this.buildings.built('family').length > 0;
     const kin = Math.round(this.humans.kinOf(h));
-    const odds = heirOdds(h.traits, p.traits);
+    const odds = heirOdds(h.traits, p.traits, has('g2') ? 0.1 : 0);
     return `<div class="card"><div>❤ Par: <b>${this.label(p)}</b> · ${BLOOD[p.traits.blood].name} · ${QUALITY[p.traits.quality].name}</div>` +
       (family ? `<div class="row"><span style="width:74px">Parente</span><div class="meter"><i style="width:${kin}%;background:#ff8a8a"></i></div><span style="width:28px;text-align:right">${kin}</span></div>`
         : `<div class="muted">Construa a Casa das Famílias para o casal mandar buscar parentes.</div>`) +
@@ -116,7 +120,7 @@ export class Contracts {
     const cands = this.humans.singles().filter(x => x !== h && !x.contract)
       .sort((a, b) => QUALITY[b.traits.quality].rank - QUALITY[a.traits.quality].rank);
     const row = (c: Human) => {
-      const o = heirOdds(h.traits, c.traits);
+      const o = heirOdds(h.traits, c.traits, has('g2') ? 0.1 : 0);
       return `<div class="card"><h4>${this.label(c)}</h4><div class="muted">${BLOOD[c.traits.blood].name} · ${QUALITY[c.traits.quality].name} · ${TEMPER[c.traits.temper].name}` +
         `${c.traits.trait ? ` · ${TRAIT[c.traits.trait].name}` : ''}</div><div class="muted">Qualidade do parente sobe: ${o.upgrade}%` +
         `${o.combo ? ` · ${o.combo.pct}% ${BLOOD[o.combo.out].name}` : ''}</div><button class="go" data-pair="${c.id}">Formar par</button></div>`;
@@ -164,7 +168,7 @@ export class Contracts {
       const left = active ? state.contracts.active!.night + d.nights - state.night.night : d.nights;
       return `<div class="card"><h4>${d.title}</h4><div class="muted">${BUYER_NAMES[d.buyer]} · prazo ${left} noite${left === 1 ? '' : 's'}</div>` +
         `<div style="margin:5px 0">${d.count}× ${describe(d.req)}</div>` +
-        `<div class="muted">Recompensa: ${d.reward.gold} Ouro · ${d.reward.prestige} Prestígio · você tem ${eligible} elegíve${eligible === 1 ? 'l' : 'is'}</div>` +
+        `<div class="muted">Recompensa: ${goldOf(d)} Ouro · ${d.reward.prestige} Prestígio · você tem ${eligible} elegíve${eligible === 1 ? 'l' : 'is'}</div>` +
         (active ? `<div style="margin-top:5px">No pátio: ${this.assigned().length}/${d.count}</div><button class="go" data-cancel>Desistir</button>`
           : c ? '' : `<button class="go" data-accept="${d.id}">Aceitar</button>`) + '</div>';
     };
@@ -196,13 +200,14 @@ export class Contracts {
     const yard = this.map.slots.find(s => s.id === 'boarding');
     const exit = yard ? slotGeometry(yard).front : { x: 0, y: 2000 };
     for (const h of who) this.humans.sell(h, { x: exit.x - 120, y: exit.y + 80 });
-    state.resources.gold += d.reward.gold;
+    const gold = goldOf(d);
+    state.resources.gold += gold;
     state.resources.prestige += d.reward.prestige;
     state.contracts.active = undefined;
     if (!state.contracts.done.includes(d.id)) state.contracts.done.push(d.id);
-    bus.emit('CONTRACT_COMPLETED', { contractId: d.id, delivered: who.length, gold: d.reward.gold });
+    bus.emit('CONTRACT_COMPLETED', { contractId: d.id, delivered: who.length, gold });
     this.hud.toast(`${SHORT[d.buyer] ?? BUYER_NAMES[d.buyer]}: ${d.done}`, 'good', 7000);
-    this.hud.toast(`Contrato entregue: +${d.reward.gold} Ouro · +${d.reward.prestige} Prestígio`, 'good');
+    this.hud.toast(`Contrato entregue: +${gold} Ouro · +${d.reward.prestige} Prestígio`, 'good');
     this.scene.fx('fx_coins', exit.x, exit.y - 60, 1.6);
     if (state.contracts.offers.length < 1) this.refreshOffers();
   }
@@ -228,6 +233,6 @@ export class Contracts {
   private refreshOffers() {
     const keep = state.contracts.offers.filter(id => def(id).tutorialOnly);
     const pool = Phaser.Utils.Array.Shuffle(CONTRACTS.filter(c => !c.tutorialOnly && c.id !== state.contracts.active?.id).map(c => c.id));
-    state.contracts.offers = [...keep, ...pool].slice(0, MAX_OFFERS);
+    state.contracts.offers = [...keep, ...pool].slice(0, MAX_OFFERS + (has('l3') ? 1 : 0));
   }
 }

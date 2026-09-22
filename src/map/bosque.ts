@@ -48,6 +48,7 @@ export const SLOTS: Slot[] = [
   { id: 'boarding', i: 25, j: 25, size: 3, kind: 'boarding' },
   { id: 'watch', i: 31, j: 30, size: 1, kind: 'watch' },
   { id: 'family', i: 28, j: 28, size: 2, kind: 'family' },
+  { id: 'lab', i: 29, j: 18, size: 2, kind: 'lab' },
 ];
 
 const inside = (i: number, j: number) => i >= P0 && i <= P1 && j >= P0 && j <= P1;
