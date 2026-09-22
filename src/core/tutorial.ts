@@ -34,6 +34,13 @@ export class Tutorial {
     this.ui.objective(null);
   }
 
+  // "Onde?" button: jump straight to the strongest hint for the current objective.
+  where() {
+    if (!this.waiting) return;
+    this.hintLevel = 3;
+    this.ui.hint(3, TUTORIAL[state.tutorial.step]);
+  }
+
   update(dt: number) {
     if (!this.waiting) return;
     this.idle += dt;
@@ -82,6 +89,9 @@ export class Tutorial {
     this.ui.objective(null);
     const r = step.reward;
     if (r) for (const k of Object.keys(r) as (keyof typeof r)[]) state.resources[k] += r[k]!;
+    const names = { gold: 'Ouro', blood: 'Sangue', food: 'Comida', prestige: 'Prestígio' } as const;
+    const gains = r ? Object.entries(r).map(([k, v]) => `+${v} ${names[k as keyof typeof names]}`).join(' · ') : '';
+    this.ui.toast(`Missão concluída: ${step.objective!.text}${gains ? ` · ${gains}` : ''}`);
     const next = () => this.run(state.tutorial.step + 1);
     if (step.done?.length) this.ui.say(step.done, next); else next();
   }

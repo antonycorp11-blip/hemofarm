@@ -212,7 +212,7 @@ export class FarmScene extends Phaser.Scene {
 
   // ---------- tutorial ----------
   private setupTutorial() {
-    const dialogue = new Dialogue(() => this.tutorial.skip());
+    const dialogue = new Dialogue();
     this.tutorial = new Tutorial({
       say: (lines, done) => dialogue.say(lines, done),
       objective: (text, progress) => this.hud.objective(text, progress),
@@ -261,7 +261,12 @@ export class FarmScene extends Phaser.Scene {
     this.hud = new Hud({
       get population() { return self.humans?.population ?? 0; },
       get avgMorale() { return self.humans?.avgMorale ?? 0; },
-    }, () => { resetting = true; resetSave(); location.reload(); });
+    }, {
+      onNewGame: () => { resetting = true; resetSave(); location.reload(); },
+      onSkipTutorial: () => this.tutorial.skip(),
+      tutorialActive: () => !state.tutorial.done,
+      onWhere: () => this.tutorial.where(),
+    });
   }
 
   // World feedback for every gain (GDD §15.1): the number rises from where it happened.
