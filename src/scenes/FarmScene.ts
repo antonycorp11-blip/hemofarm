@@ -50,6 +50,9 @@ export class FarmScene extends Phaser.Scene {
   private tutorial!: Tutorial;
   private hintObjs: Phaser.GameObjects.GameObject[] = [];
   private pinchDist = 0;
+  private touches = new Map<number, { x: number; y: number }>();
+  private vel = { x: 0, y: 0 };
+  private lastMoveAt = 0;
   private sky!: Phaser.GameObjects.Image;
 
   constructor() { super('Farm'); }
@@ -289,28 +292,62 @@ export class FarmScene extends Phaser.Scene {
   private setupCamera() {
     const cam = this.cameras.main, b = this.map.bounds;
     cam.setBounds(b.x, b.y, b.w, b.h).setBackgroundColor('#070b14');
-    // Phones start closer to fit the property's width; desktops see more of the farm.
-    this.clampZoom(Phaser.Math.Clamp(this.scale.width / 1500, 0.3, 0.55));
+    // Portrait phones start closer (the property is wider than tall), desktops see more of the farm.
+    const { width: w, height: h } = this.scale;
+    this.clampZoom(Phaser.Math.Clamp(w < h ? w / 800 : w / 1500, 0.3, 0.6));
     cam.centerOn(0, 1350);
-    this.input.addPointer(1);
+    this.input.addPointer(2);
+
+    // Own finger tracking: robust to lost touchend/touchcancel, which can leave Phaser's pointers "stuck down".
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      this.touches.set(p.id, { x: p.x, y: p.y });
+      this.vel.x = this.vel.y = 0;
+      this.pinchDist = 0;
+    });
+    const release = (p: Phaser.Input.Pointer) => {
+      this.touches.delete(p.id);
+      this.pinchDist = 0;
+      if (performance.now() - this.lastMoveAt > 80) this.vel.x = this.vel.y = 0; // finger rested before lifting: no fling
+    };
+    this.input.on('pointerup', release);
+    this.input.on('pointerupoutside', release);
+    this.input.on('gameout', () => this.touches.clear());
+    window.addEventListener('blur', () => this.touches.clear());
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      const [a, c] = [this.input.pointer1, this.input.pointer2];
-      if (a.isDown && c.isDown) {
+      const t = this.touches.get(p.id);
+      if (!t) return; // mouse hover without a button
+      const dx = p.x - t.x, dy = p.y - t.y;
+      t.x = p.x; t.y = p.y;
+      if (this.editor.dragging) return;
+      if (this.touches.size >= 2) {
+        const [a, c] = [...this.touches.values()];
         const d = Phaser.Math.Distance.Between(a.x, a.y, c.x, c.y);
         if (this.pinchDist) this.zoomAt(cam.zoom * d / this.pinchDist, (a.x + c.x) / 2, (a.y + c.y) / 2);
         this.pinchDist = d;
+        cam.scrollX -= dx / 2 / cam.zoom; cam.scrollY -= dy / 2 / cam.zoom; // two-finger pan
         return;
       }
-      this.pinchDist = 0;
-      if (!p.isDown || this.editor.dragging) return;
-      cam.scrollX -= (p.x - p.prevPosition.x) / cam.zoom;
-      cam.scrollY -= (p.y - p.prevPosition.y) / cam.zoom;
+      cam.scrollX -= dx / cam.zoom;
+      cam.scrollY -= dy / cam.zoom;
+      const now = performance.now(), dt = Math.max(8, now - this.lastMoveAt);
+      this.vel.x = Phaser.Math.Linear(this.vel.x, -dx / cam.zoom / dt, 0.5);
+      this.vel.y = Phaser.Math.Linear(this.vel.y, -dy / cam.zoom / dt, 0.5);
+      this.lastMoveAt = now;
     });
-    this.input.on('pointerup', () => { this.pinchDist = 0; });
     this.input.on('wheel', (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
       this.zoomAt(cam.zoom * (dy > 0 ? 0.9 : 1.1), p.x, p.y);
     });
+  }
+
+  // Fling: keep gliding after a quick swipe, easing out.
+  private updateInertia(delta: number) {
+    if (this.touches.size || (Math.abs(this.vel.x) < 0.005 && Math.abs(this.vel.y) < 0.005)) return;
+    const cam = this.cameras.main;
+    cam.scrollX += this.vel.x * delta;
+    cam.scrollY += this.vel.y * delta;
+    const k = Math.exp(-delta / 260);
+    this.vel.x *= k; this.vel.y *= k;
   }
 
   private minZoom() {
@@ -334,7 +371,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private onResize() {
-    this.dark?.setSize(this.scale.width, this.scale.height);
+    this.dark?.resize(this.scale.width, this.scale.height); // resize the texture, not just the object's bounds
     this.clampZoom(this.cameras.main.zoom);
   }
 
@@ -347,6 +384,7 @@ export class FarmScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     this.pinScreenLayers();
+    this.updateInertia(delta);
     this.humans.update(delta);
     this.tithe.update(delta);
     this.buildings.update(delta);

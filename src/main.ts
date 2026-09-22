@@ -13,8 +13,15 @@ const game = new Phaser.Game({
   backgroundColor: '#070b14',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   render: { antialias: true, roundPixels: false },
+  input: { mouse: { preventDefaultWheel: true } },
+  disableContextMenu: true, // long-press on phones shouldn't open the browser menu
   scene: [FarmScene],
 });
 
 // Dev-only handle for inspecting state from the browser console.
 if (import.meta.env.DEV) Object.assign(window as any, { game, hemo: { state } });
+
+// Installable PWA: cache the game so it opens instantly and works offline.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => { /* not critical */ }));
+}
