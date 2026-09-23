@@ -37,3 +37,63 @@ Galhos: **Coleta**, **Bem-estar**, **Agricultura**, **Genética**, **Defesa**, *
 - **Ritmo:** ataques pequenos a cada poucas noites e um grande na lua cheia (a cada 4 noites), com aviso de uivo.
 - **Consequência:** humano comum levado é perdido; humano raro ou nomeado vira missão de resgate.
 - **Progressão:** novas unidades e melhorias vêm do galho Defesa da pesquisa e da árvore permanente entre runs.
+
+## A7 — Expansão do Tower Defense "Vampiros vs. Lobisomens" (proposta 23/09/2026)
+
+**Pilar:** a batalha é um dos pontos altos do jogo. Ela ganha modo próprio de campanha, mais cartas, clima e arenas.
+
+### Já no jogo
+- Arrastar carta com prévia.
+- 3 magias vampíricas: Chuva Rubra, Névoa Hipnótica, Beijo Sombrio.
+- Estrelas → marcas → níveis de unidade (Arsenal).
+- Lua de Sangue (infinita).
+- Partículas, clarões e tremor de câmera.
+
+### Novas cartas de vampiro (8)
+| Carta | Custo | Efeito |
+|---|---|---|
+| Criada de Sangue | 20 | Gerador barato e lento |
+| Besteira de Prata | 75 | Dano dobrado em lobos feridos |
+| Lanceiro Carmesim | 90 | Ataque perfurante em 2 casas |
+| Bruxa da Névoa | 80 | Área lenta permanente em 3 casas |
+| Caixão-Armadilha | 50 | Mina de uso único |
+| Lanterna de Sangue | 60 | Aura +25% de dano nos vizinhos |
+| Morcego Vigia | 70 | Anti-saltador e anti-voador |
+| Conde Valério | herói, 1 por batalha | Tanque com habilidade ativa |
+
+### Novos lobisomens (7)
+| Lobisomem | Comportamento |
+|---|---|
+| Escavador | Passa por baixo e surge atrás da 1ª defesa |
+| Xamã | Cura aliados próximos |
+| Couraçado | Ignora 8 de dano por golpe |
+| Filhotes | Trio rápido e frágil |
+| Corvo de Ulf | Voa por cima das Muralhas |
+| Uivador da Tempestade | Chama raios |
+| Chefe: Mãe da Matilha | Invoca filhotes; 3 fases |
+
+### Clima (sorteado por batalha, mostrado na preparação)
+| Clima | Efeito |
+|---|---|
+| Chuva | Cálices +25%, Sentinelas −20% de cadência |
+| Névoa | Lobos só aparecem nas últimas 5 casas |
+| Lua Cheia | Lobos +25% de vida e velocidade; recompensa ×2 |
+| Tempestade | Raios aleatórios em casas |
+| Neve | Todos 20% mais lentos |
+| Eclipse | Vampiros +30% de dano |
+
+### Arenas (ligadas às regiões)
+| Arena | Particularidade |
+|---|---|
+| Portão da Fazenda | Arena atual |
+| Pântano Carmesim | Raias de água deixam lento; casas alagadas não aceitam unidades |
+| Cemitério | Lápides bloqueiam casas |
+| Ponte do Rio | 3 raias |
+| Floresta em Chamas | O fogo se espalha |
+| Muralhas do Castelo | 7 raias |
+
+### Caçada (run roguelite grande)
+- **Formato:** mapa de 12–15 nós: batalha, elite, evento, mercador, descanso, chefe.
+- **Deck próprio:** começa com 4 cartas. Após cada vitória, escolhe 1 entre 3 cartas ou uma melhoria.
+- **Durante a run:** relíquias de caçada; vidas = humanos voluntários.
+- **Recompensas:** Marcas, Essência e desbloqueio de cartas para as defesas da fazenda.
