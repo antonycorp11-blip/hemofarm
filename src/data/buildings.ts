@@ -54,9 +54,9 @@ export const BUILDINGS: Record<BuildingKind, BuildingDef> = {
     name: 'Casa das Famílias',
     light: { h: 20, radius: 95, color: 0xff8a8a, intensity: 0.8, flicker: 0.08 },
     levels: [
-      { tex: 'bld_housing_2', tint: 0xffc8c8, cost: 300, buildMs: 14000, kinRate: 0.45,
+      { tex: 'bld_housing_2', tint: 0xffc8c8, cost: 300, buildMs: 14000, kinRate: 1.2,
         desc: 'Casais registrados mandam buscar parentes adultos que herdam o sangue dos dois. Burocracia afetiva.' },
-      { tex: 'bld_housing_3', tint: 0xffc8c8, cost: 700, buildMs: 22000, kinRate: 0.75,
+      { tex: 'bld_housing_3', tint: 0xffc8c8, cost: 700, buildMs: 22000, kinRate: 2,
         desc: 'Mais quartos, mais cartas para a família, mais parentes chegando. E mais formulários.' },
     ],
   },

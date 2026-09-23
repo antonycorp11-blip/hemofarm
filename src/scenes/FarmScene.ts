@@ -11,6 +11,7 @@ import { Farms } from '../world/Farms';
 import { Contracts } from '../world/Contracts';
 import { Research } from '../world/Research';
 import { LivingWorld } from '../world/LivingWorld';
+import { BloodOrbs } from '../world/BloodOrbs';
 import { BLOOD, QUALITY } from '../data/humans';
 const BLOOD_NAME = Object.fromEntries(Object.entries(BLOOD).map(([k, v]) => [k, v.name]));
 const QUALITY_NAME = Object.fromEntries(Object.entries(QUALITY).map(([k, v]) => [k, v.name]));
@@ -38,7 +39,7 @@ const NIGHT = { color: 0x050918, alpha: 0.5 };
 
 interface Manifest { [k: string]: any }
 // Art for later systems (battle, dialogue, UI) isn't needed by the farm scene: skipping it keeps mobile loading fast.
-const NOT_ON_FARM = /^(portrait_|icon_|blood_|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof|bat_swarm|flask))|^(wave_flag|ghoul_wall|blood_chalice|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
+const NOT_ON_FARM = /^(portrait_|icon_|blood_(rubra|lunar|ambar|umbra|carmesim)|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof|bat_swarm|flask))|^(wave_flag|ghoul_wall|blood_chalice|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
 export interface Glow { core: Phaser.GameObjects.Image; pool: Phaser.GameObjects.Image; light: Light; phase: number }
 
 export class FarmScene extends Phaser.Scene {
@@ -57,6 +58,8 @@ export class FarmScene extends Phaser.Scene {
   private contracts!: Contracts;
   private research!: Research;
   private world!: LivingWorld;
+  private orbs!: BloodOrbs;
+  private speed = 1;
   private tutorial!: Tutorial;
   private hintObjs: Phaser.GameObjects.GameObject[] = [];
   private pinchDist = 0;
@@ -104,6 +107,8 @@ export class FarmScene extends Phaser.Scene {
     this.research = new Research(panel, this.hud, () => this.buildings.level('lab') > 0);
     this.buildings.onLab = () => this.research.open();
     this.world = new LivingWorld(this.humans, this.buildings, panel, this.hud, tileCenter(21, 36));
+    this.orbs = new BloodOrbs(this, this.map, this.buildings);
+    this.buildings.extras = kind => this.world.extras(kind);
     this.tithe = new Tithe(this, this.humans, this.hud);
     if (import.meta.env.DEV) {
       // Dev shortcut: jump to just before the carriage arrives.
@@ -237,6 +242,15 @@ export class FarmScene extends Phaser.Scene {
     }
   }
 
+  // Timers, tweens and animations follow the game speed too, so walking and working speed up together.
+  private setSpeed(v: number) {
+    this.speed = v;
+    this.time.timeScale = v;
+    this.tweens.timeScale = v;
+    this.anims.globalTimeScale = v;
+    this.hud.setSpeed(v);
+  }
+
   // ---------- tutorial ----------
   private setupTutorial() {
     const dialogue = new Dialogue();
@@ -293,6 +307,8 @@ export class FarmScene extends Phaser.Scene {
       tutorialActive: () => !state.tutorial.done,
       onWhere: () => this.tutorial.where(),
       onContracts: () => this.contracts.openBoard(),
+      onSpeed: () => this.setSpeed(this.speed >= 3 ? 1 : this.speed + 1),
+      onPayTithe: () => this.tithe.payNow(),
     });
   }
 
@@ -420,13 +436,15 @@ export class FarmScene extends Phaser.Scene {
   update(time: number, delta: number) {
     this.pinScreenLayers();
     this.updateInertia(delta);
-    this.humans.update(delta);
-    this.tithe.update(delta);
-    this.buildings.update(delta);
-    this.farms.update(delta);
+    const sim = delta * this.speed; // ⏩ game speed: the simulation runs faster, the camera doesn't
+    this.humans.update(sim);
+    this.tithe.update(sim);
+    this.buildings.update(sim);
+    this.farms.update(sim);
     this.contracts.update();
-    this.research.update(delta);
-    this.world.update(delta);
+    this.research.update(sim);
+    this.world.update(sim);
+    this.orbs.update(sim);
     this.tutorial.update(delta);
     this.bubbles.update();
     this.updateLighting(time);

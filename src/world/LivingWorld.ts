@@ -55,6 +55,8 @@ export class LivingWorld {
   update(dt: number) {
     const w = state.world, s = dt / 1000;
     for (const k of ['collect', 'food', 'build'] as const) w.pause[k] = Math.max(0, w.pause[k] - dt);
+    w.overtime = Math.max(0, (w.overtime ?? 0) - dt);
+    for (const k of Object.keys(w.cooldown ?? {})) w.cooldown![k] = Math.max(0, w.cooldown![k] - dt);
 
     // Slow drift from the farm's condition.
     const pop = this.humans.population, cap = this.buildings.totalCapacity, morale = this.humans.avgMorale;
@@ -144,6 +146,40 @@ export class LivingWorld {
     this.hud.eventChip(null);
     this.panel.close();
     bus.emit('EVENT_RESOLVED', { eventId: id });
+  }
+
+  // ---------- one-tap building actions ----------
+  extras(kind: string) {
+    const w = state.world, r = state.resources;
+    const cd = (k: string) => Math.ceil((w.cooldown?.[k] ?? 0) / 1000);
+    const setCd = (k: string, ms: number) => { (w.cooldown ??= {})[k] = ms; };
+    if (kind === 'collect') {
+      const left = cd('overtime');
+      return [{
+        label: (w.overtime ?? 0) > 0 ? `Hora extra ativa · ${Math.ceil(w.overtime! / 1000)} s` : left ? `Hora extra · disponível em ${left} s` : 'Hora extra',
+        cost: 'Coleta 2× mais rápida e mais gente na fila por 60 s · −8 moral de todos · +6 tensão',
+        disabled: left > 0 || (w.overtime ?? 0) > 0 || w.rebellion,
+        run: () => {
+          w.overtime = 60000; setCd('overtime', 180000);
+          this.api.morale(-8); this.api.tension(6);
+          this.hud.toast('Bóris: Hora extra decretada. Os humanos chamaram de "hora eterna".', 'bad');
+        },
+      }];
+    }
+    if (kind === 'food') {
+      const left = cd('banquet');
+      return [{
+        label: left ? `Banquete · disponível em ${left} s` : 'Banquete',
+        cost: '−20 Comida · +10 moral de todos · −8 tensão',
+        disabled: left > 0 || r.food < 20,
+        run: () => {
+          this.api.food(-20); this.api.morale(10); this.api.tension(-8); setCd('banquet', 180000);
+          this.humans.cheer();
+          this.hud.toast('Lia: Banquete! Ninguém perguntou o motivo. Ninguém quis estragar.', 'good');
+        },
+      }];
+    }
+    return [];
   }
 
   // ---------- rebellion (GDD §11.3) ----------

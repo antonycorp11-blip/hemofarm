@@ -10,6 +10,8 @@ export interface WorldState {
   nextEvent: number;                                 // ms until the next decision event
   recent: string[];
   rebellion: boolean;
+  overtime?: number;      // ms of 'hora extra' left at the collection station
+  cooldown?: Record<string, number>; // ms until a manual action can be used again
 }
 export interface TutorialState { step: number; count: number; done: boolean }
 export interface PlotState { crop: string; growth: number; phase: 'plant' | 'growing' | 'harvest' }

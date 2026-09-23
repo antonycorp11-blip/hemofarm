@@ -33,6 +33,8 @@ export class Buildings {
   private downAt?: { x: number; y: number };
   onBoarding?: () => void;   // the Boarding Yard opens the contracts board once built
   onLab?: () => void;        // the Laboratory opens the research tree
+  // Extra one-tap actions offered on a built building (overtime, banquet…)
+  extras?: (kind: BuildingKind) => { label: string; cost: string; disabled?: boolean; run: () => void }[];
 
   constructor(private scene: Phaser.Scene & LightHost, private map: FarmMap, private hud: Hud, private panel: BuildPanel,
     private editorActive: () => boolean) {
@@ -176,7 +178,14 @@ export class Buildings {
     const cur = lv > 0 ? def.levels[lv - 1] : undefined;
     const next = def.levels[lv];
     const building = st?.buildLeft !== undefined;
+    const extras = lv > 0 && !building ? this.extras?.(slot.kind) ?? [] : [];
     this.panel.open({
+      html: extras.map((x, i) => `<div class="card"><button class="go" data-x="${i}"${x.disabled ? ' disabled' : ''}>${x.label}</button>` +
+        `<div class="muted" style="margin-top:4px">${x.cost}</div></div>`).join(''),
+      bind: root => root.querySelectorAll<HTMLButtonElement>('[data-x]').forEach(b => b.addEventListener('click', () => {
+        extras[Number(b.dataset.x)].run();
+        this.panel.close();
+      })),
       title: def.name,
       subtitle: lv === 0 ? 'Lote vazio' : `Nível ${lv}${next ? ` de ${def.levels.length}` : ' (máximo)'}`,
       desc: (building ? next : cur ?? next)?.desc ?? '',
@@ -195,7 +204,7 @@ export class Buildings {
       if (kind === 'housing') return `${l.capacity} moradores`;
       if (kind === 'collect') return `${l.blood} Sangue por coleta · ${(l.collectMs! / 1000).toFixed(1)} s`;
       if (kind === 'food') return `refeição de ${(l.eatMs! / 1000).toFixed(1)} s`;
-      if (kind === 'family') return `um parente a cada ~${Math.round(100 / l.kinRate! / 60)} min por casal`;
+      if (kind === 'family') return `um parente a cada ~${Math.round(100 / l.kinRate!)} s por casal`;
       return '';
     };
     const out: string[] = [];

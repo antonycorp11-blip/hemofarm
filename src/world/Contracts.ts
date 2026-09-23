@@ -83,11 +83,18 @@ export class Contracts {
       html: `<div class="tags">${tag(`blood_${t.blood}`, BLOOD[t.blood].name)}${tag(`quality_${t.quality}`, QUALITY[t.quality].name)}` +
         `${tag(`temper_${t.temper}`, TEMPER[t.temper].name)}${t.trait ? tag(`trait_${t.trait}`, TRAIT[t.trait].name) : ''}</div>` +
         meter('Vitalidade', h.vitality, '#d8122a') + meter('Moral', h.morale, '#6fbf73') + meter('Fome', h.hunger, '#e8b54a') +
-        `<p class="muted" style="margin:8px 0">${TEMPER[t.temper].desc}${t.trait ? ` ${TRAIT[t.trait].desc}` : ''}</p>` + this.bondHtml(h) + action,
+        `<p class="muted" style="margin:8px 0">${TEMPER[t.temper].desc}${t.trait ? ` ${TRAIT[t.trait].desc}` : ''}</p>` +
+        `<div style="display:flex;gap:6px;margin-bottom:8px"><button class="go" data-a="collect"${this.humans.canQueue(h) ? '' : ' disabled'}>Enviar à coleta</button>` +
+        `<button class="go" data-a="feed"${state.resources.food >= 1 && h.hunger > 5 ? '' : ' disabled'}>Alimentar · 1 Comida</button></div>` +
+        this.bondHtml(h) + action,
       bind: root => {
         root.querySelector<HTMLButtonElement>('[data-a="assign"]')?.addEventListener('click', () => this.assign(h));
         root.querySelector<HTMLButtonElement>('[data-a="unassign"]')?.addEventListener('click', () => { this.humans.unassign(h); this.openHuman(h); });
         root.querySelector<HTMLButtonElement>('[data-a="pair"]')?.addEventListener('click', () => this.openPairing(h));
+        root.querySelector<HTMLButtonElement>('[data-a="collect"]')?.addEventListener('click', () => {
+          if (this.humans.sendToCollect(h)) { this.hud.toast(`${this.label(h)} entrou na fila de coleta.`); this.panel.close(); }
+        });
+        root.querySelector<HTMLButtonElement>('[data-a="feed"]')?.addEventListener('click', () => { if (this.humans.feed(h)) this.openHuman(h); });
         root.querySelector<HTMLButtonElement>('[data-a="unpair"]')?.addEventListener('click', () => {
           if (confirm('Desfazer o par? O progresso do parente se perde.')) { this.humans.unbond(h); this.openHuman(h); }
         });

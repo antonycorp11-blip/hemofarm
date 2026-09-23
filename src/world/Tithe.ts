@@ -38,6 +38,14 @@ export class Tithe {
     if (n.elapsed >= NIGHT_MS) this.settle();
   }
 
+  // Quota already met: call the carriage now instead of waiting for the night to end.
+  payNow() {
+    const n = state.night;
+    if (this.settling || state.resources.blood < quotaFor(n.night)) return;
+    if (!this.arrived) this.arrive();
+    n.elapsed = Math.max(n.elapsed, NIGHT_MS - 6000);
+  }
+
   private arrive() {
     this.arrived = true;
     const c = this.scene.add.image(STOP.x + 60, STOP.y + 30, 'carriage').setOrigin(0.5, 1).setScale(0.5)

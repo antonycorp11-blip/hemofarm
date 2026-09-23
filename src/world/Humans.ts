@@ -170,7 +170,8 @@ export class Humans {
     const now = this.scene.time.now;
     if (h.energy < 25) return this.goSleep(h);
     if (h.hunger > 65) return this.goEat(h);
-    const canCollect = this.buildings.level('collect') > 0 && h.vitality > 70 && now > h.recoveringUntil
+    const overtime = (state.world.overtime ?? 0) > 0;
+    const canCollect = this.buildings.level('collect') > 0 && h.vitality > (overtime ? 50 : 70) && now > h.recoveringUntil
       && state.world.pause.collect <= 0 && !state.world.rebellion
       && this.queue.members.length < this.queue.spots.length;
     if (Math.random() < 0.7) {
@@ -178,7 +179,7 @@ export class Humans {
       if (job) return this.goFarm(h, job);
     }
     const r = Math.random();
-    if (canCollect && r < 0.3) return this.joinQueue(h);
+    if (canCollect && r < (overtime ? 0.6 : 0.3)) return this.joinQueue(h);
     if (r < 0.7) return this.goSocialize(h);
     this.goWander(h);
   }
@@ -297,7 +298,7 @@ export class Humans {
     q.busy = true;
     const def = this.buildings.levelDef('collect');
     const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult * (has('c1') ? 1.2 : 1));
-    this.enter(h, (def?.collectMs ?? 4000) * (has('c3') ? 0.7 : 1), () => {
+    this.enter(h, (def?.collectMs ?? 4000) * (has('c3') ? 0.7 : 1) * ((state.world.overtime ?? 0) > 0 ? 0.5 : 1), () => {
       h.vitality = Math.max(0, h.vitality - (has('c2') ? 20 : 30));
       h.morale = Math.max(0, h.morale - 4);
       h.recoveringUntil = this.scene.time.now + 25000;
@@ -428,9 +429,9 @@ export class Humans {
     const social = this.list.filter(h => h.state === 'socializing' && !h.taken && !this.partnerOf(h));
     for (let i = 0; i < social.length; i++) for (let j = i + 1; j < social.length; j++) {
       const a = social[i], b = social[j];
-      if (Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, b.sprite.x, b.sprite.y) > 80) continue;
+      if (Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, b.sprite.x, b.sprite.y) > 120) continue;
       const k = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
-      const v = (this.affinity.get(k) ?? 0) + 6 * s * (a.morale + b.morale > 100 ? 1.3 : 0.8) * (has('g3') ? 2 : 1);
+      const v = (this.affinity.get(k) ?? 0) + 16 * s * (a.morale + b.morale > 100 ? 1.3 : 0.8) * (has('g3') ? 2 : 1);
       this.affinity.set(k, v);
       if (v >= 100) { this.affinity.delete(k); this.bond(a, b); return; }
     }
@@ -440,7 +441,7 @@ export class Humans {
     for (const h of this.list) {
       const p = this.partnerOf(h);
       if (!p || h.id > p.id || h.taken) continue;
-      h.kin = Math.min(100, h.kin + rate * s * (h.morale + p.morale > 80 ? 1 : 0.4));
+      h.kin = Math.min(100, h.kin + rate * s * (h.morale + p.morale > 80 ? 1 : 0.6));
       if (h.kin < 100) continue;
       if (this.list.length >= this.buildings.totalCapacity) {
         if (!this.noRoomWarned) { this.noRoomWarned = true; bus.emit('HEIR_BLOCKED', { reason: 'capacity' }); }
@@ -460,6 +461,28 @@ export class Humans {
     this.scene.time.delayedCall(900, () => this.bubbles.say(c, 'heir', true));
     bus.emit('HEIR_ARRIVED', { humanId: c.id, parents: [a.id, b.id], quality: c.traits.quality, blood: c.traits.blood,
       code: c.traits.code, parentNames: [a.name ?? `Unidade ${a.traits.code}`, b.name ?? `Unidade ${b.traits.code}`] });
+  }
+
+  // ---------- manual actions from the human sheet ----------
+  canQueue(h: Human) {
+    return this.buildings.level('collect') > 0 && !h.taken && !h.contract && !this.queue.members.includes(h)
+      && h.state !== 'collecting' && h.vitality >= 40 && this.queue.members.length < this.queue.spots.length && !state.world.rebellion;
+  }
+
+  sendToCollect(h: Human) {
+    if (!this.canQueue(h)) return false;
+    this.show(h, true);
+    this.joinQueue(h);
+    return true;
+  }
+
+  feed(h: Human) {
+    if (state.resources.food < FOOD_PER_MEAL) return false;
+    state.resources.food -= FOOD_PER_MEAL;
+    h.hunger = 0; h.ateAt = this.scene.time.now; h.morale = Math.min(100, h.morale + 3);
+    bus.emit('HUMAN_ATE', { humanId: h.id });
+    this.bubbles.say(h, 'well_fed', true);
+    return true;
   }
 
   // ---------- living world hooks (GDD §11) ----------

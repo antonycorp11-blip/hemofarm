@@ -23,6 +23,10 @@ const CSS = `
 .hud .tithe.behind{border-color:#d8122a}
 .hud .tithe span{position:relative;z-index:1;white-space:nowrap}
 .hud .tithe .t{font-variant-numeric:tabular-nums;color:#f6d9a0}
+.hud .row2{display:flex;gap:6px;align-items:center;pointer-events:none}
+.hud .speed{pointer-events:auto;min-width:40px;height:30px;border-radius:8px;border:1px solid #4a1620;background:#120a10e8;color:#f3e2c8;font:700 13px Georgia,serif;cursor:pointer}
+.hud .speed.fast{color:#f6d9a0;box-shadow:0 0 8px #a07818}
+.hud .tithe .pay{position:relative;z-index:1;display:none;margin-left:4px;padding:2px 8px;border-radius:5px;border:1px solid #2a0a10;background:#a07818;color:#1a0a0e;font:700 11px Georgia,serif;cursor:pointer;animation:qnew 1s ease-in-out infinite alternate}
 .hud .tithe .x{color:#ff6a78;letter-spacing:2px}
 .quest{position:fixed;left:max(10px,env(safe-area-inset-left,0px));top:var(--hud-bottom,90px);z-index:5;display:none;align-items:center;gap:8px;
   max-width:min(300px,calc(100vw - 20px));padding:7px 8px 7px 10px;background:#140c0ef0;border:1px solid #a07818;border-radius:10px;
@@ -57,7 +61,8 @@ const CSS = `
 `;
 
 export interface HudSource { population: number; avgMorale: number }
-export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void }
+export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
+  onSpeed(): void; onPayTithe(): void }
 
 export class Hud {
   private root: HTMLDivElement;
@@ -69,6 +74,7 @@ export class Hud {
   private menu: HTMLDivElement;
   private deals!: HTMLButtonElement;
   private evt!: HTMLButtonElement;
+  private speedBtn!: HTMLButtonElement;
   private evtClick?: () => void;
 
   constructor(private src: HudSource, private actions: HudActions) {
@@ -110,9 +116,21 @@ export class Hud {
     this.tithe = document.createElement('div');
     this.tithe.className = 'tithe';
     this.tithe.title = 'Dízimo: Sangue que o castelo cobra ao fim de cada noite';
-    this.tithe.innerHTML = '<div class="fill"></div><span class="n"></span><span class="q"></span><span class="t"></span><span class="x"></span>';
-    this.tithe.onclick = () => this.toast(`Vesper: Ao fim da noite, ${quotaFor(state.night.night)} de Sangue. Se faltar, levamos humanos. Três faltas e a propriedade é minha.`, '', 6000);
-    this.root.appendChild(this.tithe);
+    this.tithe.innerHTML = '<div class="fill"></div><span class="n"></span><span class="q"></span><span class="t"></span><span class="x"></span><button class="pay">Pagar agora ▸</button>';
+    this.tithe.onclick = e => {
+      if ((e.target as HTMLElement).classList.contains('pay')) { actions.onPayTithe(); return; }
+      this.toast(`Vesper: Ao fim da noite, ${quotaFor(state.night.night)} de Sangue. Se faltar, levamos humanos. Três faltas e a propriedade é minha.`, '', 6000);
+    };
+    const speed = document.createElement('button');
+    speed.className = 'speed';
+    speed.textContent = '1×';
+    speed.setAttribute('aria-label', 'Velocidade do jogo');
+    speed.onclick = () => actions.onSpeed();
+    this.speedBtn = speed;
+    const row = document.createElement('div');
+    row.className = 'row2';
+    row.append(this.tithe, speed);
+    this.root.appendChild(row);
     document.body.appendChild(this.root);
 
     this.quest = document.createElement('div');
@@ -167,6 +185,7 @@ export class Hud {
     q('.x').textContent = '✕'.repeat(n.strikes) + '·'.repeat(MAX_STRIKES - n.strikes);
     q('.fill').style.width = `${Math.min(100, (r.blood / quota) * 100)}%`;
     this.tithe.classList.toggle('done', r.blood >= quota);
+    q('.pay').style.display = r.blood >= quota ? 'block' : 'none';
     this.tithe.classList.toggle('behind', r.blood < quota && r.blood / quota < n.elapsed / NIGHT_MS - 0.15);
     // Floating elements sit just below the HUD, however tall it is on this screen.
     document.documentElement.style.setProperty('--hud-bottom', `${this.root.getBoundingClientRect().bottom + 8}px`);
@@ -179,6 +198,11 @@ export class Hud {
     this.quest.querySelector('.qt')!.textContent = text;
     this.quest.querySelector('.qp')!.textContent = progress ?? '';
     this.quest.classList.remove('new'); void this.quest.offsetWidth; this.quest.classList.add('new');
+  }
+
+  setSpeed(v: number) {
+    this.speedBtn.textContent = `${v}×`;
+    this.speedBtn.classList.toggle('fast', v > 1);
   }
 
   // Pending event: a pulsing chip on the right; the player opens it when ready (never a surprise modal).
