@@ -8,15 +8,16 @@ export interface UnitDef {
   gen?: number;                         // chalice: Blood per pulse
   research?: string;                    // node that unlocks it
   spell?: boolean;                      // bats: one-shot area, no cell occupied
+  recharge: number;                     // ms before the card can be used again (PvZ-style)
 }
 
 export const UNITS: Record<UnitId, UnitDef> = {
-  chalice: { name: 'Cálice', tex: 'blood_chalice', cost: 30, hp: 60, gen: 15, rate: 9000, desc: 'Gera Sangue durante a batalha.' },
-  sentinel: { name: 'Sentinela', tex: 'sentinel_vampire', cost: 50, hp: 90, dmg: 18, rate: 1400, desc: 'Atira na raia inteira à frente.' },
-  wall: { name: 'Muralha', tex: 'ghoul_wall', cost: 40, hp: 420, desc: 'Ghoul com escudo. Segura o avanço.' },
-  gargoyle: { name: 'Gárgula', tex: 'gargoyle', cost: 110, hp: 140, dmg: 160, rate: 20000, research: 'd1', desc: 'Abate o primeiro lobisomem que chegar perto e vira pedra por um tempo.' },
-  alchemist: { name: 'Alquimista', tex: 'alchemist_unit', cost: 90, hp: 70, dmg: 26, rate: 2600, research: 'd2', desc: 'Frascos que atingem em área e deixam lento.' },
-  bats: { name: 'Morcegos', tex: 'fx_bat_swarm', cost: 140, hp: 0, dmg: 220, research: 'd3', spell: true, desc: 'Nuvem de uso único: arrasa uma área 3×3.' },
+  chalice: { name: 'Cálice', tex: 'blood_chalice', cost: 30, hp: 60, gen: 15, rate: 7000, recharge: 5000, desc: 'Gera Sangue durante a batalha.' },
+  sentinel: { name: 'Sentinela', tex: 'sentinel_vampire', cost: 50, hp: 90, dmg: 18, rate: 1400, recharge: 5000, desc: 'Atira na raia inteira à frente.' },
+  wall: { name: 'Muralha', tex: 'ghoul_wall', cost: 40, hp: 420, recharge: 12000, desc: 'Ghoul com escudo. Segura o avanço.' },
+  gargoyle: { name: 'Gárgula', tex: 'gargoyle', cost: 110, hp: 140, dmg: 160, rate: 20000, recharge: 18000, research: 'd1', desc: 'Abate o primeiro lobisomem que chegar perto e vira pedra por um tempo.' },
+  alchemist: { name: 'Alquimista', tex: 'alchemist_unit', cost: 90, hp: 70, dmg: 26, rate: 2600, recharge: 10000, research: 'd2', desc: 'Frascos que atingem em área e deixam lento.' },
+  bats: { name: 'Morcegos', tex: 'fx_bat_swarm', cost: 140, hp: 0, dmg: 220, recharge: 30000, research: 'd3', spell: true, desc: 'Nuvem de uso único: arrasa uma área 3×3.' },
 };
 
 export interface WolfDef { name: string; tex: string; hp: number; speed: number; dmg: number; reward: number; h: number }
