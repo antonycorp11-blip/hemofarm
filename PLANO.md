@@ -66,3 +66,10 @@ Arquivos em `assets_raw/`. Fundo transparente ou magenta #FF00FF.
 - ✅ Bloco 15 (temperamentos, traços, ícones raid/offline), 16 (molduras 9-slice, botões, barras), 17 (logo, fundo de título, mapa regional, pinos, morcego, cursores, página do codex), 19 (plantas: 3 culturas × 3 estágios + cesto).
 - ✅ Bloco 18 completo (18 + 18B). Todos os assets pedidos até agora foram entregues.
 - Em uso: pele da interface (`src/ui/skin.ts`), tela de título com botão Jogar, morcego no carregamento, cursor no desktop, plantas reais na horta.
+
+## Fase 14 — Expansão do tower defense (GDD A7) · 🟡
+- **8 cartas novas:** criada, besteira, lanceiro, bruxa, caixão, lanterna, morcego vigia, Conde.
+- **7 lobisomens novos:** escavador, xamã, couraçado, filhotes, corvo, tempestade, Mãe da Matilha em 3 fases.
+- **7 climas e 6 arenas por região:** pântano com água, cemitério com lápides, ponte de 3 raias, fogo, muralhas de 7 raias.
+- **Caçada:** 12 etapas, deck, draft, mercador, eventos, fogueira, relíquias e chefe. As cartas conquistadas passam a valer na fazenda.
+- **Arte:** provisória, com tinta. Os blocos 20–22 entram automaticamente pelo `process_assets.py`, com os nomes já mapeados.

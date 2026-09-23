@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { bus } from '../core/events';
 import { state, NIGHT_MS } from '../core/state';
-import { buildRaid, Raid } from '../data/battle';
+import { ARENAS, ArenaId, REGION_ARENA, WEATHER, WeatherId, buildRaid, rollWeather, Raid } from '../data/battle';
 import { fx, more } from '../core/bonus';
 import { TUTORIAL } from '../data/tutorial';
 import type { BattleResult } from '../scenes/BattleScene';
@@ -15,10 +15,11 @@ const RAID_AT = 0.4;        // fraction of the night when the howls start
 
 export class Raids {
   private current?: Raid;
+  private opts?: { arena: ArenaId; weather: WeatherId };
   private tutorialFought = false; // the tutorial raid happens once, not again while its closing lines play
 
   constructor(private humans: Humans, private buildings: Buildings, private hud: Hud,
-    private startBattle: (raid: Raid, done: (r: BattleResult) => void) => void) {
+    private startBattle: (raid: Raid, done: (r: BattleResult) => void, opts?: { arena: ArenaId; weather: WeatherId }) => void) {
     bus.on('NIGHT_STARTED', ({ night }) => this.plan(night));
     if (!state.world.raid) this.plan(state.night.night);
   }
@@ -46,8 +47,13 @@ export class Raids {
     const r = state.world.raid!;
     r.status = 'warned';
     r.warnLeft = WARN_MS;
-    this.current = buildRaid(state.night.night, r.kind === 'big', tutorial, Math.min(0.5, fx('raidSize')));
-    this.hud.raidChip(r.kind === 'big' ? 'Lua cheia: ataque grande!' : 'Lobisomens na trilha!', () => this.defend());
+    // Each region fights on its own ground; the weather is drawn now so the alarm can announce it.
+    const arena: ArenaId = tutorial ? 'farm' : REGION_ARENA[state.region] ?? 'farm';
+    const weather: WeatherId = tutorial ? 'clear' : rollWeather(r.kind === 'big');
+    this.opts = { arena, weather };
+    this.current = buildRaid(state.night.night, r.kind === 'big', tutorial, Math.min(0.5, fx('raidSize')), ARENAS[arena].lanes);
+    const wx = weather !== 'clear' ? ` ${WEATHER[weather].icon} ${WEATHER[weather].name}` : '';
+    this.hud.raidChip(`${r.kind === 'big' ? 'Lua cheia: ataque grande!' : 'Lobisomens na trilha!'}${wx}`, () => this.defend());
     this.hud.toast(`Aureliano: ${r.kind === 'big' ? 'Lua cheia. Eles vêm em bando. Às raias!' : 'Uivos na trilha norte. Toque no alerta para defender.'}`, 'bad', 7000);
     bus.emit('RAID_WARNING', { big: r.kind === 'big' });
   }
@@ -56,7 +62,7 @@ export class Raids {
     const raid = this.current;
     if (!raid) return;
     this.hud.raidChip(null);
-    this.startBattle(raid, res => this.apply(res));
+    this.startBattle(raid, res => this.apply(res), this.opts);
   }
 
   private apply(res: BattleResult) {

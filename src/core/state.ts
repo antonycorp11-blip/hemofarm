@@ -53,6 +53,7 @@ export const state = {
   endlessNight: 0,                                // last night the Blood Moon reward was paid
   titheBonus: 0,                                  // set by core/bonus (avoids an import cycle)
   quotaCut: 0,
+  bloodRate: 0,                                   // Blood/min measured by the HUD (for before → after previews)
   world: { tension: 10, pause: { collect: 0, food: 0, build: 0 }, nextEvent: 240000, recent: [], rebellion: false } as WorldState,
   nextUid: 1,
   region: 'bosque' as import('../data/regions').RegionId,

@@ -18,7 +18,7 @@ import { LivingWorld } from '../world/LivingWorld';
 import { BloodOrbs } from '../world/BloodOrbs';
 import { Raids } from '../world/Raids';
 import type { Raid } from '../data/battle';
-import type { BattleResult } from './BattleScene';
+import type { BattleData, BattleResult } from './BattleScene';
 import { BLOOD, QUALITY } from '../data/humans';
 const BLOOD_NAME = Object.fromEntries(Object.entries(BLOOD).map(([k, v]) => [k, v.name]));
 const QUALITY_NAME = Object.fromEntries(Object.entries(QUALITY).map(([k, v]) => [k, v.name]));
@@ -36,7 +36,8 @@ import { Orders } from '../world/Orders';
 import { Relics } from '../ui/Relics';
 import { openAlbum } from '../ui/Album';
 import { openArsenal } from '../ui/Arsenal';
-import { endlessWave } from '../data/battle';
+import { ARENAS, ArenaId, endlessWave, rollWeather } from '../data/battle';
+import { Hunt } from '../ui/Hunt';
 import { more } from '../core/bonus';
 
 const S = 0.5; // assets are stored at 2x world scale
@@ -53,7 +54,7 @@ const NIGHT = { color: 0x050918, alpha: 0.5 };
 
 interface Manifest { [k: string]: any }
 // Art for later systems (battle, dialogue, UI) isn't needed by the farm scene: skipping it keeps mobile loading fast.
-const NOT_ON_FARM = /^(portrait_|icon_|blood_(rubra|lunar|ambar|umbra|carmesim)|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof|bat_swarm|flask))|^(wave_flag|ghoul_wall|blood_chalice|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
+const NOT_ON_FARM = /^(unit_|hunt_|tombstone_|tile_(swamp|grave|snow|bridge|castle|burnt)|fx_(spells|weather)|portrait_|icon_|blood_(rubra|lunar|ambar|umbra|carmesim)|quality_|wolf_|prop_|temper_|trait_|pin_|fx_(bolt|bomb|bell_wave|fear|vampire_poof|bat_swarm|flask))|^(wave_flag|ghoul_wall|blood_chalice|sentinel_vampire|gargoyle|alchemist_unit|aureliano|vesper|rubelia|hematico|boris|ghoul_guard|human_actions_2|bld_(market|shelter|bell|guard_post|sentinel_tower)|gate_reinforced|palisade_broken_(ne|nw)|rubble)$/;
 export interface Glow { core: Phaser.GameObjects.Image; pool: Phaser.GameObjects.Image; light: Light; phase: number }
 
 export class FarmScene extends Phaser.Scene {
@@ -78,6 +79,7 @@ export class FarmScene extends Phaser.Scene {
   private modal!: Modal;
   private orders!: Orders;
   private relics!: Relics;
+  private hunt!: Hunt;
   private secTick = 0;
   private speed = 1;
   private tutorial!: Tutorial;
@@ -132,6 +134,12 @@ export class FarmScene extends Phaser.Scene {
     this.modal = new Modal();
     this.orders = new Orders(this.hud, this.modal, kind => this.buildings.built(kind as never).length > 0);
     this.relics = new Relics(this.modal, p => (p ? this.scene.pause() : this.scene.resume()));
+    this.hunt = new Hunt(this.modal, {
+      battle: (data, done) => this.startBattle(data.raid, done, data),
+      pause: p => (p ? this.scene.pause() : this.scene.resume()),
+      toast: (m, k) => this.hud.toast(m, k),
+      hasArt: k => !!(this.cache.json.get('manifest') as Record<string, unknown>)[k],
+    });
     this.buildings.onLab = () => this.research.open();
     this.world = new LivingWorld(this.humans, this.buildings, panel, this.hud, tileCenter(21, 36));
     this.orbs = new BloodOrbs(this, this.map, this.buildings);
@@ -352,8 +360,15 @@ export class FarmScene extends Phaser.Scene {
 
   // Blood Moon: endless waves in the battle scene; own Blood, nobody from the farm at risk. Rewards once per night.
   private bloodMoon() {
-    const raid = { night: state.night.night, big: false, spawns: endlessWave(1, 6000), waves: [6000], endless: true };
+    const arena = Phaser.Utils.Array.GetRandom(Object.keys(ARENAS)) as ArenaId, lanes = ARENAS[arena].lanes;
+    const raid = { night: state.night.night, big: false, spawns: endlessWave(1, 6000, lanes), waves: [6000], endless: true, lanes };
     this.startBattle(raid, r => {
+      this.bloodMoonDone(r);
+    }, { mode: 'endless', arena, weather: rollWeather(false) });
+  }
+
+  private bloodMoonDone(r: BattleResult) {
+    {
       const paid = state.endlessNight !== state.night.night && r.waves > 0;
       if (paid) {
         state.endlessNight = state.night.night;
@@ -361,18 +376,18 @@ export class FarmScene extends Phaser.Scene {
         state.resources.essence += ess;
         this.hud.toast(`Aureliano: ${r.waves} ondas na Lua de Sangue. +${ess} Essência. Recompensa de novo na próxima noite.`, 'good', 7000);
       } else if (r.waves > 0) this.hud.toast('Aureliano: Bom treino. A recompensa da Lua de Sangue já foi paga esta noite.');
-    });
+    }
   }
 
 
   // ---------- battle ----------
   // The farm freezes (and hides) while the separate battle scene runs on top of it.
-  private startBattle(raid: Raid, done: (r: BattleResult) => void) {
+  private startBattle(raid: Raid, done: (r: BattleResult) => void, opts: Partial<BattleData> = {}) {
     this.buildings.closePanel?.();
     this.scene.pause();
     this.scene.setVisible(false);
     this.scene.launch('Battle', {
-      raid, collectLevel: this.buildings.level('collect'), looks: this.humans.looks,
+      ...opts, raid, collectLevel: this.buildings.level('collect'), looks: this.humans.looks,
       onEnd: (r: BattleResult) => {
         this.scene.stop('Battle');
         this.scene.setVisible(true);
@@ -452,6 +467,7 @@ export class FarmScene extends Phaser.Scene {
       onAlbum: () => openAlbum(this.modal),
       onArsenal: () => openArsenal(this.modal),
       onBloodMoon: () => this.bloodMoon(),
+      onHunt: () => this.hunt.open(),
       info: () => ({ goal: goalFor(), region: REGIONS[state.region].name, mute: meta.mute }),
     });
   }

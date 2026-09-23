@@ -26,10 +26,13 @@ export interface Meta {
   marks: number;               // hunt marks from battle stars, spent on unit levels
   unitLv: Record<string, number>;
   bestWave: number;            // Blood Moon record
+  cards: string[];             // cards won in the Caçada, available in farm defenses
+  huntBest: number;            // deepest floor reached in a Caçada
+  hunts: number;
 }
 
 const KEY = 'hemo.meta';
-export const meta: Meta = { legacy: 0, levels: {}, mandates: 0, bestNight: 0, nextRegion: 'bosque', mute: false, album: [], marks: 0, unitLv: {}, bestWave: 0 };
+export const meta: Meta = { legacy: 0, levels: {}, mandates: 0, bestNight: 0, nextRegion: 'bosque', mute: false, album: [], marks: 0, unitLv: {}, bestWave: 0, cards: [], huntBest: 0, hunts: 0 };
 
 export function loadMeta() {
   try { Object.assign(meta, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { /* fresh meta */ }

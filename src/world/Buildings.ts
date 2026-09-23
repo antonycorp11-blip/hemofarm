@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { bus } from '../core/events';
 import { state } from '../core/state';
 import { BUILDINGS, BORIS_LINES, BuildingKind, Level, TRACKS, trackCost } from '../data/buildings';
-import { invalidate } from '../core/bonus';
+import { invalidate, ratePreview } from '../core/bonus';
 import { sfx } from '../core/sfx';
 import { FarmMap, Slot, slotGeometry } from '../map/bosque';
 import { iso } from '../map/iso';
@@ -237,6 +237,7 @@ export class Buildings {
     return `<div class="card" style="border-color:#a07818"><h4>${t.name} · nível ${lv}/${t.max}</h4>` +
       `<div class="muted">Cada nível: ${t.desc}. Vale para todas as construções deste tipo. Agora: <b style="color:#f6d9a0">${total}</b></div>` +
       `<div class="meter" style="margin:6px 0"><i style="width:${(lv / t.max) * 100}%;background:linear-gradient(90deg,#8a1424,#e8b54a)"></i></div>` +
+      (k === 'blood' && !max && ratePreview(per) ? `<div class="muted" style="color:#ff8a98">Próximo nível: ${ratePreview(per)}</div>` : '') +
       (max ? '<div class="muted">Nível máximo.</div>' : `<div style="display:flex;gap:6px">${btn(1, '+1')}${btn(5, '+5')}${btn(99, 'Máx')}</div>`) + '</div>';
   }
 

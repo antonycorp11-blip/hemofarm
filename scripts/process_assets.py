@@ -46,6 +46,14 @@ for n in ['tile_grass_a', 'tile_grass_b', 'tile_forest_floor', 'tile_cobble_a', 
     t = t.crop((mx, my, t.width - mx, t.height - my)).resize((TW, TH), Image.LANCZOS)
     t.putalpha(mask)
     save(n, t)
+# Arena floors (GDD A7, block 22): optional, same diamond format
+for n in ['tile_swamp_water', 'tile_swamp_mud', 'tile_grave_soil', 'tile_snow', 'tile_bridge', 'tile_castle_stone', 'tile_burnt']:
+    if not exists(n): continue
+    t = trim(load(n))
+    mx, my = t.width * .06, t.height * .06
+    t = t.crop((mx, my, t.width - mx, t.height - my)).resize((TW, TH), Image.LANCZOS)
+    t.putalpha(mask)
+    save(n, t)
 
 # ---- ground decals: split sheet by empty rows/columns
 def bands(profile, gap=6):
@@ -141,7 +149,11 @@ CHARS = {'human_b': 44, 'human_c': 44, 'davi': 44, 'lia': 44, 'boris': 50, 'ghou
          'vampire_buyer': 50, 'rubelia': 50, 'hematico': 48, 'aureliano': 50, 'vesper': 52, 'wolf_scout': 60,
          'wolf_hunter': 66, 'wolf_brute': 80, 'wolf_alpha': 88, 'sentinel_vampire': 48, 'gargoyle': 56,
          'alchemist_unit': 42, 'human_actions_2': 44, 'wolf_leaper': 62, 'blood_orb': 26,
-         'wolf_howler': 60, 'ghoul_wall': 52, 'blood_chalice': 50, 'fx_bat_swarm': 60, 'fx_flask': 22}
+         'wolf_howler': 60, 'ghoul_wall': 52, 'blood_chalice': 50, 'fx_bat_swarm': 60, 'fx_flask': 22,
+         # GDD A7 (blocks 20/21): new battle cards and werewolves
+         'unit_maid': 44, 'unit_crossbow': 48, 'unit_lancer': 50, 'unit_witch': 46, 'unit_coffin_trap': 34, 'unit_lantern': 56,
+         'unit_bat_watch': 50, 'unit_count': 56, 'wolf_digger': 60, 'wolf_shaman': 62, 'wolf_armored': 80, 'wolf_pups': 46,
+         'wolf_raven': 50, 'wolf_storm': 62, 'wolf_mother': 100}
 for n, h in CHARS.items():
     if not exists(n): continue
     im = load(n); cw, ch = im.width / 4, im.height / 4
@@ -170,6 +182,19 @@ for n in ['fx_dust', 'fx_hit', 'fx_smoke', 'fx_sparkle', 'fx_blood_drop', 'fx_bo
     out = Image.new('RGBA', (fw * 4, fh))
     for i, c in enumerate(cells): out.alpha_composite(c.crop(box).resize((fw, fh), Image.LANCZOS), (i * fw, 0))
     save(n, out, frameW=fw, frameH=fh, frames=4)
+
+# ---- single-row strips: n frames side by side, each scaled to a target height
+for n, frames, h in [('tombstone_set', 4, 56), ('hunt_nodes', 6, 96)]:
+    if not exists(n): continue
+    im = load(n); cw = im.width / frames
+    cells = [trim(im.crop((round(c * cw), 0, round((c + 1) * cw), im.height))) for c in range(frames)]
+    fh = h * 2
+    fw = max(round(c.width * fh / c.height) for c in cells)
+    out = Image.new('RGBA', (fw * frames, fh))
+    for i, c in enumerate(cells):
+        r = c.resize((round(c.width * fh / c.height), fh), Image.LANCZOS)
+        out.alpha_composite(r, (i * fw + (fw - r.width) // 2, 0))
+    save(n, out, frameW=fw, frameH=fh, frames=frames)
 
 # ---- portraits (dialogue): square, not trimmed so framing stays identical
 for n in ['vesper', 'boris', 'rubelia', 'hematico', 'aureliano', 'davi', 'lia', 'ulf', 'inspector', 'merchant']:
@@ -242,7 +267,7 @@ if exists('loading_bat'):
         f = fit(f, h=fh) if f.width / f.height < 2 else fit(f, w=96)
         out.alpha_composite(f, (i * 96 + (96 - f.width) // 2, (fh - f.height) // 2))
     save('loading_bat', out, px=True)
-for n, q in [('title_background', 80), ('regional_map', 85)]:
+for n, q in [('title_background', 80), ('regional_map', 85), ('hunt_map_bg', 80)]:
     if exists(n):
         im = load(n).convert('RGB'); im = im.resize((1536, round(im.height * 1536 / im.width)), Image.LANCZOS)
         im.save(f'{OUT}/{n}.jpg', quality=q); manifest[n] = {'w': im.width, 'h': im.height, 'jpg': True}

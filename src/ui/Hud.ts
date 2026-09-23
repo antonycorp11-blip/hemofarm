@@ -80,7 +80,7 @@ body.in-battle .hud,body.in-battle .toasts,body.in-battle .quest,body.in-battle 
 export interface HudSource { population: number; avgMorale: number; ordersReady: number; treeReady: boolean; hasLab: boolean }
 export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
   onSpeed(): void; onPayTithe(): void; onMap(): void; onAscend(): void; onSound(): void;
-  onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void;
+  onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void; onHunt(): void;
   info(): { goal: number; region: string; mute: boolean } }
 
 export class Hud {
@@ -227,6 +227,7 @@ export class Hud {
     let gain = 0;
     for (let i = 1; i < this.samples.length; i++) gain += Math.max(0, this.samples[i] - this.samples[i - 1]);
     const perMin = this.samples.length > 5 ? Math.round(gain * 60 / (this.samples.length - 1)) : 0;
+    state.bloodRate = perMin;
     this.res.blood.querySelector<HTMLElement>('.rate')!.textContent = perMin ? `+${perMin}/min` : '';
     const ob = this.ordersBtn.querySelector<HTMLElement>('.badge')!;
     ob.textContent = this.src.ordersReady ? String(this.src.ordersReady) : '';
@@ -317,7 +318,7 @@ export class Hud {
     add('Relíquias do mandato', () => this.actions.onRelics());
     add('Álbum de Linhagens', () => this.actions.onAlbum());
     add('Arsenal de Aureliano', () => this.actions.onArsenal());
-    if (!this.actions.tutorialActive()) add('Lua de Sangue (desafio)', () => this.actions.onBloodMoon());
+    if (!this.actions.tutorialActive()) { add('⚔ Caçada (campanha)', () => this.actions.onHunt()); add('Lua de Sangue (desafio)', () => this.actions.onBloodMoon()); }
     add('Mapa regional', () => this.actions.onMap());
     add(info.mute ? 'Som: desligado' : 'Som: ligado', () => this.actions.onSound());
     if (this.actions.tutorialActive()) add('Pular tutorial', () => { if (confirm('Pular o tutorial?')) this.actions.onSkipTutorial(); });

@@ -2,7 +2,7 @@
 // The Laboratory distils Essência from every collection, so research never competes with the tithe for Blood.
 import { bus } from '../core/events';
 import { state } from '../core/state';
-import { invalidate, less, more } from '../core/bonus';
+import { invalidate, less, more, ratePreview } from '../core/bonus';
 import { sfx } from '../core/sfx';
 import { BRANCHES, NODES, Node, lvl, node } from '../data/research';
 import type { Hud } from '../ui/Hud';
@@ -175,6 +175,8 @@ export class Research {
     const n = node(this.sel), l = lvl(n.id), c = this.cost(n);
     const open = this.open_(n), excl = this.excluded(n);
     const effect = (lv: number) => n.fx ? n.fx.map(([k, v]) => fmtFx(k, v * lv)).join(' · ') : '';
+    const bl = n.fx?.find(([k]) => k === 'blood');
+    const prev = bl && l < n.max ? ratePreview(bl[1]) : '';
     let btn: string;
     if (l >= n.max) btn = '<button disabled>Completo</button>';
     else if (excl) btn = '<button disabled>Você escolheu o outro caminho</button>';
@@ -182,7 +184,7 @@ export class Research {
     else btn = `<button data-buy${state.resources.essence >= c ? '' : ' disabled'}>${l ? 'Melhorar' : 'Pesquisar'} · ${c} Essência</button>`;
     el.innerHTML = `<button class="sx" aria-label="Fechar">×</button><h3>${n.name}</h3>
       <div class="br" style="color:${BRANCHES[n.branch].color}">${BRANCHES[n.branch].name}${n.max > 1 ? ` · nível ${l}/${n.max}` : ''}</div>
-      <p>${n.desc}</p>${n.fx && n.max > 1 ? `<div class="st">${l ? `Agora: ${effect(l)}` : ''}${l < n.max ? `${l ? '<br>' : ''}Próximo: ${effect(l + 1)}` : ''}</div>` : ''}${btn}`;
+      <p>${n.desc}</p>${n.fx && n.max > 1 ? `<div class="st">${l ? `Agora: ${effect(l)}` : ''}${l < n.max ? `${l ? '<br>' : ''}Próximo: ${effect(l + 1)}` : ''}</div>` : ''}${prev ? `<div class="st" style="color:#ff8a98">${prev}</div>` : ''}${btn}`;
     el.classList.add('on');
     el.querySelector<HTMLButtonElement>('[data-buy]')?.addEventListener('click', () => this.buy(n.id));
     el.querySelector<HTMLButtonElement>('.sx')!.onclick = () => { this.sel = undefined; this.render(); };

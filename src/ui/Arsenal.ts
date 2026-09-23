@@ -8,8 +8,8 @@ import type { Modal } from './Modal';
 export function openArsenal(modal: Modal) {
   const m = meta.marks ?? 0;
   const row = (id: UnitId) => {
-    const u = UNITS[id], l = meta.unitLv?.[id] ?? 0, c = unitLvCost(l), locked = !!u.research && !has(u.research);
-    return `<div class="row"><div class="t"><b>${u.name}</b> <small>nível ${l}/${UNIT_MAX_LV}${locked ? ' · ainda não liberado na árvore' : ''}</small><br>` +
+    const u = UNITS[id], l = meta.unitLv?.[id] ?? 0, c = unitLvCost(l), locked = u.hunt ? !meta.cards?.includes(id) : !!u.research && !has(u.research);
+    return `<div class="row"><div class="t"><b>${u.name}</b> <small>nível ${l}/${UNIT_MAX_LV}${locked ? (u.hunt ? ' · conquiste na Caçada' : ' · ainda não liberado na árvore') : ''}</small><br>` +
       `<small>${u.desc} Agora: +${l * 15}% de força.</small></div>` +
       `<button data-u="${id}"${l >= UNIT_MAX_LV || m < c ? ' disabled' : ''}>${l >= UNIT_MAX_LV ? 'Máximo' : `${c} ★`}</button></div>`;
   };

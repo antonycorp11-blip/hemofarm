@@ -35,6 +35,14 @@ export function fx(k: Fx): number {
   return cache[k] ?? 0;
 }
 
+// "+12/min → +18/min": what a Blood bonus change would do to the measured production.
+export function ratePreview(extra: number) {
+  const now = state.bloodRate;
+  if (!now || !extra) return '';
+  const base = 1 + fx('blood');
+  return `Sangue: +${now}/min → +${Math.round(now * (base + extra) / base)}/min`;
+}
+
 // Multiplier helpers for the common cases.
 export const more = (k: Fx) => 1 + fx(k);                        // +x%
 export const less = (k: Fx, floor = 0.3) => Math.max(floor, 1 - fx(k)); // −x%, never below the floor
