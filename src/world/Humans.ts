@@ -58,6 +58,8 @@ export class Human implements Speaker {
   partner?: number;    // uid of the bonded partner
   kin = 0;             // 0..100 progress towards sending for a relative (kept on the couple's lower uid)
   lovedUntil = 0;
+  move?: Phaser.Tweens.Tween;   // walking step (kept apart from fades so one never cancels the other)
+  fade?: Phaser.Tweens.Tween;   // entering/leaving buildings
   offset = { x: Phaser.Math.Between(-12, 12), y: Phaser.Math.Between(-5, 5) };
   path: P[] = [];
   onArrive?: () => void;
@@ -143,6 +145,11 @@ export class Humans {
       if (has('w3') && h.hunger < 70) h.morale = Math.min(100, h.morale + 0.04 * s);
       if (h.hunger > 85) h.morale = Math.max(0, h.morale - 0.2 * s);
       h.sprite.setDepth(h.sprite.y);
+      // Safety net: anyone outside a building must be visible and tappable.
+      if (!h.taken && h.state !== 'inside' && h.state !== 'collecting' && !h.fade?.isPlaying()) {
+        if (!h.sprite.visible) h.sprite.setVisible(true);
+        if (h.sprite.alpha < 1) h.sprite.setAlpha(Math.min(1, h.sprite.alpha + s * 3));
+      }
       this.updateMarker(h, now);
     }
     this.updateBonds(dt);
@@ -306,7 +313,7 @@ export class Humans {
     for (const h of chosen) {
       h.taken = true;
       this.leaveQueue(h);
-      h.sprite.setVisible(true).setAlpha(1);
+      this.show(h, true);
       this.bubbles.say(h, 'taken', true);
       this.walkTo(h, gate, () => {
         this.anim(h, 'front').setFlipX(true);
@@ -341,7 +348,7 @@ export class Humans {
   assign(h: Human, contractId: string) {
     h.contract = contractId;
     this.leaveQueue(h);
-    h.sprite.setVisible(true).setAlpha(1);
+    this.show(h, true);
     this.bubbles.say(h, 'boarding', true);
     this.goBoard(h);
   }
@@ -468,7 +475,7 @@ export class Humans {
   // ---------- movement ----------
   private walkTo(h: Human, target: P, onArrive: () => void, keepQueue = false) {
     if (!keepQueue && this.queue.members.includes(h)) return; // queued humans only move via the queue
-    this.scene.tweens.killTweensOf(h.sprite);
+    h.move?.remove();
     const path = findPath(h.tile, target, this.map.walkable, this.map.paths);
     if (!path) { this.scene.time.delayedCall(1000, () => this.decide(h)); return; }
     h.state = 'walking';
@@ -486,7 +493,7 @@ export class Humans {
     h.tile = next;
     const c = tileCenter(next[0], next[1]);
     const slow = this.scene.time.now < h.recoveringUntil ? 1.5 : 1;
-    this.scene.tweens.add({
+    h.move = this.scene.tweens.add({
       targets: h.sprite, x: c.x + h.offset.x, y: c.y + h.offset.y,
       duration: STEP_MS * slow, onComplete: () => this.step(h),
     });
@@ -495,12 +502,21 @@ export class Humans {
   private enter(h: Human, ms: number, done: () => void, state: State = 'inside') {
     h.state = state;
     h.sprite.stop();
-    this.scene.tweens.add({ targets: h.sprite, alpha: 0, duration: 400, onComplete: () => h.sprite.setVisible(false) });
+    h.fade?.remove();
+    h.fade = this.scene.tweens.add({ targets: h.sprite, alpha: 0, duration: 400, onComplete: () => h.sprite.setVisible(false) });
     this.scene.time.delayedCall(ms, () => {
-      h.sprite.setVisible(true);
-      this.scene.tweens.add({ targets: h.sprite, alpha: 1, duration: 400 });
+      if (h.taken) return;
+      this.show(h);
       done();
     });
+  }
+
+  // Bring a human back into view, cancelling any fade-out still running.
+  private show(h: Human, instant = false) {
+    h.fade?.remove();
+    h.sprite.setVisible(true);
+    if (instant) { h.sprite.setAlpha(1); h.fade = undefined; return; }
+    h.fade = this.scene.tweens.add({ targets: h.sprite, alpha: 1, duration: 400 });
   }
 
   private place(h: Human, t: P) {
