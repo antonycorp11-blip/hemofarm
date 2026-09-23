@@ -62,7 +62,7 @@ export class BattleScene extends Phaser.Scene {
 
   init(data: BattleData) {
     this.cfg = data;
-    Object.assign(this, { spell: undefined, spellReady: {}, bank: 150, wave: 1, lives: 3, units: [], wolves: [], t: 0, spawnIdx: 0, selected: undefined, grabbed: 0, spent: 0, kills: 0, trickle: 0, ended: false, folk: [], wolvesGone: 0, ready: {}, uiTick: 0, touches: new Map(), pinch: 0 });
+    Object.assign(this, { aim: undefined, ghost: undefined, cardDrag: undefined, spell: undefined, spellReady: {}, bank: 150, wave: 1, lives: 3, units: [], wolves: [], t: 0, spawnIdx: 0, selected: undefined, grabbed: 0, spent: 0, kills: 0, trickle: 0, ended: false, folk: [], wolvesGone: 0, ready: {}, uiTick: 0, touches: new Map(), pinch: 0 });
     this.t = -(data.raid.endless ? 12000 : data.raid.spawns.length <= 5 ? PREP_MS + 5000 : PREP_MS);
   }
 
@@ -146,7 +146,8 @@ export class BattleScene extends Phaser.Scene {
     const horde = this.ui?.querySelector('.horde')?.getBoundingClientRect();
     const panel = this.ui?.querySelector('.bottom')?.getBoundingClientRect();
     const top = (horde?.bottom ?? 60) + 4;
-    const bottom = land ? 6 : H - (panel?.top ?? H - 190) + 4;
+    const spells = this.ui?.querySelector('.spells')?.getBoundingClientRect();
+    const bottom = land ? (spells ? H - spells.top + 2 : 6) : H - Math.min(panel?.top ?? H - 190, spells?.top ?? H) + 4;
     const leftPad = land ? (panel?.right ?? 90) + 4 : 0;
     const w = right - left, h = bottomY - topY;
     this.fitZoom = Math.max(0.1, Math.min((W - leftPad) / w, (H - top - bottom) / h));
@@ -162,6 +163,27 @@ export class BattleScene extends Phaser.Scene {
   private refitLater() { this.time.delayedCall(250, () => this.fitCamera()); }
 
   // Drag to pan, pinch / wheel to zoom; a tap (no drag) places the selected card.
+  // Placement (PvZ-like): drag a card onto the field, or tap a card then the field. While a card or spell is selected,
+  // one finger moves an aim with a live preview and releasing places it; the camera only moves with nothing selected.
+  private aim?: { lane: number; col: number };
+  private ghost?: Phaser.GameObjects.Sprite;
+  private cardDrag?: { id: UnitId | SpellId; spell: boolean; x: number; y: number; moved: boolean; was: boolean };
+
+  private get armed() { return !!(this.selected || this.spell); }
+
+  // Screen point → cell, forgiving half a cell around the grid (fat fingers near the edges).
+  private cellFrom(sx: number, sy: number) {
+    const w = this.cameras.main.getWorldPoint(sx, sy);
+    const col = Math.floor(w.x / CW), lane = Math.floor(w.y / CH);
+    if (w.x < -CW * 0.5 || w.x > (COLS + 0.5) * CW || w.y < -CH * 0.5 || w.y > (LANES + 0.5) * CH) return undefined;
+    return { lane: Phaser.Math.Clamp(lane, 0, LANES - 1), col: Phaser.Math.Clamp(col, 0, COLS - 1) };
+  }
+
+  private toGame(e: PointerEvent) {
+    const r = this.game.canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * (this.scale.width / r.width), y: (e.clientY - r.top) * (this.scale.height / r.height) };
+  }
+
   private setupGestures() {
     const cam = this.cameras.main;
     this.input.addPointer(2);
@@ -176,6 +198,7 @@ export class BattleScene extends Phaser.Scene {
       this.touches.set(p.id, { x: p.x, y: p.y });
       this.pinch = 0;
       this.down = this.touches.size === 1 ? { x: p.x, y: p.y, moved: false } : undefined;
+      if (this.armed && this.touches.size === 1) this.aim = this.cellFrom(p.x, p.y);
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       const t = this.touches.get(p.id);
@@ -183,6 +206,7 @@ export class BattleScene extends Phaser.Scene {
       const dx = p.x - t.x, dy = p.y - t.y;
       t.x = p.x; t.y = p.y;
       if (this.touches.size >= 2) {
+        this.aim = undefined;
         const [a, b] = [...this.touches.values()];
         const d = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
         if (this.pinch) zoomAt(cam.zoom * d / this.pinch, (a.x + b.x) / 2, (a.y + b.y) / 2);
@@ -190,18 +214,57 @@ export class BattleScene extends Phaser.Scene {
         return;
       }
       if (this.down && Phaser.Math.Distance.Between(this.down.x, this.down.y, p.x, p.y) > 10) this.down.moved = true;
+      if (this.armed && this.down) { this.aim = this.cellFrom(p.x, p.y); return; } // aiming, not panning
       if (this.down?.moved) { cam.scrollX -= dx / cam.zoom; cam.scrollY -= dy / cam.zoom; }
     });
     const up = (p: Phaser.Input.Pointer) => {
+      const single = this.touches.size === 1 && !!this.down;
       this.touches.delete(p.id);
-      if (this.down && !this.down.moved && this.touches.size === 0) this.onTap(p);
-      if (!this.touches.size) this.down = undefined;
+      if (single && this.armed) { const c = this.cellFrom(p.x, p.y); if (c) this.commit(c.lane, c.col); }
+      if (!this.touches.size) { this.down = undefined; this.aim = undefined; }
       this.pinch = 0;
     };
     this.input.on('pointerup', up);
     this.input.on('pointerupoutside', up);
     this.input.on('wheel', (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => zoomAt(cam.zoom * (dy > 0 ? 0.9 : 1.1), p.x, p.y));
+    // Dragging from a card (HTML) onto the canvas.
+    window.addEventListener('pointermove', this.onCardMove);
+    window.addEventListener('pointerup', this.onCardUp);
+    window.addEventListener('pointercancel', this.onCardCancel);
   }
+
+  // The browser took the gesture (e.g. scrolling the card column): just drop the drag.
+  private onCardCancel = () => { if (this.cardDrag) { this.cardDrag = undefined; this.aim = undefined; this.refreshUi(); } };
+
+  private startCardDrag(e: PointerEvent, id: UnitId | SpellId, spell: boolean) {
+    e.preventDefault();
+    const was = spell ? this.spell === id : this.selected === id;
+    if (spell) { this.spell = id as SpellId; this.selected = undefined; } else { this.selected = id as UnitId; this.spell = undefined; }
+    this.cardDrag = { id, spell, x: e.clientX, y: e.clientY, moved: false, was };
+    this.refreshUi();
+  }
+
+  private onCardMove = (e: PointerEvent) => {
+    const d = this.cardDrag;
+    if (!d) return;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) d.moved = true;
+    if (!d.moved) return;
+    const g = this.toGame(e);
+    this.aim = this.cellFrom(g.x, g.y);
+  };
+
+  private onCardUp = (e: PointerEvent) => {
+    const d = this.cardDrag;
+    if (!d) return;
+    this.cardDrag = undefined;
+    if (d.moved) {
+      const g = this.toGame(e), c = this.cellFrom(g.x, g.y);
+      if (c) this.commit(c.lane, c.col);            // dropped on the field
+      else { this.selected = undefined; this.spell = undefined; } // dropped back on the UI: cancel
+    } else if (d.was) { this.selected = undefined; this.spell = undefined; } // tapping the selected card again: deselect
+    this.aim = undefined;
+    this.refreshUi();
+  };
 
   // Faint lane grid, always visible, so it's obvious where defenders go.
   private drawGrid() {
@@ -252,7 +315,7 @@ export class BattleScene extends Phaser.Scene {
       .bt .res.on{display:flex}.bt .res .box{width:min(340px,calc(100vw - 32px));padding:14px;text-align:center;border:12px solid transparent;
         border-image:url(assets/frame_panel.webp) 22 fill / 12px stretch}.bt .res h3{margin:0 0 6px;color:#f6d9a0;font-size:20px}
       .bt .res button{margin-top:10px;width:100%;min-height:44px;border:6px solid transparent;border-image:url(assets/button_normal.webp) 18 fill / 6px stretch;background:none;color:#fff;font:700 15px Georgia,serif}
-      .bt .btoast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 170px);transform:translateX(-50%);z-index:9;max-width:min(460px,70vw);padding:4px 10px;
+      .bt .btoast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);z-index:9;max-width:min(460px,70vw);padding:4px 10px;
         background:#0d070acc;border-left:3px solid #a07818;border-radius:0 8px 8px 0;font-size:12px;line-height:1.25;display:none;pointer-events:none}
       .bt .btoast.on{display:block}
       .bt .go-now{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 66px);transform:translateX(-50%);z-index:9;padding:8px 14px;
@@ -274,8 +337,10 @@ export class BattleScene extends Phaser.Scene {
       .bt.land .bc.sel{transform:translateX(4px)}
       .bt.land .horde{left:calc(50% + 44px);width:min(440px,calc(100vw - 110px));padding:2px 10px 5px;border-width:6px}
       .bt.land .horde .lbl{margin-bottom:2px}
-      .bt .spells{position:fixed;right:max(8px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:9;display:flex;flex-direction:column;gap:8px}
-      .bt.land .spells{bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
+      .bt .spells{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:9;display:flex;gap:10px;
+        padding:4px 10px;border-radius:30px;background:#0b0709b0}
+      .bt.land .spells{left:calc(50% + 44px);bottom:calc(env(safe-area-inset-bottom,0px) + 6px)}
+      .bt .bc,.bt .sp{touch-action:none}.bt.land .bc{touch-action:pan-y}
       .bt .sp{position:relative;width:54px;height:54px;border-radius:50%;padding:0;cursor:pointer;background:radial-gradient(circle,#2a1420,#0b0709);
         border:3px solid var(--c);box-shadow:0 0 10px var(--c);overflow:hidden}
       .bt .sp img{height:28px;margin-top:4px}.bt .sp .sc{position:absolute;left:0;right:0;bottom:3px;font:700 10px system-ui;color:#ffd0d4}
@@ -286,7 +351,7 @@ export class BattleScene extends Phaser.Scene {
       .bt .turn b{font-size:20px;color:#f6d9a0}.bt .turn p{color:#c9b8a8}.bt .turn button{margin-top:8px;background:none;border:1px solid #4a2a30;border-radius:6px;
         color:#c9a98a;font:inherit;padding:8px 14px}
       .bt.portrait:not(.stay) .turn{display:flex}
-      .bt.land .go-now{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 50px)}.bt.land .btoast{left:calc(50% + 44px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}
+      .bt.land .go-now{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 50px)}.bt.land .btoast{left:auto;right:max(8px,env(safe-area-inset-right,0px));top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:none;max-width:min(250px,28vw)}
     </style>
     <div class="horde"><div class="lbl"><span class="wl">Horda</span><span class="wk"></span></div>
       <div class="track"><div class="fill"></div>${this.cfg.raid.waves.map(w => `<i class="flag" style="left:${(w / this.lastSpawn) * 100}%"></i>`).join('')}<i class="head"></i></div></div>
@@ -301,20 +366,8 @@ export class BattleScene extends Phaser.Scene {
     document.body.appendChild(el);
     document.body.classList.add('in-battle');
     this.ui = el;
-    el.querySelectorAll<HTMLButtonElement>('.bc').forEach(b => b.addEventListener('click', e => {
-      e.stopPropagation();
-      const id = b.dataset.u as UnitId;
-      this.selected = this.selected === id ? undefined : id;
-      this.spell = undefined;
-      this.refreshUi();
-    }));
-    el.querySelectorAll<HTMLButtonElement>('.sp').forEach(b => b.addEventListener('click', e => {
-      e.stopPropagation();
-      const id = b.dataset.s as SpellId;
-      this.spell = this.spell === id ? undefined : id;
-      this.selected = undefined;
-      this.refreshUi();
-    }));
+    el.querySelectorAll<HTMLButtonElement>('.bc').forEach(b => b.addEventListener('pointerdown', e => this.startCardDrag(e, b.dataset.u as UnitId, false)));
+    el.querySelectorAll<HTMLButtonElement>('.sp').forEach(b => b.addEventListener('pointerdown', e => this.startCardDrag(e, b.dataset.s as SpellId, true)));
     el.querySelector<HTMLButtonElement>('.go-now')!.onclick = () => { if (this.t < 0) this.t = 0; };
     el.querySelector<HTMLButtonElement>('.turn button')!.onclick = () => { el.classList.add('stay'); this.fitCamera(); };
     el.querySelector<HTMLButtonElement>('.retreat')!.onclick = () => {
@@ -374,19 +427,25 @@ export class BattleScene extends Phaser.Scene {
     return { lane: Math.floor(w.y / CH), col: Math.floor(w.x / CW) };
   }
 
-  private onTap(p: Phaser.Input.Pointer) {
-    if (this.ended || (!this.selected && !this.spell)) return;
-    const { lane, col } = this.cellAt(p);
-    if (lane < 0 || lane >= LANES || col < 0 || col > COLS) return;
-    if (this.spell) { this.cast(this.spell, lane, Math.min(col, COLS - 1)); return; }
-    if (col >= COLS || !this.selected) return;
+  private canPlace(lane: number, col: number) {
+    if (this.spell) return this.blood >= SPELLS[this.spell].cost && (this.spellReady[this.spell] ?? -Infinity) <= this.t;
+    if (!this.selected) return false;
+    const u = UNITS[this.selected];
+    return this.blood >= this.costOf(this.selected) && (this.ready[this.selected] ?? -Infinity) <= this.t && (u.spell || !this.units.some(x => x.lane === lane && x.col === col));
+  }
+
+  private commit(lane: number, col: number) {
+    if (this.ended) return;
+    if (this.spell) { this.cast(this.spell, lane, col); return; }
+    if (!this.selected) return;
     const def = { ...UNITS[this.selected], cost: this.costOf(this.selected) };
     if (this.blood < def.cost) { this.toast('Sangue insuficiente. A fazenda continua coletando.'); return; }
     if ((this.ready[this.selected] ?? -Infinity) > this.t) { this.toast('Carta recarregando.'); return; }
     if (def.spell) { this.pay(def.cost); this.castBats(lane, col); this.ready.bats = this.t + def.recharge; this.selected = undefined; this.refreshUi(); return; }
-    if (this.units.some(u => u.lane === lane && u.col === col)) return;
+    if (this.units.some(u => u.lane === lane && u.col === col)) { this.toast('Essa casa já está ocupada.'); return; }
     this.pay(def.cost);
     this.place(this.selected, lane, col);
+    this.selected = undefined; // PvZ: one card, one placement
     this.refreshUi();
   }
 
@@ -769,12 +828,33 @@ export class BattleScene extends Phaser.Scene {
   // Selected card: highlight the free cells.
   private drawHover() {
     const g = this.hover.clear();
-    if (!this.selected) return;
-    g.lineStyle(2, 0xe8b54a, 0.55);
-    for (let i = 0; i < LANES; i++) for (let j = 0; j < COLS; j++) {
-      if (!UNITS[this.selected].spell && this.units.some(u => u.lane === i && u.col === j)) continue;
-      g.strokeRect(j * CW + 3, i * CH + 3, CW - 6, CH - 6);
+    if (!this.armed) { this.ghost?.setVisible(false); return; }
+    // Free cells, faintly.
+    if (this.selected && !UNITS[this.selected].spell) {
+      g.lineStyle(2, 0xe8b54a, 0.35);
+      for (let i = 0; i < LANES; i++) for (let j = 0; j < COLS; j++) {
+        if (this.units.some(u => u.lane === i && u.col === j)) continue;
+        g.strokeRect(j * CW + 3, i * CH + 3, CW - 6, CH - 6);
+      }
     }
+    const a = this.aim;
+    if (!a) { this.ghost?.setVisible(false); return; }
+    const ok = this.canPlace(a.lane, a.col), col = ok ? 0x6fe07a : 0xff4a5a;
+    // Area of effect for spells, a single cell for units.
+    const area = this.spell === 'rain' ? { x: 0, y: a.lane * CH, w: COLS * CW, h: CH }
+      : this.spell === 'mist' ? { x: 0, y: 0, w: COLS * CW, h: LANES * CH }
+      : this.spell === 'drain' || this.selected === 'bats' ? { x: (a.col - 1) * CW, y: (a.lane - 1) * CH, w: CW * 3, h: CH * 3 }
+      : { x: a.col * CW, y: a.lane * CH, w: CW, h: CH };
+    g.fillStyle(col, 0.18).fillRect(area.x, area.y, area.w, area.h).lineStyle(3, col, 0.9).strokeRect(area.x + 2, area.y + 2, area.w - 4, area.h - 4);
+    // Lane guide: the whole row lights up so it's obvious which lane the unit will defend.
+    if (this.selected && !UNITS[this.selected].spell) g.fillStyle(col, 0.06).fillRect(0, a.lane * CH, COLS * CW, CH);
+    if (this.selected && !UNITS[this.selected].spell) {
+      const def = UNITS[this.selected], c = cellPos(a.lane, a.col);
+      if (!this.ghost) this.ghost = this.add.sprite(0, 0, def.tex, 0).setOrigin(0.5, 1).setScale(US).setDepth(9.7e5);
+      if (this.ghost.texture.key !== def.tex) this.ghost.setTexture(def.tex, 0);
+      this.ghost.setFrame(this.selected === 'chalice' ? 0 : this.selected === 'alchemist' ? 12 : 8)
+        .setPosition(c.x, c.y).setAlpha(ok ? 0.7 : 0.35).setTint(ok ? 0xffffff : 0xff6070).setVisible(true);
+    } else this.ghost?.setVisible(false);
   }
 
   private finish(won: boolean, retreated = false) {
@@ -801,6 +881,9 @@ export class BattleScene extends Phaser.Scene {
       document.body.classList.remove('in-battle');
       this.scale.off('resize', this.fitCamera, this);
       this.scale.off('resize', this.refitLater, this);
+      window.removeEventListener('pointermove', this.onCardMove);
+      window.removeEventListener('pointerup', this.onCardUp);
+      window.removeEventListener('pointercancel', this.onCardCancel);
       this.cfg.onEnd({ won, grabbed: this.grabbed, bloodSpent: this.spent, kills: this.kills, retreated, stars, waves });
     };
   }
