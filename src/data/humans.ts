@@ -1,3 +1,4 @@
+import { L } from '../core/i18n';
 // Human attributes (GDD §6.1). All values are fictional — never tied to real-world traits (GDD §3).
 export type BloodType = 'rubra' | 'lunar' | 'ambar' | 'umbra' | 'carmesim';
 export type Quality = 'comum' | 'especial' | 'raro' | 'excepcional';
@@ -5,33 +6,33 @@ export type Temper = 'calmo' | 'cinico' | 'dramatico' | 'lider' | 'curioso';
 export type Trait = 'lunar' | 'especiado' | 'mente';
 
 export const BLOOD: Record<BloodType, { name: string; weight: number }> = {
-  rubra: { name: 'Rubra', weight: 40 },
-  lunar: { name: 'Lunar', weight: 25 },
-  ambar: { name: 'Âmbar', weight: 20 },
-  umbra: { name: 'Umbra', weight: 12 },
-  carmesim: { name: 'Carmesim', weight: 3 },
+  rubra: { name: L('Rubra', 'Rubra'), weight: 40 },
+  lunar: { name: L('Lunar', 'Lunar'), weight: 25 },
+  ambar: { name: L('Âmbar', 'Amber'), weight: 20 },
+  umbra: { name: L('Umbra', 'Umbra'), weight: 12 },
+  carmesim: { name: L('Carmesim', 'Crimson'), weight: 3 },
 };
 
 // mult: Blood per collection · value: base Gold when sold
 export const QUALITY: Record<Quality, { name: string; weight: number; mult: number; rank: number }> = {
-  comum: { name: 'Comum', weight: 60, mult: 1, rank: 0 },
-  especial: { name: 'Especial', weight: 28, mult: 1.2, rank: 1 },
-  raro: { name: 'Raro', weight: 10, mult: 1.5, rank: 2 },
-  excepcional: { name: 'Excepcional', weight: 2, mult: 2, rank: 3 },
+  comum: { name: L('Comum', 'Common'), weight: 60, mult: 1, rank: 0 },
+  especial: { name: L('Especial', 'Special'), weight: 28, mult: 1.2, rank: 1 },
+  raro: { name: L('Raro', 'Rare'), weight: 10, mult: 1.5, rank: 2 },
+  excepcional: { name: L('Excepcional', 'Exceptional'), weight: 2, mult: 2, rank: 3 },
 };
 
 export const TEMPER: Record<Temper, { name: string; desc: string }> = {
-  calmo: { name: 'Calmo', desc: 'Reclama baixo. Às vezes nem reclama.' },
-  cinico: { name: 'Cínico', desc: 'Entende tudo. Aprova nada.' },
-  dramatico: { name: 'Dramático', desc: 'Cada coleta é um terceiro ato.' },
-  lider: { name: 'Líder', desc: 'Os outros escutam. Isso pode ser um problema.' },
-  curioso: { name: 'Curioso', desc: 'Pergunta demais sobre o castelo.' },
+  calmo: { name: L('Calmo', 'Calm'), desc: L('Reclama baixo. Às vezes nem reclama.', 'Complains quietly. Sometimes not at all.') },
+  cinico: { name: L('Cínico', 'Cynical'), desc: L('Entende tudo. Aprova nada.', 'Understands everything. Approves of nothing.') },
+  dramatico: { name: L('Dramático', 'Dramatic'), desc: L('Cada coleta é um terceiro ato.', 'Every collection is a third act.') },
+  lider: { name: L('Líder', 'Leader'), desc: L('Os outros escutam. Isso pode ser um problema.', 'The others listen. That could be a problem.') },
+  curioso: { name: L('Curioso', 'Curious'), desc: L('Pergunta demais sobre o castelo.', 'Asks too much about the castle.') },
 };
 
 export const TRAIT: Record<Trait, { name: string; desc: string; chance: number }> = {
-  lunar: { name: 'Ressonância Lunar', desc: 'O sangue brilha levemente na lua cheia. Pesquisadores adoram.', chance: 0.05 },
-  especiado: { name: 'Sangue Especiado', desc: 'Notas de canela e pimenta. Socialites pagam caro.', chance: 0.05 },
-  mente: { name: 'Mente Brilhante', desc: 'Resolve problemas. Inclusive os que você preferia que não resolvesse.', chance: 0.04 },
+  lunar: { name: L('Ressonância Lunar', 'Lunar Resonance'), desc: L('O sangue brilha levemente na lua cheia. Pesquisadores adoram.', 'The blood glows faintly at the full moon. Researchers love it.'), chance: 0.05 },
+  especiado: { name: L('Sangue Especiado', 'Spiced Blood'), desc: L('Notas de canela e pimenta. Socialites pagam caro.', 'Notes of cinnamon and pepper. Socialites pay dearly.'), chance: 0.05 },
+  mente: { name: L('Mente Brilhante', 'Brilliant Mind'), desc: L('Resolve problemas. Inclusive os que você preferia que não resolvesse.', 'Solves problems. Including the ones you\'d rather stay unsolved.'), chance: 0.04 },
 };
 
 export interface HumanTraits { blood: BloodType; quality: Quality; temper: Temper; trait?: Trait; code: string }
@@ -64,7 +65,7 @@ export const NAMED_TRAITS: Record<string, Partial<HumanTraits>> = {
 };
 
 export const SOLD_LINES = [
-  'Se perguntarem, sempre quis conhecer o castelo.',
-  'Acho que fui promovido. Para fora da fazenda.',
-  'Fui escolhido. Ainda não sei se é elogio.',
+  L('Se perguntarem, sempre quis conhecer o castelo.', 'If anyone asks, I always wanted to see the castle.'),
+  L('Acho que fui promovido. Para fora da fazenda.', 'I think I got promoted. Off the farm.'),
+  L('Fui escolhido. Ainda não sei se é elogio.', 'I was chosen. Not sure yet if it\'s a compliment.'),
 ];

@@ -1,4 +1,5 @@
 // Full-screen overlay card, skinned like the mandate screens. Used by the tree, relics, album, orders, arsenal and reports.
+import { L } from '../core/i18n';
 const CSS = `
 .mdl{position:fixed;inset:0;z-index:35;display:none;align-items:center;justify-content:center;background:#050308dd;color:#f3e2c8;font:14px Georgia,serif}
 .mdl.on{display:flex}
@@ -48,7 +49,7 @@ export class Modal {
 
   show(html: string, opts: { wide?: boolean; closable?: boolean; onClose?: () => void } = {}) {
     this.closable = opts.closable ?? true;
-    this.el.innerHTML = `<div class="box${opts.wide ? ' wide' : ''}">${this.closable ? '<button class="x" aria-label="Fechar">×</button>' : ''}${html}</div>`;
+    this.el.innerHTML = `<div class="box${opts.wide ? ' wide' : ''}">${this.closable ? `<button class="x" aria-label="${L('Fechar', 'Close')}">×</button>` : ''}${html}</div>`;
     this.el.querySelector<HTMLButtonElement>('.x')?.addEventListener('click', () => this.close());
     this.onClose = opts.onClose;
     this.el.classList.add('on');

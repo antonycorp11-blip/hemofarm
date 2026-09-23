@@ -5,7 +5,7 @@ import { Humans } from '../world/Humans';
 import { Bubbles } from '../world/Bubbles';
 import { Hud } from '../ui/Hud';
 import { state, load, save, resetSave, NIGHT_MS, CARRIAGE_LEAD_MS } from '../core/state';
-import { loadMeta, applyNewGame, applyMods, goalFor, meta } from '../core/meta';
+import { loadMeta, applyNewGame, applyMods, goalFor, meta, saveMeta } from '../core/meta';
 import { REGIONS } from '../data/regions';
 import { Mandate } from '../ui/Mandate';
 import { sfx, unlockAudio, setMute, setMusic, farmMusic, battleMusic } from '../core/sfx';
@@ -42,6 +42,9 @@ import { Conquest } from '../world/Conquest';
 import { CHAPTERS } from '../data/story';
 import { REGION_ARENA, buildRaid } from '../data/battle';
 import { more } from '../core/bonus';
+import { Story } from '../world/Story';
+import { L } from '../core/i18n';
+import { applyUiScale, isDesktop, toggleFullscreen } from '../ui/display';
 
 const S = 0.5; // assets are stored at 2x world scale
 const TILE_KEYS: Record<TileKind, string[]> = {
@@ -84,6 +87,9 @@ export class FarmScene extends Phaser.Scene {
   private relics!: Relics;
   private hunt!: Hunt;
   private conquest!: Conquest;
+  private story!: Story;
+  private paused = false;
+  private held = new Set<string>();
   private dialogue!: Dialogue;
   private secTick = 0;
   private speed = 1;
@@ -158,9 +164,13 @@ export class FarmScene extends Phaser.Scene {
       say: (lines, done) => { const go = () => (this.dialogue.open ? this.time.delayedCall(2500, go) : this.dialogue.say(lines, done ?? (() => undefined))); go(); },
       fx: (k, x, y, sc) => this.fx(k, x, y, sc),
       bossFight: () => this.bossFight(),
-      conquer: () => { this.conquest.recordDomain(); this.mandate.end(true, this.humans.population, undefined, `${REGIONS[state.region].name} conquistado!`, 40); },
-      abandon: () => this.mandate.end(true, this.humans.population, () => undefined, 'Mandato encerrado'),
+      conquer: () => { this.conquest.recordDomain(); this.mandate.end(true, this.humans.population, undefined, L(`${REGIONS[state.region].name} conquistado!`, `${REGIONS[state.region].name} conquered!`), 40); },
+      abandon: () => this.mandate.end(true, this.humans.population, () => undefined, L('Mandato encerrado', 'Mandate ended')),
+      finale: () => this.story.finale(),
     }, tileCenter(20, 31));
+    this.story = new Story(this.hud, this.modal, {
+      say: (lines, done) => { const go = () => (this.dialogue.open ? this.time.delayedCall(2500, go) : this.dialogue.say(lines, done ?? (() => undefined))); go(); },
+    });
     this.contracts.crownHook = { can: h => this.conquest.canCrown(h), crown: h => this.conquest.crown(h) };
     this.setupMandate();
     this.setupSounds();
@@ -174,10 +184,13 @@ export class FarmScene extends Phaser.Scene {
     this.setupCamera();
     this.scale.on('resize', () => this.onResize());
     this.setupTutorial();
+    this.setupKeyboard();
     applySkin(); // after every UI module injected its base styles, so the art frames win
+    applyUiScale(meta.uiScale ?? 0);
     // Title screen stays until the player taps "Jogar" (also a natural moment to unlock audio later).
     const loading = document.getElementById('loading');
-    const begin = () => { this.time.delayedCall(1200, () => this.tutorial.start()); this.relics.resume(); this.showReport(); }; // let the farm show itself first
+    // Let the farm show itself first; on the very first launch Aunt Leonor's letter comes before anyone speaks.
+    const begin = () => { this.time.delayedCall(1200, () => this.story.letter(() => this.tutorial.start())); this.relics.resume(); this.showReport(); };
     if (loading) {
       loading.classList.add('ready');
       this.scene.pause(); // night clock and simulation wait for the player
@@ -318,12 +331,65 @@ export class FarmScene extends Phaser.Scene {
   }
 
   // Timers, tweens and animations follow the game speed too, so walking and working speed up together.
-  private setSpeed(v: number) {
+  // Pause (Space on PC, or the speed button's long press) freezes all of it; the camera still moves.
+  private setSpeed(v: number, paused = false) {
     this.speed = v;
-    this.time.timeScale = v;
-    this.tweens.timeScale = v;
-    this.anims.globalTimeScale = v;
-    this.hud.setSpeed(v);
+    this.paused = paused;
+    const t = paused ? 0 : v;
+    this.time.timeScale = t;
+    this.tweens.timeScale = t;
+    this.anims.globalTimeScale = t;
+    this.hud.setSpeed(v, paused);
+  }
+
+  // ---------- PC: keyboard ----------
+  // WASD/arrows pan, +/− zoom, 1–3 speed, Space pause, letters open the panels. DOM listener so it also works
+  // while an HTML panel has focus; ignored during battles and while a blocking window (letter, ending) is open.
+  private setupKeyboard() {
+    const overlay = () => document.querySelector('.mdl.on, .hmenu.on, .bpanel.on, .rtree.on');
+    const blocking = () => !!document.querySelector('.mdl.on') && !document.querySelector('.mdl.on .x');
+    window.addEventListener('blur', () => this.held.clear());
+    window.addEventListener('keyup', e => this.held.delete(e.key.toLowerCase()));
+    window.addEventListener('keydown', e => {
+      if (document.body.classList.contains('in-battle') || e.ctrlKey || e.metaKey || e.altKey) return;
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      const k = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+        if (!overlay()) { this.held.add(k); e.preventDefault(); }
+        return;
+      }
+      if (k === 'escape') {
+        if (this.hud.menuOpen) this.hud.closeMenu();
+        else if (document.querySelector('.mdl.on')) { if (!blocking()) document.querySelector<HTMLButtonElement>('.mdl.on .x')?.click(); }
+        else if (!overlay()) this.hud.toggleMenu();
+        return; // panels and the research tree close themselves on Escape
+      }
+      if (blocking() || this.dialogue.open && k === ' ') return; // Space advances dialogue lines
+      const cam = this.cameras.main;
+      const act: Record<string, () => void> = {
+        ' ': () => { this.setSpeed(this.speed, !this.paused); this.hud.toast(this.paused ? L('⏸ Pausado. Espaço continua.', '⏸ Paused. Space resumes.') : L('▶ Continuando.', '▶ Resuming.'), '', 1500); },
+        '1': () => this.setSpeed(1), '2': () => this.setSpeed(2), '3': () => this.setSpeed(3),
+        '+': () => this.zoomAt(cam.zoom * 1.15, this.scale.width / 2, this.scale.height / 2),
+        '=': () => this.zoomAt(cam.zoom * 1.15, this.scale.width / 2, this.scale.height / 2),
+        '-': () => this.zoomAt(cam.zoom / 1.15, this.scale.width / 2, this.scale.height / 2),
+        c: () => this.contracts.openBoard(), r: () => this.research.open(), o: () => this.orders.open(), t: () => this.world.openTension(),
+        j: () => this.story.openDiary(), m: () => this.mandate.map(false, state.region), f: () => toggleFullscreen(),
+        k: () => { if (state.tutorial.done) this.conquest.open(); },
+      };
+      const fn = act[k];
+      if (!fn) return;
+      e.preventDefault();
+      if (this.hud.menuOpen) this.hud.closeMenu();
+      fn();
+    });
+  }
+
+  private updateKeys(delta: number) {
+    if (!this.held.size) return;
+    const h = this.held, cam = this.cameras.main, v = 0.9 * delta / cam.zoom;
+    const x = (h.has('d') || h.has('arrowright') ? 1 : 0) - (h.has('a') || h.has('arrowleft') ? 1 : 0);
+    const y = (h.has('s') || h.has('arrowdown') ? 1 : 0) - (h.has('w') || h.has('arrowup') ? 1 : 0);
+    cam.scrollX += x * v; cam.scrollY += y * v;
   }
 
   // ---------- mandates (GDD_ADENDO A5) ----------
@@ -347,7 +413,7 @@ export class FarmScene extends Phaser.Scene {
     raid.spawns.sort((a, b) => a.at - b.at);
     this.startBattle(raid, res => {
       const lost = this.humans.takeByRaid(res.grabbed);
-      if (lost.length) this.hud.toast(`Os lobisomens levaram ${lost.join(', ')}.`, 'bad', 7000);
+      if (lost.length) this.hud.toast(L(`Os lobisomens levaram ${lost.join(', ')}.`, `The werewolves took ${lost.join(', ')}.`), 'bad', 7000);
       this.conquest.bossResult(!!res.bossKilled);
     }, { arena, weather: 'fullmoon', title: ch.boss.name });
     this.time.delayedCall(800, () => this.hud.toast(ch.boss.taunt, 'bad', 6000));
@@ -399,15 +465,16 @@ export class FarmScene extends Phaser.Scene {
     const r = this.report;
     if (!r) return;
     this.report = undefined;
-    const gains = `<div class="gains"><span>${icon('icon_blood')} +${r.blood} Sangue</span><span>● +${r.food} Comida</span>` +
-      `${r.essence ? `<span>${icon('icon_research')} +${r.essence} Essência</span>` : ''}<span>${icon('icon_gold')} +${r.gold} Ouro</span></div>`;
-    const box = this.modal.show(`<h2>Relatório do Bóris</h2><div class="sub">Você esteve fora por ${Math.round(r.min)} min. Ninguém fugiu. Que eu saiba.</div>
-      <button class="chest" aria-label="Abrir baú">🧰</button><div class="sub">Toque no baú</div>`, { closable: false });
+    const gains = `<div class="gains"><span>${icon('icon_blood')} +${r.blood} ${L('Sangue', 'Blood')}</span><span>● +${r.food} ${L('Comida', 'Food')}</span>` +
+      `${r.essence ? `<span>${icon('icon_research')} +${r.essence} ${L('Essência', 'Essence')}</span>` : ''}<span>${icon('icon_gold')} +${r.gold} ${L('Ouro', 'Gold')}</span></div>`;
+    const title = L('Relatório do Bóris', 'Boris\'s Report');
+    const box = this.modal.show(`<h2>${title}</h2><div class="sub">${L(`Você esteve fora por ${Math.round(r.min)} min. Ninguém fugiu. Que eu saiba.`, `You were away for ${Math.round(r.min)} min. Nobody ran off. That I know of.`)}</div>
+      <button class="chest" aria-label="${L('Abrir baú', 'Open chest')}">🧰</button><div class="sub">${L('Toque no baú', 'Tap the chest')}</div>`, { closable: false });
     box.querySelector<HTMLButtonElement>('.chest')!.onclick = () => {
       const res = state.resources;
       res.blood += r.blood; res.food += r.food; res.essence += r.essence; res.gold += r.gold;
       sfx.coin();
-      const b2 = this.modal.show(`<h2>Relatório do Bóris</h2>${gains}<button class="go">Voltar à fazenda</button>`);
+      const b2 = this.modal.show(`<h2>${title}</h2>${gains}<button class="go">${L('Voltar à fazenda', 'Back to the farm')}</button>`);
       b2.querySelector<HTMLButtonElement>('.go')!.onclick = () => this.modal.close();
     };
   }
@@ -428,8 +495,8 @@ export class FarmScene extends Phaser.Scene {
         state.endlessNight = state.night.night;
         const ess = r.waves * 8;
         state.resources.essence += ess;
-        this.hud.toast(`Aureliano: ${r.waves} ondas na Lua de Sangue. +${ess} Essência. Recompensa de novo na próxima noite.`, 'good', 7000);
-      } else if (r.waves > 0) this.hud.toast('Aureliano: Bom treino. A recompensa da Lua de Sangue já foi paga esta noite.');
+        this.hud.toast(L(`Aureliano: ${r.waves} ondas na Lua de Sangue. +${ess} Essência. Recompensa de novo na próxima noite.`, `Aureliano: ${r.waves} waves under the Blood Moon. +${ess} Essence. Another reward next night.`), 'good', 7000);
+      } else if (r.waves > 0) this.hud.toast(L('Aureliano: Bom treino. A recompensa da Lua de Sangue já foi paga esta noite.', 'Aureliano: Good practice. Tonight\'s Blood Moon reward was already paid.'));
     }
   }
 
@@ -508,13 +575,14 @@ export class FarmScene extends Phaser.Scene {
       get ordersReady() { return self.orders?.ready ?? 0; },
       get treeReady() { return self.research?.affordable ?? false; },
       get hasLab() { return (self.buildings?.level('lab') ?? 0) > 0; },
+      get diaryNew() { return self.story?.unread ?? 0; },
     }, {
       onNewGame: () => { resetting = true; resetSave(); location.reload(); },
       onSkipTutorial: () => this.tutorial.skip(),
       tutorialActive: () => !state.tutorial.done,
       onWhere: () => (state.tutorial.done ? this.conquest.open() : this.tutorial.where()),
       onContracts: () => this.contracts.openBoard(),
-      onSpeed: () => this.setSpeed(this.speed >= 3 ? 1 : this.speed + 1),
+      onSpeed: () => this.setSpeed(this.paused ? this.speed : this.speed >= 3 ? 1 : this.speed + 1),
       onPayTithe: () => this.tithe.payNow(),
       onMap: () => this.mandate.map(false, state.region),
       onAscend: () => this.conquest.open(),
@@ -528,7 +596,11 @@ export class FarmScene extends Phaser.Scene {
       onArsenal: () => openArsenal(this.modal),
       onBloodMoon: () => this.bloodMoon(),
       onHunt: () => this.hunt.open(),
-      info: () => ({ goal: goalFor(), region: REGIONS[state.region].name, mute: meta.mute, music: meta.music !== false }),
+      onDiary: () => this.story.openDiary(),
+      onUiScale: v => { meta.uiScale = v; saveMeta(); applyUiScale(v); },
+      onFullscreen: () => toggleFullscreen(),
+      info: () => ({ goal: goalFor(), region: REGIONS[state.region].name, mute: meta.mute, music: meta.music !== false,
+        uiScale: meta.uiScale ?? 0, fullscreen: !!document.fullscreenElement, desktop: isDesktop() }),
     });
   }
 
@@ -536,12 +608,13 @@ export class FarmScene extends Phaser.Scene {
   private setupFeedback() {
     const [i, j] = this.humans.collectSpot;
     const c = tileCenter(i, j);
-    bus.on('HEIR_ARRIVED', e => this.hud.toast(`Lia: Chegou Unidade ${e.code}, parente de ${e.parentNames.join(' e ')}. ${QUALITY_NAME[e.quality] ?? e.quality}, sangue ${BLOOD_NAME[e.blood] ?? e.blood}.`, 'good', 7000));
-    bus.on('HEIR_BLOCKED', () => this.hud.toast('Bóris: Um parente quer vir, mas não há camas. Construa ou melhore habitações.', 'bad', 7000));
-    bus.on('LINEAGE_DISCOVERED', e => this.hud.toast(`Álbum: nova linhagem ${e.name} (${e.total}). +1% de Sangue para sempre.`, 'good'));
-    bus.on('BOND_FORMED', e => { if (!e.arranged) this.hud.toast('Lia: Temos um casal novo na fazenda. Não conte ao Bóris, ele vai querer registrar.'); });
+    bus.on('HEIR_ARRIVED', e => this.hud.toast(L(`Lia: Chegou Unidade ${e.code}, parente de ${e.parentNames.join(' e ')}. ${QUALITY_NAME[e.quality] ?? e.quality}, sangue ${BLOOD_NAME[e.blood] ?? e.blood}.`,
+      `Lia: Unit ${e.code} arrived, a relative of ${e.parentNames.join(' and ')}. ${QUALITY_NAME[e.quality] ?? e.quality}, ${BLOOD_NAME[e.blood] ?? e.blood} blood.`), 'good', 7000));
+    bus.on('HEIR_BLOCKED', () => this.hud.toast(L('Bóris: Um parente quer vir, mas não há camas. Construa ou melhore habitações.', 'Boris: A relative wants to come, but there are no beds. Build or upgrade housing.'), 'bad', 7000));
+    bus.on('LINEAGE_DISCOVERED', e => this.hud.toast(L(`Álbum: nova linhagem ${e.name} (${e.total}). +1% de Sangue para sempre.`, `Album: new lineage ${e.name} (${e.total}). +1% Blood forever.`), 'good'));
+    bus.on('BOND_FORMED', e => { if (!e.arranged) this.hud.toast(L('Lia: Temos um casal novo na fazenda. Não conte ao Bóris, ele vai querer registrar.', 'Lia: We have a new couple on the farm. Don\'t tell Boris, he\'ll want to file it.')); });
     bus.on('BLOOD_COLLECTED', ({ amount }) => {
-      this.floatText(c.x, c.y - 40, `+${amount} Sangue`, '#ff3348');
+      this.floatText(c.x, c.y - 40, L(`+${amount} Sangue`, `+${amount} Blood`), '#ff3348');
       this.fx('fx_blood_drop', c.x + 20, c.y - 70, 1.2);
     });
   }
@@ -667,7 +740,8 @@ export class FarmScene extends Phaser.Scene {
     if (this.dark && (this.dark.width !== Math.ceil(this.scale.width) || this.dark.height !== Math.ceil(this.scale.height))) this.onResize(); // missed resize event
     this.pinScreenLayers();
     this.updateInertia(delta);
-    const sim = delta * this.speed; // ⏩ game speed: the simulation runs faster, the camera doesn't
+    this.updateKeys(delta);
+    const sim = this.paused ? 0 : delta * this.speed; // ⏩ game speed: the simulation runs faster, the camera doesn't
     this.humans.update(sim);
     this.tithe.update(sim);
     this.buildings.update(sim);
@@ -676,6 +750,7 @@ export class FarmScene extends Phaser.Scene {
     this.research.update(sim);
     this.world.update(sim);
     this.conquest.update(delta);
+    this.story.update(delta);
     this.orbs.update(sim);
     this.raids.update(sim);
     this.secTick -= delta;

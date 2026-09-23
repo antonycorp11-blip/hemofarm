@@ -3,6 +3,11 @@
 import { Line, SPEAKERS } from '../data/tutorial';
 
 import { voice, sfx } from '../core/sfx';
+import { L } from '../core/i18n';
+
+// Speakers without a portrait yet get a hooded silhouette (the art is requested in GDD_ADENDO A9).
+const NO_PORTRAIT = new Set(['leonor']);
+for (const who of NO_PORTRAIT) { const img = new Image(); img.onload = () => NO_PORTRAIT.delete(who); img.src = `assets/portrait_${who}.webp`; }
 
 const CSS = `
 .dlg{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:8;
@@ -18,6 +23,8 @@ const CSS = `
 .dlg .foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:#9a8a80}
 .dlg .dots{display:flex;gap:4px}.dlg .dots i{width:6px;height:6px;border-radius:50%;background:#4a2a30}.dlg .dots i.on{background:#e0a060}
 .dlg .skip{background:none;border:1px solid #4a2a30;color:#c9a98a;border-radius:6px;font:12px Georgia,serif;padding:6px 10px;cursor:pointer}
+.dlg .pic.none{background:radial-gradient(circle at 50% 38%,#6a5a70 0 18%,transparent 19%),radial-gradient(ellipse at 50% 100%,#4a3a50 0 45%,transparent 46%),linear-gradient(#2a1a2e,#120a14)!important}
+.dlg .pic.none::before{content:'';position:absolute;left:34%;top:30%;width:8%;height:5%;border-radius:50%;background:#e8b54a;box-shadow:12px 0 0 #e8b54a;filter:drop-shadow(0 0 4px #e8b54a)}
 body.dlg-open .bpanel{bottom:calc(150px + env(safe-area-inset-bottom,0px));max-height:calc(100vh - 290px)}
 @media (orientation:landscape) and (max-height:520px){
   .dlg{left:max(10px,env(safe-area-inset-left,0px));transform:none;width:min(460px,50vw);min-height:74px;padding:8px 10px 6px 84px;font-size:13px}
@@ -43,8 +50,15 @@ export class Dialogue {
     this.el = document.createElement('div');
     this.el.className = 'dlg';
     this.el.innerHTML = '<div class="pic"></div><div class="who"></div><div class="txt"></div>' +
-      '<div class="foot"><div class="dots"></div><span>toque ▸</span><button class="skip">Pular ▸▸</button></div>';
+      `<div class="foot"><div class="dots"></div><span>${matchMedia('(hover: hover) and (pointer: fine)').matches ? L('clique ou Espaço ▸', 'click or Space ▸') : L('toque ▸', 'tap ▸')}</span><button class="skip">${L('Pular ▸▸', 'Skip ▸▸')}</button></div>`;
     document.body.appendChild(this.el);
+    // PC: Space / Enter advance the conversation (unless typing somewhere).
+    window.addEventListener('keydown', e => {
+      if (!this.open || (e.key !== ' ' && e.key !== 'Enter') || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+      e.preventDefault();
+      if (this.typing) { this.finishTyping(); return; }
+      this.advance();
+    });
     this.el.addEventListener('click', e => {
       if ((e.target as HTMLElement).classList.contains('skip')) { this.i = this.lines.length; }
       else if (this.typing) { this.finishTyping(); return; } // first tap completes the line
@@ -78,7 +92,9 @@ export class Dialogue {
       done?.();
       return;
     }
-    (this.el.querySelector('.pic') as HTMLElement).style.backgroundImage = `url(assets/portrait_${line.who}.webp)`;
+    const pic = this.el.querySelector('.pic') as HTMLElement;
+    pic.classList.toggle('none', NO_PORTRAIT.has(line.who));
+    pic.style.backgroundImage = NO_PORTRAIT.has(line.who) ? '' : `url(assets/portrait_${line.who}.webp)`;
     this.el.querySelector('.who')!.textContent = SPEAKERS[line.who];
     this.type(line.text, line.who);
     this.el.querySelector('.dots')!.innerHTML = this.lines.map((_, k) => `<i class="${k <= this.i ? 'on' : ''}"></i>`).join('');

@@ -5,7 +5,8 @@ export interface Resources { blood: number; gold: number; prestige: number; food
 export interface ContractState { offers: string[]; active?: { id: string; night: number }; done: string[] }
 export interface ResearchState { lv: Record<string, number> }   // node id → level bought
 export interface Order { kind: string; target: number; progress: number; claimed: boolean }
-export interface ConquestState { bestRate: number; cleanWins: number; alphaDown: boolean; introSeen: boolean; bossNight: number; regent?: { name: string; look: string }; beats?: string[] }
+export interface ConquestState { bestRate: number; cleanWins: number; alphaDown: boolean; introSeen: boolean; bossNight: number; regent?: { name: string; look: string }; beats?: string[];
+  hook?: { night: number; i: number } } // night hooks of the chapter: the last night one played, and how many played
 export interface OrdersState { night: number; list: Order[]; bonus: boolean }
 export interface WorldState {
   tension: number;                                   // 0..100, partly hidden (GDD §5)

@@ -127,3 +127,51 @@ Uma região vira **Domínio** com 3 pilares, acompanhados no painel da coroa (�
 - Uma tocha de emergência por raia, no estilo dos cortadores de grama do PvZ.
 - Prévia da horda com aviso dos lobos que passam de propósito (Saltador, Escavador, Corvo).
 - Lobos 15% mais lentos; Sentinela e Muralha mais fortes.
+
+## A9 — História: "A Herança" (23/09/2026)
+
+**Pilar:** a história é o gancho. Toda mecânica (cotas, vendas, lobos, Regente) ganha um porquê. O tom continua o mesmo: humor seco de repartição por cima de um mistério sombrio.
+
+### Premissa
+- O jogador herda a fazenda da **Tia Leonor**, a administradora anterior, que sumiu há um ano.
+- **Abertura:** antes da primeira fala, uma carta dela: *"Se você está lendo isto, eu não voltei. Pague as cotas. Sorria para o Conde. E nunca desça à Cripta."*
+- Vesper desconversa ("uma viagem longa, muito longa"). Bóris tem o inventário da Leonor, com páginas arrancadas.
+
+### O mistério (revelado ao longo dos 6 capítulos)
+1. As cotas sobem sem parar porque o sangue não vai para o castelo: desce pela estrada da Cripta para os **Anciãos adormecidos** da Casa Rubra (a família de Vesper). O Dr. Hemático mede isso como **Vigília**.
+2. Os lobisomens eram **humanos de fazendas** que fugiram ou foram levados na Sangria. A mordida é a única porta que a Casa não tranca.
+   - **Ulf** era o primeiro ajudante de Leonor.
+   - **Grenda** caiu da carruagem no pântano.
+   - **Korvus** era o escudeiro de Aureliano, mandado sem armas para a fronteira.
+   - A **Sóror Branca** ensinou a mordida a Leonor.
+   - O **Capitão Presa-de-Sal** leva humanos para ilhas sem Casa.
+3. **Virada final:** a **Mãe da Matilha é a Tia Leonor.**
+
+### Estrutura
+- **Diário de Leonor (16 páginas):** colecionável permanente (entre mandatos). Cada página abre num marco: primeira coleta, primeira Sangria, primeiro casal, primeira defesa, primeira venda, primeira falta, primeira pesquisa, primeiro Regente, primeira rebelião, cada chefe derrotado, a chegada à Cripta. O HUD avisa, e o livro fica no menu (e na tecla J no PC).
+- **Ganchos de noite:** no começo de cada noite (da 2ª até a 5ª do capítulo), 1 a 3 falas curtas avançam o mistério daquele capítulo e terminam numa pergunta.
+- **Eventos de história:** decisões novas ligadas ao mistério (o porão trancado, a carta sem remetente, o uivo que chama um nome, a caravana da Cripta).
+- **Chefes com passado:** ao cair, cada alfa diz uma última fala humana, e uma página do diário conta quem ele era.
+
+### Coração × Presa
+Uma balança de −100 (Presa) a +100 (Coração), guardada entre mandatos.
+- **Presa:** vender humanos em contratos, vender ao conde VIP, reprimir rebelião, hora extra na coleta, escolhas frias nos eventos.
+- **Coração:** atender exigências, Banquete, Folga, Presentes, recusar vendas, escolhas humanas nos eventos.
+- A balança muda falas, aparece no diário e decide quais finais ficam disponíveis.
+
+### Três finais (Capítulo VI, depois de vencer a Mãe da Matilha)
+| Final | Condição | Resumo |
+|---|---|---|
+| **Casa Eterna** | sempre | Leonor é entregue a Vesper. Os Anciãos acordam saciados, e você vira o herdeiro de presas da Casa. |
+| **Revolta** | Coração ≥ 25 | Davi abre os portões. Humanos e Matilha selam a Cripta. A fazenda vira vila. |
+| **Pacto** | 12+ páginas do diário | Você aceita a mordida de Leonor. A fazenda vira terra neutra: sangue só doado, nunca cobrado. |
+
+Cada final tem epílogo e créditos, e fica registrado no Álbum. Para ver os outros, rejoga-se a Cripta depois de conquistar todas as regiões (regra da A8).
+
+### Idiomas
+- Português e inglês, escolhidos em Ajustes (padrão: idioma do navegador).
+- Todo texto é escrito como `L('pt', 'en')` no próprio lugar em que é usado (`src/core/i18n.ts`).
+
+### Arte pedida para este bloco (23)
+- `portrait_leonor`: retrato 1:1 no estilo dos outros. Mulher de uns 50 anos, cabelo grisalho preso, xale escuro e olhos âmbar de lobo. Enquanto não existir, o diálogo usa uma silhueta.
+- `title_logo_en`: logo "Hemofarm: Growing for the Night". Se existir, a tela de título usa este logo em inglês.

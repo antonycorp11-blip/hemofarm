@@ -6,19 +6,20 @@ import { state, quotaFor, Order } from '../core/state';
 import { sfx } from '../core/sfx';
 import type { Hud } from '../ui/Hud';
 import { Modal, icon } from '../ui/Modal';
+import { L } from '../core/i18n';
 
 interface Kind { text: (t: number) => string; target: (n: number) => number; event: keyof GameEvents; count: (p: any) => number; ok?: (w: Orders) => boolean }
 
 const KINDS: Record<string, Kind> = {
-  blood: { text: t => `Colete ${t} de Sangue`, target: n => Math.round(quotaFor(n) * 1.3 / 10) * 10, event: 'BLOOD_COLLECTED', count: p => p.amount },
-  harvest: { text: t => `Colha ${t} de Comida`, target: n => 20 + n * 6, event: 'CROP_HARVESTED', count: p => p.food, ok: () => Object.keys(state.plots).length > 0 },
-  orbs: { text: t => `Estoure ${t} orbes de sangue`, target: n => 3 + Math.floor(n / 2), event: 'ORB_TAPPED', count: () => 1 },
-  feed: { text: t => `Sirva ${t} refeições`, target: n => 6 + n, event: 'HUMAN_ATE', count: () => 1 },
-  contract: { text: () => 'Entregue um contrato', target: () => 1, event: 'CONTRACT_COMPLETED', count: () => 1, ok: w => w.built('boarding') },
-  research: { text: t => `Faça ${t} pesquisas`, target: () => 2, event: 'RESEARCH_DONE', count: () => 1, ok: w => w.built('lab') },
-  upgrade: { text: t => `Compre ${t} aprimoramentos de construção`, target: n => 2 + Math.floor(n / 4), event: 'UPGRADE_BOUGHT', count: () => 1 },
-  heir: { text: () => 'Receba um parente', target: () => 1, event: 'HEIR_ARRIVED', count: () => 1, ok: w => w.built('family') },
-  defend: { text: () => 'Vença uma defesa sem perder ninguém', target: () => 1, event: 'RAID_ENDED', count: p => (p.result === 'won' && !p.losses ? 1 : 0),
+  blood: { text: t => L(`Colete ${t} de Sangue`, `Collect ${t} Blood`), target: n => Math.round(quotaFor(n) * 1.3 / 10) * 10, event: 'BLOOD_COLLECTED', count: p => p.amount },
+  harvest: { text: t => L(`Colha ${t} de Comida`, `Harvest ${t} Food`), target: n => 20 + n * 6, event: 'CROP_HARVESTED', count: p => p.food, ok: () => Object.keys(state.plots).length > 0 },
+  orbs: { text: t => L(`Estoure ${t} orbes de sangue`, `Pop ${t} blood orbs`), target: n => 3 + Math.floor(n / 2), event: 'ORB_TAPPED', count: () => 1 },
+  feed: { text: t => L(`Sirva ${t} refeições`, `Serve ${t} meals`), target: n => 6 + n, event: 'HUMAN_ATE', count: () => 1 },
+  contract: { text: () => L('Entregue um contrato', 'Deliver a contract'), target: () => 1, event: 'CONTRACT_COMPLETED', count: () => 1, ok: w => w.built('boarding') },
+  research: { text: t => L(`Faça ${t} pesquisas`, `Buy ${t} research levels`), target: () => 2, event: 'RESEARCH_DONE', count: () => 1, ok: w => w.built('lab') },
+  upgrade: { text: t => L(`Compre ${t} aprimoramentos de construção`, `Buy ${t} building upgrades`), target: n => 2 + Math.floor(n / 4), event: 'UPGRADE_BOUGHT', count: () => 1 },
+  heir: { text: () => L('Receba um parente', 'Welcome a relative'), target: () => 1, event: 'HEIR_ARRIVED', count: () => 1, ok: w => w.built('family') },
+  defend: { text: () => L('Vença uma defesa sem perder ninguém', 'Win a defense without losing anyone'), target: () => 1, event: 'RAID_ENDED', count: p => (p.result === 'won' && !p.losses ? 1 : 0),
     ok: () => !!state.world.raid && state.world.raid.kind !== 'none' && state.world.raid.status !== 'done' },
 };
 
@@ -46,7 +47,7 @@ export class Orders {
       o.progress = Math.min(o.target, o.progress + n);
       if (o.progress >= o.target) {
         sfx.chime();
-        this.hud.toast(`Encomenda pronta: ${KINDS[o.kind].text(o.target)}. Abra o baú em Encomendas.`, 'good');
+        this.hud.toast(L(`Encomenda pronta: ${KINDS[o.kind].text(o.target)}. Abra o baú em Encomendas.`, `Order ready: ${KINDS[o.kind].text(o.target)}. Open the chest in Orders.`), 'good');
         bus.emit('ORDER_DONE', { kind });
       }
     }
@@ -77,16 +78,16 @@ export class Orders {
     const rw = orderReward(n), bw = bonusReward(n);
     const row = (o: Order, i: number) => {
       const done = o.progress >= o.target;
-      return `<div class="row"><div class="t"><b>${KINDS[o.kind].text(o.target)}</b><br><small>${Math.floor(o.progress)}/${o.target} · baú: ${rw.gold} Ouro + ${rw.essence} Essência</small>` +
+      return `<div class="row"><div class="t"><b>${KINDS[o.kind].text(o.target)}</b><br><small>${Math.floor(o.progress)}/${o.target} · ${L(`baú: ${rw.gold} Ouro + ${rw.essence} Essência`, `chest: ${rw.gold} Gold + ${rw.essence} Essence`)}</small>` +
         `<div class="meter"><i style="width:${(o.progress / o.target) * 100}%"></i></div></div>` +
-        `<button data-o="${i}"${done && !o.claimed ? '' : ' disabled'}>${o.claimed ? 'Aberto ✓' : done ? 'Abrir baú' : 'Em andamento'}</button></div>`;
+        `<button data-o="${i}"${done && !o.claimed ? '' : ' disabled'}>${o.claimed ? L('Aberto ✓', 'Opened ✓') : done ? L('Abrir baú', 'Open chest') : L('Em andamento', 'In progress')}</button></div>`;
     };
-    const names: Record<string, [string, string]> = { gold: ['Ouro', 'icon_gold'], essence: ['Essência', 'icon_research'], prestige: ['Prestígio', 'icon_prestige'] };
-    const box = this.modal.show(`<h2>Encomendas do Castelo</h2><div class="sub">Noite ${n} · novas encomendas a cada noite</div>
+    const names: Record<string, [string, string]> = { gold: [L('Ouro', 'Gold'), 'icon_gold'], essence: [L('Essência', 'Essence'), 'icon_research'], prestige: [L('Prestígio', 'Prestige'), 'icon_prestige'] };
+    const box = this.modal.show(`<h2>${L('Encomendas do Castelo', 'Castle Orders')}</h2><div class="sub">${L(`Noite ${n} · novas encomendas a cada noite`, `Night ${n} · new orders every night`)}</div>
       ${gains ? `<div class="gains">${Object.entries(gains).map(([k, v]) => `<span>${icon(names[k][1])} +${v} ${names[k][0]}</span>`).join('')}</div>` : ''}
       ${state.orders.list.map(row).join('')}
-      <div class="row" style="border:1px solid #a07818"><div class="t"><b>Baú do Castelo</b><br><small>Abra os três baús da noite: +${bw.prestige} Prestígio + ${bw.essence} Essência</small></div>
-      <button data-b${this.bonusReady ? '' : ' disabled'}>${state.orders.bonus ? 'Aberto ✓' : 'Abrir'}</button></div>`, { onClose: () => { this.openModal = undefined; } });
+      <div class="row" style="border:1px solid #a07818"><div class="t"><b>${L('Baú do Castelo', 'Castle Chest')}</b><br><small>${L(`Abra os três baús da noite: +${bw.prestige} Prestígio + ${bw.essence} Essência`, `Open all three chests tonight: +${bw.prestige} Prestige + ${bw.essence} Essence`)}</small></div>
+      <button data-b${this.bonusReady ? '' : ' disabled'}>${state.orders.bonus ? L('Aberto ✓', 'Opened ✓') : L('Abrir', 'Open')}</button></div>`, { onClose: () => { this.openModal = undefined; } });
     box.querySelectorAll<HTMLButtonElement>('[data-o]').forEach(b => b.onclick = () => this.claim(state.orders.list[Number(b.dataset.o)]));
     box.querySelector<HTMLButtonElement>('[data-b]')!.onclick = () => this.claim();
   }

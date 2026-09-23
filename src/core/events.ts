@@ -36,6 +36,9 @@ export interface GameEvents {
   TUTORIAL_DONE: Record<string, never>;
   REGENT_CROWNED: { name: string };
   REGION_CLEARED: { region: string };
+  SOUL_CHANGED: { delta: number; soul: number };
+  DIARY_PAGE: { id: string; total: number };
+  STORY_ENDING: { id: string };
 }
 
 type Handler<T> = (payload: T) => void;
