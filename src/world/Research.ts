@@ -10,12 +10,12 @@ import type { Hud } from '../ui/Hud';
 export const ESSENCE_RATE = 0.3; // Essência per point of Blood collected, before bonuses
 
 const CSS = `
-.rtree{position:fixed;inset:0;z-index:30;display:none;background:radial-gradient(ellipse at center,#1a0c1c 0%,#070409 75%);color:#f3e2c8;font:13px Georgia,serif;
+.rtree{position:fixed;inset:0;z-index:30;display:none;background:linear-gradient(#08040dcc,#08040dcc),url(assets/research_codex_bg.jpg) center/cover fixed,radial-gradient(ellipse at center,#1a0c1c 0%,#070409 75%);color:#f3e2c8;font:13px Georgia,serif;
   touch-action:none;user-select:none;overflow:hidden}
 .rtree.on{display:block}
 .rtree .head{position:absolute;left:0;right:0;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;
   background:linear-gradient(180deg,#070409f0 60%,#07040900);pointer-events:none}
-.rtree .head h2{margin:0;font-size:18px;color:#f6d9a0;flex:1}
+.rtree .head h2{margin:0;font-size:18px;color:#f6d9a0;flex:1}.rtree .head .progress{font-size:11px;color:#c9b8a8;white-space:nowrap}
 .rtree .ess{pointer-events:auto;display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:14px;background:#241218;border:1px solid #6b3a8a;font-size:15px}
 .rtree .ess img{height:20px}.rtree .ess small{color:#b89ad8;font-size:11px}
 .rtree .close{pointer-events:auto;background:none;border:0;color:#e0c8a8;font-size:28px;cursor:pointer;padding:0 6px}
@@ -39,7 +39,7 @@ const CSS = `
 .rtree .nd.max{background:radial-gradient(circle,#4a2a14,#1a0c08);border-color:#f6d9a0}.rtree .nd.max .lv{color:#f6d9a0;border-color:#a07818}
 .rtree .nd.excl{opacity:.35}.rtree .nd.sel{outline:3px solid #fff;outline-offset:4px}
 .rtree .nd.afford .lv{background:#8a1424;color:#fff;border-color:#ff6a78}
-.rtree .leg{position:absolute;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:3;display:flex;gap:10px;font-size:11px;color:#c9b8a8;pointer-events:none}
+.rtree .leg{position:absolute;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:3;display:flex;gap:8px;flex-wrap:wrap;max-width:min(620px,calc(100vw - 24px));font-size:11px;color:#c9b8a8;pointer-events:none}
 .rtree .leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 .rtree .sheet{position:absolute;z-index:4;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);transform:translateX(-50%);width:min(380px,calc(100vw - 24px));
   box-sizing:border-box;padding:10px 14px 12px;border:10px solid transparent;border-image:url(assets/frame_panel.webp) 22 fill / 10px stretch;display:none}
@@ -151,10 +151,13 @@ export class Research {
       return `<button class="${cls}" data-n="${n.id}" style="left:${n.x}px;top:${n.y}px;--c:${BRANCHES[n.branch].color}">` +
         `<img src="assets/${n.icon}.webp" alt=""><span class="lv">${n.max > 1 ? `${l}/${n.max}` : l ? '✓' : excl ? '✕' : '•'}</span><span class="nm">${n.name}</span></button>`;
     }).join('');
-    const legend = (['sangue', 'rebanho', 'defesa', 'castelo'] as const).map(b => `<span><i style="background:${BRANCHES[b].color}"></i>${BRANCHES[b].name}</span>`).join('');
+    const legend = (['sangue', 'rebanho', 'defesa', 'castelo', 'caçada', 'dominio'] as const).map(b => `<span><i style="background:${BRANCHES[b].color}"></i>${BRANCHES[b].name}</span>`).join('');
+    const bought = NODES.reduce((sum, n) => sum + Math.min(lvl(n.id), n.max), 0);
+    const total = NODES.reduce((sum, n) => sum + n.max, 0);
+    const branches = Object.keys(BRANCHES).filter(k => k !== 'root').filter(k => NODES.some(n => n.branch === k && lvl(n.id) > 0)).length;
     const keep = this.world ? this.view : undefined;
     this.el.innerHTML = `<div class="vp"><div class="world"><svg width="1200" height="800">${lines}</svg>${nodes}</div></div>
-      <div class="head"><h2>Pesquisas do Dr. Hemático</h2><div class="ess"><img src="assets/icon_research.webp" alt=""><b>${Math.floor(r.essence)}</b> Essência <small>+${this.rate}/min</small></div>
+      <div class="head"><h2>Pesquisas do Dr. Hemático</h2><span class="progress">${bought}/${total} níveis · ${branches}/6 caminhos</span><div class="ess"><img src="assets/icon_research.webp" alt=""><b>${Math.floor(r.essence)}</b> Essência <small>+${this.rate}/min</small></div>
       <button class="close" aria-label="Fechar">×</button></div><div class="leg">${legend}</div><div class="sheet"></div>`;
     this.world = this.el.querySelector('.world')!;
     if (keep) this.view = keep;
@@ -234,12 +237,16 @@ const FX_TEXT: Record<string, (v: number) => string> = {
   moraleUp: v => `+${v} de moral ao acordar`,
   offers: v => `+${v} oferta`,
   collectMorale: v => `+${v} de moral por coleta`,
+  unitCost: v => `−${Math.round(v * 100)}% de custo das unidades`,
+  researchCost: v => `−${Math.round(v * 100)}% de custo de pesquisa`,
+  raidSize: v => `−${Math.round(v * 100)}% de tamanho da horda`,
+  quota: v => `−${Math.round(v * 100)}% de cota`,
 };
 const FX_NAME: Record<string, string> = {
   blood: 'Sangue', collectSpeed: 'velocidade de coleta', regen: 'recuperação', sleep: 'sono mais curto', grow: 'crescimento', harvest: 'Comida',
   kin: 'parentes', heirQ: 'qualidade de parentes', bond: 'vínculos', titheGold: 'Ouro da Sangria', contractGold: 'Ouro de contratos', quota: 'cota menor',
   unitDmg: 'dano', unitHp: 'vida', chalice: 'Cálices', unitCost: 'custo menor', essence: 'Essência', orb: 'valor dos orbes', orbRate: 'orbes',
-  defense: 'recompensa de defesa', raidSize: 'lobos a menos', researchCost: 'custo de pesquisa', moraleBlood: 'Sangue com moral alta', vigil: '',
+  defense: 'recompensas de defesa', raidSize: 'tamanho da horda', researchCost: 'custo de pesquisa', moraleBlood: 'Sangue com moral alta', food: 'Comida', vigil: '',
 };
 export function fmtFx(k: string, v: number) {
   if (FX_TEXT[k]) return FX_TEXT[k](Math.round(v * 100) / 100);

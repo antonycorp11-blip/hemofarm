@@ -2,7 +2,7 @@
 // nodes with levels bought instantly with Essência, and one exclusive keystone choice at the end of each branch.
 import { state } from '../core/state';
 
-export type Branch = 'root' | 'sangue' | 'rebanho' | 'defesa' | 'castelo';
+export type Branch = 'root' | 'sangue' | 'rebanho' | 'defesa' | 'castelo' | 'caçada' | 'dominio';
 
 // Effect keys read by the systems through core/bonus.fx(). Values add up per level.
 export type Fx = 'blood' | 'vitCost' | 'collectSpeed' | 'regen' | 'sleep' | 'moraleUp' | 'grow' | 'harvest' | 'kin' | 'heirQ' | 'bond' |
@@ -25,6 +25,8 @@ export const BRANCHES: Record<Branch, { name: string; color: string }> = {
   rebanho: { name: 'Rebanho', color: '#e8b54a' },
   defesa: { name: 'Defesa', color: '#8a7aff' },
   castelo: { name: 'Castelo', color: '#5ab4e8' },
+  caçada: { name: 'Caçada', color: '#d96b9b' },
+  dominio: { name: 'Domínio', color: '#7fd1b9' },
 };
 
 export const NODES: Node[] = [
@@ -94,6 +96,32 @@ export const NODES: Node[] = [
     desc: 'ESCOLHA ÚNICA · Ataques que você não defender nunca levam humanos (só um pouco de Sangue).' },
   { id: 'nk2', branch: 'castelo', name: 'Caçada Real', icon: 'icon_raid', max: 1, base: 400, x: 1040, y: 680, req: ['n10', 'n5'], excl: 'nk', fx: [['defense', 1]],
     desc: 'ESCOLHA ÚNICA · Recompensas de defesa em dobro e +Essência por lobisomem abatido.' },
+  // Caçada — battle mastery, cards and the roguelite loop.
+  { id: 'h1', branch: 'caçada', name: 'Mapas de Sangue', icon: 'icon_map', max: 3, base: 35, x: 820, y: 700, req: ['lab'], fx: [['raidSize', 0.04]],
+    desc: 'A leitura das rotas reduz em 4% o tamanho das hordas por nível.' },
+  { id: 'h2', branch: 'caçada', name: 'Formação de Vanguarda', icon: 'icon_defense', max: 5, base: 55, x: 930, y: 620, req: ['h1'], fx: [['unitHp', 0.08]],
+    desc: 'Unidades entram na arena com +8% de vida por nível.' },
+  { id: 'h3', branch: 'caçada', name: 'Sangue em Reserva', icon: 'icon_blood', max: 5, base: 55, x: 1050, y: 560, req: ['h1'], fx: [['unitCost', 0.06]],
+    desc: 'O banco inicial da batalha rende mais: defensores custam 6% menos por nível.' },
+  { id: 'h4', branch: 'caçada', name: 'Golpe de Misericórdia', icon: 'icon_raid', max: 5, base: 70, x: 1080, y: 680, req: ['h2', 'h3'], fx: [['unitDmg', 0.1]],
+    desc: 'Defensores causam +10% de dano por nível contra inimigos feridos.' },
+  { id: 'hk1', branch: 'caçada', name: 'Mestre da Matilha', icon: 'icon_raid', max: 1, base: 500, x: 1130, y: 770, req: ['h4'], excl: 'hk', fx: [['defense', 0.75], ['essence', 0.2]],
+    desc: 'ESCOLHA ÚNICA · +75% nas recompensas de defesa e +20% de Essência. A Caçada vira uma escola.' },
+  { id: 'hk2', branch: 'caçada', name: 'Arsenal de Emergência', icon: 'icon_collect', max: 1, base: 500, x: 980, y: 770, req: ['h4'], excl: 'hk', fx: [['unitCost', 0.2], ['unitHp', 0.2]],
+    desc: 'ESCOLHA ÚNICA · Defensores custam 20% menos e têm +20% de vida. Menos elegância, mais sobrevivência.' },
+  // Domínio — long-term mandate identity and cross-system efficiency.
+  { id: 'd1', branch: 'dominio', name: 'Censo do Crepúsculo', icon: 'icon_population', max: 3, base: 30, x: 390, y: 120, req: ['lab'], fx: [['moraleBlood', 0.08]],
+    desc: 'Humanos com moral alta rendem +8% de Sangue por nível.' },
+  { id: 'd2', branch: 'dominio', name: 'Tributo Negociado', icon: 'icon_prestige', max: 4, base: 60, x: 270, y: 80, req: ['d1'], fx: [['quota', 0.05]],
+    desc: 'A cota da Sangria fica 5% menor por nível.' },
+  { id: 'd3', branch: 'dominio', name: 'Escritório de Fronteira', icon: 'icon_contracts', max: 4, base: 60, x: 270, y: 165, req: ['d1'], fx: [['contractGold', 0.1]],
+    desc: 'Contratos pagam +10% de Ouro por nível.' },
+  { id: 'd4', branch: 'dominio', name: 'Cofres Interligados', icon: 'icon_gold', max: 3, base: 90, x: 150, y: 85, req: ['d2', 'd3'], fx: [['blood', 0.05], ['food', 0.08]],
+    desc: '+5% de Sangue e +8% de Comida por nível: o domínio alimenta a fazenda.' },
+  { id: 'dk1', branch: 'dominio', name: 'Lei da Casa', icon: 'icon_codex', max: 1, base: 500, x: 100, y: 175, req: ['d4'], excl: 'dk', fx: [['researchCost', 0.18], ['quota', 0.08]],
+    desc: 'ESCOLHA ÚNICA · Pesquisas custam 18% menos e a cota cai mais 8%.' },
+  { id: 'dk2', branch: 'dominio', name: 'Celeiro do Castelo', icon: 'icon_build', max: 1, base: 500, x: 210, y: 235, req: ['d4'], excl: 'dk', fx: [['food', 0.35], ['blood', 0.12]],
+    desc: 'ESCOLHA ÚNICA · +35% de Comida e +12% de Sangue. Um domínio que nunca passa fome.' },
 ];
 
 export const node = (id: string) => NODES.find(n => n.id === id)!;

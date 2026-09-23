@@ -1234,5 +1234,10 @@
   "w": 1536,
   "h": 1024,
   "jpg": true
+ },
+ "research_codex_bg": {
+  "w": 1536,
+  "h": 1024,
+  "jpg": true
  }
 }

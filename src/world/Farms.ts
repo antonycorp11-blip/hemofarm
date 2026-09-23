@@ -115,7 +115,7 @@ export class Farms {
     const st = state.plots[job.penId];
     if (!st || st.phase !== job.type) return;
     const pen = this.views.find(v => v.pen.id === job.penId)!.pen;
-    const food = Math.round(this.tiles(pen).length * CROPS[st.crop as CropId].yieldPerTile * more('harvest'));
+    const food = Math.round(this.tiles(pen).length * CROPS[st.crop as CropId].yieldPerTile * more('harvest') * more('food'));
     state.resources.food += food;
     st.phase = 'growing'; st.growth = 0; // replanted right away with the same crop
     bus.emit('CROP_HARVESTED', { plotId: job.penId, crop: st.crop, food });

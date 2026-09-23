@@ -269,7 +269,7 @@ if exists('loading_bat'):
         f = fit(f, h=fh) if f.width / f.height < 2 else fit(f, w=96)
         out.alpha_composite(f, (i * 96 + (96 - f.width) // 2, (fh - f.height) // 2))
     save('loading_bat', out, px=True)
-for n, q in [('title_background', 80), ('regional_map', 85), ('hunt_map_bg', 80)]:
+for n, q in [('title_background', 80), ('regional_map', 85), ('hunt_map_bg', 80), ('research_codex_bg', 82)]:
     if exists(n):
         im = load(n).convert('RGB'); im = im.resize((1536, round(im.height * 1536 / im.width)), Image.LANCZOS)
         im.save(f'{OUT}/{n}.jpg', quality=q); manifest[n] = {'w': im.width, 'h': im.height, 'jpg': True}
