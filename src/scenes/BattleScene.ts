@@ -253,11 +253,17 @@ export class BattleScene extends Phaser.Scene {
       .bt.land .bc.sel{transform:translateX(4px)}
       .bt.land .horde{left:calc(50% + 44px);width:min(440px,calc(100vw - 110px));padding:2px 10px 5px;border-width:6px}
       .bt.land .horde .lbl{margin-bottom:2px}
+      .bt .turn{display:none;position:fixed;inset:0;z-index:11;background:#070b14f2;align-items:center;justify-content:center;text-align:center;padding:24px}
+      .bt .turn .ic{font-size:44px;margin-bottom:8px;animation:tilt 1.4s ease-in-out infinite}@keyframes tilt{50%{transform:rotate(-90deg)}}
+      .bt .turn b{font-size:20px;color:#f6d9a0}.bt .turn p{color:#c9b8a8}.bt .turn button{margin-top:8px;background:none;border:1px solid #4a2a30;border-radius:6px;
+        color:#c9a98a;font:inherit;padding:8px 14px}
+      .bt.portrait:not(.stay) .turn{display:flex}
       .bt.land .go-now,.bt.land .btoast{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 50px)}
     </style>
     <div class="horde"><div class="lbl"><span class="wl">Horda</span><span class="wk"></span></div>
       <div class="track"><div class="fill"></div>${this.cfg.raid.waves.map(w => `<i class="flag" style="left:${(w / this.lastSpawn) * 100}%"></i>`).join('')}<i class="head"></i></div></div>
     <button class="go-now"></button><div class="btoast"></div><div class="rotate">↻ Melhor com o celular deitado</div>
+    <div class="turn"><div><div class="ic">📱↻</div><b>Gire o celular</b><p>A batalha foi feita para jogar deitado.</p><button>Continuar assim mesmo</button></div></div>
     <div class="bottom"><div class="top"><div class="blood"><img src="assets/icon_blood.webp" alt=""><b class="bv">0</b></div><button class="retreat">Recuar</button></div>
       <div class="hint"></div>
       <div class="cards">${this.unlocked().map(card).join('')}</div></div>
@@ -272,6 +278,7 @@ export class BattleScene extends Phaser.Scene {
       this.refreshUi();
     }));
     el.querySelector<HTMLButtonElement>('.go-now')!.onclick = () => { if (this.t < 0) this.t = 0; };
+    el.querySelector<HTMLButtonElement>('.turn button')!.onclick = () => { el.classList.add('stay'); this.fitCamera(); };
     el.querySelector<HTMLButtonElement>('.retreat')!.onclick = () => {
       if (confirm('Recuar? Os lobisomens que restarem levam humanos.')) this.finish(false, true);
     };
@@ -570,6 +577,8 @@ export class BattleScene extends Phaser.Scene {
   // ---------- loop ----------
   update(_time: number, delta: number) {
     if (this.ended) return;
+    // Waiting for the player to rotate the phone: the battle doesn't start without them.
+    if (this.ui.classList.contains('portrait') && !this.ui.classList.contains('stay')) return;
     const dt = Math.min(delta, 50);
     this.t += dt;
     const raid = this.cfg.raid;

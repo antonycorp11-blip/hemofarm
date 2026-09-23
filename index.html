@@ -20,7 +20,8 @@
       background:#070b14 url(/assets/title_background.jpg) center/cover no-repeat;color:#f3e2c8;font:600 18px Georgia,serif;transition:opacity .5s}
     #loading::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,#07091460 0%,#070914d0 75%)}
     #loading>*{position:relative}
-    #loading .logo{width:min(560px,86vw);height:auto;filter:drop-shadow(0 6px 18px #000)}
+    #loading .logo{width:min(560px,86vw);height:auto;max-height:52vh;object-fit:contain;filter:drop-shadow(0 6px 18px #000)}
+    @media (orientation:landscape) and (max-height:520px){#loading{gap:8px}#loading .logo{max-height:48vh}}
     #loading .bat{width:96px;height:48px;background:url(/assets/loading_bat.webp) 0 0/384px 48px no-repeat;animation:bat .5s steps(4) infinite}
     @keyframes bat{to{background-position:-384px 0}}
     #loading .bar{width:min(260px,70vw);height:6px;background:#2a1016;border-radius:3px;overflow:hidden}

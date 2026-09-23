@@ -13,6 +13,12 @@ const CSS = `
 .bpanel .go{width:100%;min-height:44px;padding:10px;border-radius:6px;border:1px solid #2a0a10;background:#8a1424;color:#fff3e0;font:600 15px Georgia,serif;cursor:pointer}
 .bpanel .ch{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.bpanel .ch button{flex:1 1 90px;min-height:40px;padding:8px 4px;border-radius:6px;border:1px solid #5a1a24;background:#241218;color:#f3e2c8;font:13px Georgia,serif;cursor:pointer}
 .bpanel .ch button.on{background:#5a1a24;border-color:#e8b54a}
+@media (orientation:landscape) and (max-height:520px){
+  .bpanel{left:auto;right:max(10px,env(safe-area-inset-right,0px));transform:none;width:min(340px,48vw);max-height:calc(100vh - 70px);
+    bottom:calc(8px + env(safe-area-inset-bottom,0px));font-size:13px;padding:10px 12px 12px}
+  .bpanel.on{animation:none}
+  body.dlg-open .bpanel{bottom:calc(8px + env(safe-area-inset-bottom,0px));max-height:calc(100vh - 70px)}
+}
 .bpanel .row{display:flex;align-items:center;gap:8px;margin:4px 0}.bpanel .row img{height:22px}
 .bpanel .meter{flex:1;height:7px;background:#2a1016;border-radius:4px;overflow:hidden}.bpanel .meter i{display:block;height:100%}
 .bpanel .tags{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.bpanel .tag{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;background:#241218;font-size:13px}

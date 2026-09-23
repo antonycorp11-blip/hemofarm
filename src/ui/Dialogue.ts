@@ -17,6 +17,12 @@ const CSS = `
 .dlg .dots{display:flex;gap:4px}.dlg .dots i{width:6px;height:6px;border-radius:50%;background:#4a2a30}.dlg .dots i.on{background:#e0a060}
 .dlg .skip{background:none;border:1px solid #4a2a30;color:#c9a98a;border-radius:6px;font:12px Georgia,serif;padding:6px 10px;cursor:pointer}
 body.dlg-open .bpanel{bottom:calc(150px + env(safe-area-inset-bottom,0px));max-height:calc(100vh - 290px)}
+@media (orientation:landscape) and (max-height:520px){
+  .dlg{left:max(10px,env(safe-area-inset-left,0px));transform:none;width:min(460px,50vw);min-height:74px;padding:8px 10px 6px 84px;font-size:13px}
+  .dlg.on{animation:none}.dlg .pic{width:66px;height:78px;left:8px;bottom:8px}.dlg .txt{min-height:2.4em}
+  /* dialogue sits bottom-left, panels on the right: no need to push panels up */
+  body.dlg-open .bpanel{bottom:calc(8px + env(safe-area-inset-bottom,0px));max-height:calc(100vh - 70px)}
+}
 @media (max-width:520px){.dlg{font-size:14px;padding-left:92px}.dlg .pic{width:74px;height:90px}}
 `;
 
