@@ -70,6 +70,7 @@ export class BattleScene extends Phaser.Scene {
     this.drawGrid();
     this.fitCamera();
     this.scale.on('resize', this.fitCamera, this);
+    this.scale.on('resize', this.refitLater, this);
     this.setupGestures();
     this.buildUi();
     this.fitCamera();
@@ -113,16 +114,31 @@ export class BattleScene extends Phaser.Scene {
 
   // Frame the lanes (plus the fence and the forest edge) between the horde bar and the cards.
   private fitCamera() {
-    const left = -190, right = COLS * CW + 70, topY = -CH * 0.9, bottomY = LANES * CH + 30;
     const cam = this.cameras.main;
-    const top = 118, bottom = 190;
+    const W = this.scale.width, H = this.scale.height;
+    const land = W > H;
+    // Standing phone: frame only the lanes so cells stay tappable (fence/forest are a drag away).
+    const left = land ? -190 : -24, right = COLS * CW + (land ? 70 : 12), topY = -CH * 0.9, bottomY = LANES * CH + 30;
+    this.ui?.classList.toggle('portrait', !land);
+    this.ui?.classList.toggle('land', land);
+    // Measure what the HTML UI actually covers and fit the field into the rest of the screen.
+    const horde = this.ui?.querySelector('.horde')?.getBoundingClientRect();
+    const panel = this.ui?.querySelector('.bottom')?.getBoundingClientRect();
+    const top = (horde?.bottom ?? 60) + 4;
+    const bottom = land ? 6 : H - (panel?.top ?? H - 190) + 4;
+    const leftPad = land ? (panel?.right ?? 90) + 4 : 0;
     const w = right - left, h = bottomY - topY;
-    this.fitZoom = Math.min(this.scale.width / w, (this.scale.height - top - bottom) / h);
+    this.fitZoom = Math.max(0.1, Math.min((W - leftPad) / w, (H - top - bottom) / h));
     cam.setZoom(this.fitZoom);
-    cam.setBounds(left - 300, topY - 400, w + 600, h + 800);
-    cam.centerOn((left + right) / 2, (topY + bottomY) / 2 + (bottom - top) / 2 / cam.zoom);
-    this.ui?.classList.toggle('portrait', this.scale.height > this.scale.width);
+    // Bounds larger than any zoomed-out view, otherwise the camera gets pushed off-centre.
+    cam.setBounds(left - 2500, topY - 2500, w + 5000, h + 5000);
+    // Put the field's centre at the centre of the free rectangle, not of the whole screen.
+    const dx = leftPad / 2, dy = (top - bottom) / 2;
+    cam.centerOn((left + right) / 2 - dx / cam.zoom, (topY + bottomY) / 2 - dy / cam.zoom);
   }
+
+  // Rotating a phone reports the new size before the page finishes reflowing: fit again a moment later.
+  private refitLater() { this.time.delayedCall(250, () => this.fitCamera()); }
 
   // Drag to pan, pinch / wheel to zoom; a tap (no drag) places the selected card.
   private setupGestures() {
@@ -190,7 +206,7 @@ export class BattleScene extends Phaser.Scene {
     };
     el.innerHTML = `<style>
       .bt{font:600 13px Georgia,serif;color:#f3e2c8}
-      .bt .horde{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 52px);transform:translateX(-50%);z-index:9;width:min(460px,calc(100vw - 20px));
+      .bt .horde{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 6px);transform:translateX(-50%);z-index:9;width:min(460px,calc(100vw - 20px));
         box-sizing:border-box;padding:6px 12px 8px;border:8px solid transparent;border-image:url(assets/frame_tooltip.webp) 18 fill / 8px stretch}
       .bt .horde .lbl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
       .bt .horde .track{position:relative;height:12px;background:#2a1016;border-radius:6px;overflow:visible}
@@ -215,15 +231,29 @@ export class BattleScene extends Phaser.Scene {
       .bt .res.on{display:flex}.bt .res .box{width:min(340px,calc(100vw - 32px));padding:14px;text-align:center;border:12px solid transparent;
         border-image:url(assets/frame_panel.webp) 22 fill / 12px stretch}.bt .res h3{margin:0 0 6px;color:#f6d9a0;font-size:20px}
       .bt .res button{margin-top:10px;width:100%;min-height:44px;border:6px solid transparent;border-image:url(assets/button_normal.webp) 18 fill / 6px stretch;background:none;color:#fff;font:700 15px Georgia,serif}
-      .bt .btoast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 118px);transform:translateX(-50%);z-index:9;max-width:min(420px,90vw);padding:8px 12px;
+      .bt .btoast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 110px);transform:translateX(-50%);z-index:9;max-width:min(420px,90vw);padding:8px 12px;
         border:8px solid transparent;border-image:url(assets/frame_tooltip.webp) 18 fill / 8px stretch;display:none}
       .bt .btoast.on{display:block}
-      .bt .go-now{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 118px);transform:translateX(-50%);z-index:9;padding:8px 14px;
+      .bt .go-now{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 66px);transform:translateX(-50%);z-index:9;padding:8px 14px;
         border:6px solid transparent;border-image:url(assets/button_normal.webp) 18 fill / 6px stretch;background:none;color:#fff;font:700 14px Georgia,serif;cursor:pointer;
         animation:gnow 1s ease-in-out infinite alternate}@keyframes gnow{to{filter:drop-shadow(0 0 8px #e8b54a)}}
-      .bt .rotate{display:none;position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 118px);z-index:9;font-size:11px;color:#c9b8a8;
+      .bt .rotate{display:none;position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9;font-size:11px;color:#c9b8a8;
         padding:4px 8px;border-radius:6px;background:#000a}
-      .bt.portrait .rotate{display:block}.bt.portrait .go-now{top:calc(env(safe-area-inset-top,0px) + 146px)}
+      .bt.portrait .rotate{display:block}.bt.portrait .go-now{top:calc(env(safe-area-inset-top,0px) + 96px)}
+      /* Phone lying down: PvZ-like card column on the left, compact horde bar on top. */
+      .bt.land .bottom{left:0;right:auto;top:0;bottom:0;width:88px;flex-direction:column;justify-content:flex-start;gap:4px;
+        padding:calc(env(safe-area-inset-top,0px) + 6px) 4px calc(env(safe-area-inset-bottom,0px) + 6px) max(4px,env(safe-area-inset-left,0px));
+        background:linear-gradient(90deg,#0b0709f5 75%,#0b070900)}
+      .bt.land .top{flex-direction:column;gap:4px}
+      .bt.land .blood{font-size:15px;padding:2px 6px;border-width:6px}.bt.land .blood img{height:18px}
+      .bt.land .retreat{font-size:11px;padding:3px 6px}
+      .bt.land .hint{display:none}
+      .bt.land .cards{flex-direction:column;overflow-y:auto;overflow-x:hidden;flex:1;align-items:center;padding:4px 0}
+      .bt.land .bc{width:60px;height:80px}.bt.land .bc .pic{left:11px;right:11px;top:8px;height:42px}.bt.land .bc .cn{top:52px;font-size:9px}
+      .bt.land .bc.sel{transform:translateX(4px)}
+      .bt.land .horde{left:calc(50% + 44px);width:min(440px,calc(100vw - 110px));padding:2px 10px 5px;border-width:6px}
+      .bt.land .horde .lbl{margin-bottom:2px}
+      .bt.land .go-now,.bt.land .btoast{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 50px)}
     </style>
     <div class="horde"><div class="lbl"><span class="wl">Horda</span><span class="wk"></span></div>
       <div class="track"><div class="fill"></div>${this.cfg.raid.waves.map(w => `<i class="flag" style="left:${(w / this.lastSpawn) * 100}%"></i>`).join('')}<i class="head"></i></div></div>
@@ -608,6 +638,7 @@ export class BattleScene extends Phaser.Scene {
       this.ui.remove();
       document.body.classList.remove('in-battle');
       this.scale.off('resize', this.fitCamera, this);
+      this.scale.off('resize', this.refitLater, this);
       this.cfg.onEnd({ won, grabbed: this.grabbed, bloodSpent: this.spent, kills: this.kills, retreated });
     };
   }

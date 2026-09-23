@@ -17,6 +17,7 @@ export class Tutorial {
   private waiting = false;
   private idle = 0;
   private hintLevel = 0;
+  private recheck = 0;
 
   constructor(private ui: TutorialUI) {
     const events = new Set(TUTORIAL.flatMap(s => s.objective?.events ?? []));
@@ -45,6 +46,9 @@ export class Tutorial {
     if (!this.waiting) return;
     this.idle += dt;
     const step = TUTORIAL[state.tutorial.step];
+    // Done some other way (built earlier, older save, event missed): don't leave the player stuck.
+    this.recheck -= dt;
+    if (this.recheck <= 0) { this.recheck = 1000; if (step.satisfied?.()) { this.complete(step); return; } }
     while (this.hintLevel < 3 && this.idle >= HINT_AT[this.hintLevel]) {
       this.hintLevel++;
       this.ui.hint(this.hintLevel as 1 | 2 | 3, step);
@@ -63,6 +67,7 @@ export class Tutorial {
     this.waiting = true;
     this.idle = 0;
     this.hintLevel = 0;
+    if (step.satisfied?.()) { this.complete(step); return; }
     this.showObjective(step);
   }
 

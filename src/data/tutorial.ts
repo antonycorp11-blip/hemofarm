@@ -1,6 +1,6 @@
 // Tutorial = the opening quest chain (GDD §8). It only listens to the same semantic events as the rest of the game.
 import type { GameEvents } from '../core/events';
-import type { Resources } from '../core/state';
+import { state, type Resources } from '../core/state';
 
 export type Speaker = 'vesper' | 'boris' | 'hematico' | 'davi' | 'lia' | 'rubelia' | 'aureliano';
 export const SPEAKERS: Record<Speaker, string> = {
@@ -31,6 +31,8 @@ export interface Step {
   hint?: Line;                                // said after 12 s without progress
   reward?: Partial<Resources>;
   done?: Line[];                              // said when the objective completes
+  // Objective already true (e.g. built earlier, or restored from an old save): the step completes by itself.
+  satisfied?: () => boolean;
 }
 
 // Typed helper: the match function sees the payload of the (first) event it listens to.
@@ -59,6 +61,7 @@ export const TUTORIAL: Step[] = [
     ],
     objective: obj({ text: 'Construa uma Habitação', event: 'BUILDING_BUILT', match: p => p.kind === 'housing' }),
     target: { slot: 'house_c' },
+    satisfied: () => ['house_c', 'house_d'].some(id => (state.buildings[id]?.level ?? 0) > 0),
     hint: { who: 'boris', text: 'O lote demarcado com estacas, perto das casas. Toque nele.' },
     reward: { gold: 150 },
     done: [{ who: 'boris', text: 'Excelente. Agora parece intencional. O castelo mandou 150 de Ouro pela iniciativa.' }],
@@ -72,6 +75,7 @@ export const TUTORIAL: Step[] = [
     ],
     objective: obj({ text: 'Construa ou melhore uma Alimentação', event: ['BUILDING_BUILT', 'BUILDING_UPGRADED'], match: p => p.kind === 'food' }),
     target: { slot: 'food' },
+    satisfied: () => (state.buildings.food?.level ?? 0) > 0 || (state.buildings.food_b?.level ?? 0) > 1,
     hint: { who: 'boris', text: 'O lote perto dos cercados serve. Ou toque na mesa atual para melhorá-la.' },
     reward: { food: 20 },
     done: [{ who: 'lia', text: 'Mesa nova! Ninguém vai reclamar hoje. Bom, quase ninguém.' }],
@@ -84,6 +88,7 @@ export const TUTORIAL: Step[] = [
     ],
     objective: obj({ text: 'Plante algo na segunda horta', event: 'CROP_PLANTED', match: p => p.plotId === 'pen_b' }),
     target: { pen: 'pen_b' },
+    satisfied: () => !!state.plots.pen_b,
     hint: { who: 'lia', text: 'É o cercado de baixo, o vazio. Nabo cresce rápido, se estiver com pressa.' },
     reward: { food: 15 },
   },
@@ -118,6 +123,7 @@ export const TUTORIAL: Step[] = [
       { who: 'davi', text: '"Recepção" é uma palavra muito otimista.' },
     ],
     objective: obj({ text: 'Aceite o contrato da Lady Rubélia', event: 'CONTRACT_ACCEPTED' }),
+    satisfied: () => !!state.contracts.active || state.contracts.done.length > 0,
     hint: { who: 'rubelia', text: 'O pergaminho com selo vermelho, ao lado dos seus números. Não me faça esperar.' },
   },
   {
@@ -128,6 +134,7 @@ export const TUTORIAL: Step[] = [
     ],
     objective: obj({ text: 'Construa o Pátio de Embarque', event: 'BUILDING_BUILT', match: p => p.kind === 'boarding' }),
     target: { slot: 'boarding' },
+    satisfied: () => ['boarding'].some(id => (state.buildings[id]?.level ?? 0) > 0),
     hint: { who: 'boris', text: 'O lote grande ao sul da praça, perto da torre.' },
   },
   {
@@ -138,6 +145,7 @@ export const TUTORIAL: Step[] = [
       { who: 'boris', text: 'Chamaremos de venda. É a parte do negócio que paga os colchões.' },
     ],
     objective: obj({ text: 'Entregue o contrato da Rubélia', event: 'CONTRACT_COMPLETED' }),
+    satisfied: () => state.contracts.done.length > 0,
     target: { slot: 'boarding' },
     hint: { who: 'boris', text: 'Na ficha de cada humano aparece se ele atende ao pedido. Rubra, moral acima de 50.' },
   },
@@ -168,6 +176,7 @@ export const TUTORIAL: Step[] = [
     ],
     objective: obj({ text: 'Construa a Casa das Famílias', event: 'BUILDING_BUILT', match: p => p.kind === 'family' }),
     target: { slot: 'family' },
+    satisfied: () => ['family'].some(id => (state.buildings[id]?.level ?? 0) > 0),
     hint: { who: 'lia', text: 'O lote ao lado da torre de vigia, no sudeste.' },
     done: [
       { who: 'lia', text: 'Pronto! Casais se formam sozinhos quando convivem. Ou toque num humano e escolha um par, se quiser caprichar na herança.' },
@@ -181,6 +190,7 @@ export const TUTORIAL: Step[] = [
     ],
     objective: obj({ text: 'Construa o Laboratório', event: 'BUILDING_BUILT', match: p => p.kind === 'lab' }),
     target: { slot: 'lab' },
+    satisfied: () => ['lab'].some(id => (state.buildings[id]?.level ?? 0) > 0),
     hint: { who: 'hematico', text: 'O lote a leste, perto dos tanques. Toque nele!' },
   },
   {
@@ -192,6 +202,7 @@ export const TUTORIAL: Step[] = [
       { who: 'boris', text: 'Eu.' },
     ],
     objective: obj({ text: 'Inicie a pesquisa Ração Nutritiva', event: 'RESEARCH_STARTED', match: p => p.nodeId === 'w1' }),
+    satisfied: () => state.research.done.includes('w1') || state.research.current?.id === 'w1',
     target: { slot: 'lab' },
     hint: { who: 'hematico', text: 'Toque no Laboratório e depois em Pesquisas. Bem-estar, a primeira da lista!' },
   },

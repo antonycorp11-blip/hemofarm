@@ -50,7 +50,7 @@ const CSS = `
 .evt.on{display:flex}.evt img{height:22px}.evt.urgent{color:#ffb0b8}
 @keyframes evtp{to{filter:drop-shadow(0 0 8px #e8b54a)}}.evt.urgent{animation-name:evtu}@keyframes evtu{to{filter:drop-shadow(0 0 10px #d8122a)}}
 .evt.raid{top:calc(var(--hud-bottom,90px) + 52px)}
-body.in-battle .quest,body.in-battle .evt,body.in-battle .dlg,body.in-battle .bpanel,body.in-battle .hud .tithe,body.in-battle .hud .speed{display:none!important}
+body.in-battle .hud,body.in-battle .toasts,body.in-battle .quest,body.in-battle .evt,body.in-battle .dlg,body.in-battle .bpanel,body.in-battle .hud .tithe,body.in-battle .hud .speed{display:none!important}
 .hmenu{position:fixed;inset:0;z-index:30;display:none;background:#000a;align-items:flex-start;justify-content:center}
 .hmenu.on{display:flex}
 .hmenu .box{margin-top:calc(env(safe-area-inset-top,0px) + 60px);width:min(300px,calc(100vw - 32px));background:#140a10;border:1px solid #6b1d2a;
