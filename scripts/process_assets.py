@@ -11,6 +11,9 @@ os.makedirs(OUT, exist_ok=True)
 manifest = {}
 
 
+def exists(n): return os.path.exists(f'{RAW}/{n}.png')
+
+
 def load(n):
     return Image.open(f'{RAW}/{n}.png').convert('RGBA')
 
@@ -142,7 +145,6 @@ def slice_sheet(im, gap=6, min_size=12):
             if piece.width >= min_size and piece.height >= min_size: out.append(piece)
     return out
 
-def exists(n): return os.path.exists(f'{RAW}/{n}.png')
 
 # ---- 4x4 character sheets (16 frames: walk front, walk back, 2 action rows). Scale from the walk frames.
 CHARS = {'human_b': 44, 'human_c': 44, 'davi': 44, 'lia': 44, 'boris': 50, 'ghoul_worker': 46, 'ghoul_guard': 48,
