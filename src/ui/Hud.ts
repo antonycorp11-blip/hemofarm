@@ -39,6 +39,11 @@ const CSS = `
 .toast img{width:34px;height:34px;border-radius:5px;border:1px solid #6b1d2a;flex:none}
 .toast.bad{border-color:#d8122a}.toast.good{border-color:#e8b54a}
 @keyframes tin{from{opacity:0;transform:translateY(-6px)}}
+.evt{position:fixed;right:max(10px,env(safe-area-inset-right,0px));top:var(--hud-bottom,90px);z-index:6;display:none;align-items:center;gap:6px;
+  max-width:min(220px,45vw);padding:8px 10px;border:8px solid transparent;border-image:url(assets/frame_tooltip.webp) 18 fill / 8px stretch;background:none;
+  color:#f6d9a0;font:600 13px Georgia,serif;text-align:left;cursor:pointer;animation:evtp 1.2s ease-in-out infinite alternate}
+.evt.on{display:flex}.evt img{height:22px}.evt.urgent{color:#ffb0b8}
+@keyframes evtp{to{filter:drop-shadow(0 0 8px #e8b54a)}}.evt.urgent{animation-name:evtu}@keyframes evtu{to{filter:drop-shadow(0 0 10px #d8122a)}}
 .hmenu{position:fixed;inset:0;z-index:30;display:none;background:#000a;align-items:flex-start;justify-content:center}
 .hmenu.on{display:flex}
 .hmenu .box{margin-top:calc(env(safe-area-inset-top,0px) + 60px);width:min(300px,calc(100vw - 32px));background:#140a10;border:1px solid #6b1d2a;
@@ -63,6 +68,8 @@ export class Hud {
   private toasts: HTMLDivElement;
   private menu: HTMLDivElement;
   private deals!: HTMLButtonElement;
+  private evt!: HTMLButtonElement;
+  private evtClick?: () => void;
 
   constructor(private src: HudSource, private actions: HudActions) {
     const style = document.createElement('style');
@@ -81,7 +88,7 @@ export class Hud {
     bar.appendChild(menuBtn);
     // [key, label, icon] — no icon means a CSS shape
     const items: [string, string, string?][] = [['blood', 'Sangue', 'icon_blood'], ['gold', 'Ouro', 'icon_gold'], ['food', 'Comida'],
-      ['pop', 'População', 'icon_population'], ['morale', 'Moral', 'icon_morale'], ['prestige', 'Prestígio', 'icon_prestige']];
+      ['pop', 'População', 'icon_population'], ['morale', 'Moral', 'icon_morale'], ['tension', 'Tensão', 'icon_tension'], ['prestige', 'Prestígio', 'icon_prestige']];
     for (const [k, label, icon] of items) {
       const r = document.createElement('div');
       r.className = `res ${k}`;
@@ -114,6 +121,11 @@ export class Hud {
     this.quest.querySelector('button')!.onclick = () => actions.onWhere();
     document.body.appendChild(this.quest);
 
+    this.evt = document.createElement('button');
+    this.evt.className = 'evt';
+    this.evt.onclick = () => this.evtClick?.();
+    document.body.appendChild(this.evt);
+
     this.toasts = document.createElement('div');
     this.toasts.className = 'toasts';
     document.body.appendChild(this.toasts);
@@ -136,6 +148,11 @@ export class Hud {
     this.vals.pop.textContent = String(this.src.population);
     this.vals.morale.textContent = String(Math.round(this.src.avgMorale));
     this.res.food.classList.toggle('low', r.food < 10);
+    // Tension is partly hidden (GDD §5): it only shows up once it starts to matter.
+    const t = state.world.tension;
+    this.vals.tension.textContent = String(Math.round(t));
+    this.res.tension.style.display = t >= 25 ? 'flex' : 'none';
+    this.res.tension.classList.toggle('low', t >= 60);
     const c = state.contracts;
     const badge = this.deals.querySelector<HTMLElement>('.badge')!;
     badge.textContent = c.active ? '!' : c.offers.length ? String(c.offers.length) : '';
@@ -162,6 +179,14 @@ export class Hud {
     this.quest.querySelector('.qt')!.textContent = text;
     this.quest.querySelector('.qp')!.textContent = progress ?? '';
     this.quest.classList.remove('new'); void this.quest.offsetWidth; this.quest.classList.add('new');
+  }
+
+  // Pending event: a pulsing chip on the right; the player opens it when ready (never a surprise modal).
+  eventChip(title: string | null, onClick?: () => void, urgent = false) {
+    this.evtClick = onClick;
+    this.evt.classList.toggle('on', !!title);
+    this.evt.classList.toggle('urgent', urgent);
+    if (title) this.evt.innerHTML = `<img src="assets/${urgent ? 'icon_tension' : 'icon_quest'}.webp" alt=""><span>${title}</span>`;
   }
 
   private openMenu() {

@@ -2,7 +2,7 @@
 export type BubbleState =
   | 'idle' | 'hungry' | 'well_fed' | 'queued_collection' | 'recovering'
   | 'high_morale' | 'low_morale' | 'sleepy'
-  | 'carriage' | 'taken' | 'tithe_paid' | 'tithe_failed' | 'boarding' | 'bond' | 'arranged' | 'heir';
+  | 'carriage' | 'taken' | 'tithe_paid' | 'tithe_failed' | 'boarding' | 'bond' | 'arranged' | 'heir' | 'rebellion' | 'cheer' | 'custom';
 
 export const LINES: Record<BubbleState, string[]> = {
   idle: [
@@ -66,6 +66,18 @@ export const LINES: Record<BubbleState, string[]> = {
     'Oi, parentes! Por que todo mundo está pálido? Ah.',
     'Recebi uma carta dizendo "venha, a comida é garantida". Tecnicamente não mentiram.',
   ],
+  rebellion: [
+    'Não queremos o impossível. Começamos por colchões.',
+    'A pauta tem sete itens. O oitavo é não sumir misteriosamente.',
+    'Defendam o estoque! Espera. Nós somos o estoque.',
+    'Colheita justa para quem é colhido!',
+  ],
+  cheer: [
+    'Hoje ninguém sumiu. Isso é festa.',
+    'Se sobrevivermos à semana, churrasco. Sem convidados vampiros.',
+    'Dia bom. Quer dizer, noite. Tanto faz, dia bom.',
+  ],
+  custom: [],
   tithe_paid: [
     'Cota batida. Parabéns a nós, eu acho.',
     'A carruagem foi embora vazia de gente. Melhor noite da semana.',

@@ -14,6 +14,7 @@ import { HumanTraits, NAMED_TRAITS, QUALITY, randomTraits } from '../data/humans
 import { state } from '../core/state';
 import { heirOf } from '../sim/genetics';
 import { has } from '../data/research';
+import { QUALITY as Q } from '../data/humans';
 import { FOOD_PER_MEAL } from '../data/crops';
 
 type P = [number, number];
@@ -60,6 +61,7 @@ export class Human implements Speaker {
   lovedUntil = 0;
   move?: Phaser.Tweens.Tween;   // walking step (kept apart from fades so one never cancels the other)
   fade?: Phaser.Tweens.Tween;   // entering/leaving buildings
+  rebel = false;
   offset = { x: Phaser.Math.Between(-12, 12), y: Phaser.Math.Between(-5, 5) };
   path: P[] = [];
   onArrive?: () => void;
@@ -163,11 +165,13 @@ export class Humans {
   private decide(h: Human) {
     if (h.taken) return;
     if (h.contract) return this.goBoard(h);
+    if (h.rebel && state.world.rebellion) return this.goProtest(h);
     h.state = 'idle';
     const now = this.scene.time.now;
     if (h.energy < 25) return this.goSleep(h);
     if (h.hunger > 65) return this.goEat(h);
     const canCollect = this.buildings.level('collect') > 0 && h.vitality > 70 && now > h.recoveringUntil
+      && state.world.pause.collect <= 0 && !state.world.rebellion
       && this.queue.members.length < this.queue.spots.length;
     if (Math.random() < 0.7) {
       const job = this.farms.claimJob();
@@ -214,7 +218,7 @@ export class Humans {
   private goEat(h: Human) {
     if (Math.random() < 0.4) this.bubbles.say(h, 'hungry');
     const foods = this.buildings.built('food');
-    if (!foods.length || state.resources.food < FOOD_PER_MEAL) { h.morale = Math.max(0, h.morale - 2); return this.goWander(h); }
+    if (!foods.length || state.resources.food < FOOD_PER_MEAL || state.world.pause.food > 0) { h.morale = Math.max(0, h.morale - 2); return this.goWander(h); }
     const food = Phaser.Utils.Array.GetRandom(foods);
     const eatMs = this.buildings.levelDef(food)?.eatMs ?? 7000;
     this.walkTo(h, this.near(this.map.entries[food]), () => {
@@ -458,6 +462,71 @@ export class Humans {
       code: c.traits.code, parentNames: [a.name ?? `Unidade ${a.traits.code}`, b.name ?? `Unidade ${b.traits.code}`] });
   }
 
+  // ---------- living world hooks (GDD §11) ----------
+  adjustMorale(d: number) { for (const h of this.list) h.morale = Phaser.Math.Clamp(h.morale + d, 0, 100); }
+  hungryCount() { return this.list.filter(h => h.hunger > 85).length; }
+
+  // Sell the most valuable human that isn't a story character; returns their label.
+  sellBest(to: { x: number; y: number }) {
+    const pool = this.list.filter(h => !h.taken && !h.name && !h.contract)
+      .sort((a, b) => Q[b.traits.quality].rank - Q[a.traits.quality].rank + (b.traits.trait ? 1 : 0) - (a.traits.trait ? 1 : 0));
+    const h = pool[0];
+    if (!h) return null;
+    this.sell(h, to);
+    return `Unidade ${h.traits.code}`;
+  }
+
+  // Micro-event: two humans near each other start arguing (no modal, just life on the map).
+  argue(lines: string[]) {
+    const social = this.list.filter(h => (h.state === 'socializing' || h.state === 'queued') && h.sprite.visible);
+    for (const a of Phaser.Utils.Array.Shuffle(social)) {
+      const b = social.find(x => x !== a && Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, x.sprite.x, x.sprite.y) < 90);
+      if (!b) continue;
+      a.sprite.setFlipX(b.sprite.x < a.sprite.x); b.sprite.setFlipX(a.sprite.x < b.sprite.x);
+      this.bubbles.sayLine(a, Phaser.Utils.Array.GetRandom(lines), true);
+      this.scene.time.delayedCall(2200, () => this.bubbles.sayLine(b, Phaser.Utils.Array.GetRandom(lines), true));
+      return true;
+    }
+    return false;
+  }
+
+  // Rebellion: a leader (Davi when around) gathers a crowd at the square; collection stops until it's resolved.
+  startRebellion() {
+    const leader = this.list.find(h => h.name?.startsWith('Davi')) ?? this.list[0];
+    const crowd = [leader, ...Phaser.Utils.Array.Shuffle(this.list.filter(h => h !== leader && !h.taken && !h.contract)).slice(0, 7)];
+    for (const h of crowd) {
+      if (!h) continue;
+      h.rebel = true;
+      this.leaveQueue(h);
+      if (h.state !== 'inside' && h.state !== 'collecting') this.goProtest(h);
+    }
+    if (leader) this.bubbles.say(leader, 'rebellion', true);
+  }
+
+  endRebellion() {
+    for (const h of this.list) if (h.rebel) { h.rebel = false; if (h.state === 'resting' || h.state === 'idle' || h.state === 'socializing') this.decide(h); }
+  }
+
+  rebelLine() {
+    const r = this.list.filter(h => h.rebel && h.sprite.visible);
+    const h = Phaser.Utils.Array.GetRandom(r);
+    if (h) this.bubbles.say(h, 'rebellion');
+  }
+
+  cheer() {
+    const h = Phaser.Utils.Array.GetRandom(this.list.filter(x => x.sprite.visible && !x.taken));
+    if (h) this.bubbles.say(h, 'cheer');
+  }
+
+  private goProtest(h: Human) {
+    this.walkTo(h, this.near([21 + Phaser.Math.Between(-1, 1), 21 + Phaser.Math.Between(-1, 1)]), () => {
+      h.state = 'socializing';
+      // Davi's sheet has a protest-sign pose; the rest shout with raised hands.
+      this.anim(h, h.look === 'davi' ? 'work' : 'talk').setFlipX(Math.random() < 0.5);
+      this.scene.time.delayedCall(Phaser.Math.Between(8000, 14000), () => this.decide(h));
+    }, true);
+  }
+
   // A few visible humans comment on something that just happened.
   react(state: BubbleState, n = 2) {
     const view = this.scene.cameras.main.worldView;
@@ -558,6 +627,7 @@ export class Humans {
   // Overhead status icon (GDD Anexo B): the most urgent state wins.
   private markerFor(h: Human, now: number): string | null {
     if (h.taken || h.contract) return 'mk_contract';
+    if (h.rebel && state.world.rebellion) return 'mk_angry';
     if (now < h.lovedUntil) return 'mk_happy';
     if (h.state === 'resting') return 'mk_sleep';
     if (h.hunger > 80) return 'mk_hungry';

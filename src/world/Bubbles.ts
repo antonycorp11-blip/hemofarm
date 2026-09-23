@@ -54,6 +54,14 @@ export class Bubbles {
     return true;
   }
 
+  // Say a specific line (story beats, arguments) instead of a random one from a category.
+  sayLine(s: Speaker, line: string, force = false) {
+    if (!force && !this.canSpeak(s)) return false;
+    LINES.custom = [line];
+    const ok = this.say(s, 'custom', true);
+    return ok;
+  }
+
   update() {
     const cam = this.scene.cameras.main, now = this.scene.time.now, zoom = cam.zoom, view = cam.worldView;
     const placed: Active[] = [];

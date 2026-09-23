@@ -139,7 +139,7 @@ export class Buildings {
     for (const site of this.sites.values()) {
       const st = state.buildings[site.slot.id];
       if (st?.buildLeft === undefined) continue;
-      st.buildLeft -= dt;
+      st.buildLeft -= dt * (state.world.pause.build > 0 ? 0.5 : 1); // a striking ghoul works at half speed
       const next = BUILDINGS[site.slot.kind].levels[st.level];
       const pct = Phaser.Math.Clamp(1 - st.buildLeft / next.buildMs, 0, 1);
       if (site.bar) {

@@ -10,6 +10,7 @@ import { BuildPanel } from '../ui/BuildPanel';
 import { Farms } from '../world/Farms';
 import { Contracts } from '../world/Contracts';
 import { Research } from '../world/Research';
+import { LivingWorld } from '../world/LivingWorld';
 import { BLOOD, QUALITY } from '../data/humans';
 const BLOOD_NAME = Object.fromEntries(Object.entries(BLOOD).map(([k, v]) => [k, v.name]));
 const QUALITY_NAME = Object.fromEntries(Object.entries(QUALITY).map(([k, v]) => [k, v.name]));
@@ -55,6 +56,7 @@ export class FarmScene extends Phaser.Scene {
   private farms!: Farms;
   private contracts!: Contracts;
   private research!: Research;
+  private world!: LivingWorld;
   private tutorial!: Tutorial;
   private hintObjs: Phaser.GameObjects.GameObject[] = [];
   private pinchDist = 0;
@@ -101,6 +103,7 @@ export class FarmScene extends Phaser.Scene {
     this.buildings.onBoarding = () => this.contracts.openBoard();
     this.research = new Research(panel, this.hud, () => this.buildings.level('lab') > 0);
     this.buildings.onLab = () => this.research.open();
+    this.world = new LivingWorld(this.humans, this.buildings, panel, this.hud, tileCenter(21, 36));
     this.tithe = new Tithe(this, this.humans, this.hud);
     if (import.meta.env.DEV) {
       // Dev shortcut: jump to just before the carriage arrives.
@@ -423,6 +426,7 @@ export class FarmScene extends Phaser.Scene {
     this.farms.update(delta);
     this.contracts.update();
     this.research.update(delta);
+    this.world.update(delta);
     this.tutorial.update(delta);
     this.bubbles.update();
     this.updateLighting(time);
