@@ -15,6 +15,7 @@ const RAID_AT = 0.4;        // fraction of the night when the howls start
 
 export class Raids {
   private current?: Raid;
+  private tutorialFought = false; // the tutorial raid happens once, not again while its closing lines play
 
   constructor(private humans: Humans, private buildings: Buildings, private hud: Hud,
     private startBattle: (raid: Raid, done: (r: BattleResult) => void) => void) {
@@ -32,7 +33,7 @@ export class Raids {
     const r = state.world.raid;
     if (!r) return;
     const tutorialRaid = !state.tutorial.done && TUTORIAL[state.tutorial.step]?.id === 't13_lobisomens';
-    if (tutorialRaid && r.status !== 'warned' && !this.current) { r.kind = 'small'; r.status = 'waiting'; this.warn(true); return; }
+    if (tutorialRaid && r.status !== 'warned' && !this.current && !this.tutorialFought) { r.kind = 'small'; r.status = 'waiting'; this.warn(true); return; }
     if (r.kind === 'none' || r.status === 'done') return;
     if (r.status === 'waiting' && state.night.elapsed >= NIGHT_MS * RAID_AT && !state.world.rebellion) this.warn(false);
     if (r.status === 'warned' && !tutorialRaid) {
@@ -59,6 +60,7 @@ export class Raids {
   }
 
   private apply(res: BattleResult) {
+    if (!state.tutorial.done) this.tutorialFought = true;
     const lost = this.humans.takeByRaid(res.grabbed);
     const r = state.world.raid!;
     r.status = 'done';

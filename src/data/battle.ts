@@ -41,10 +41,16 @@ export interface Raid { night: number; big: boolean; spawns: Spawn[]; waves: num
 // Raids grow with the nights; full moons (every 4th night) are big and may bring Ulf.
 export function buildRaid(night: number, big: boolean, tutorial = false): Raid {
   const spawns: Spawn[] = [];
+  // First fight is a lesson: four scouts then one hunter, one at a time, only in the three middle lanes.
+  if (tutorial) {
+    const seq: WolfId[] = ['scout', 'scout', 'scout', 'scout', 'hunter'];
+    seq.forEach((wolf, k) => spawns.push({ at: 6000 + k * 9000, wolf, lane: [2, 1, 3, 2, 2][k] }));
+    return { night, big, spawns, waves: [6000] };
+  }
   const pool: WolfId[] = tutorial ? ['scout', 'scout', 'hunter'] :
     ['scout', 'scout', 'hunter', 'hunter', ...(night >= 3 ? ['leaper' as WolfId] : []), ...(night >= 4 ? ['brute' as WolfId, 'howler' as WolfId] : []),
       ...(night >= 6 ? ['brute' as WolfId, 'leaper' as WolfId] : [])];
-  const count = tutorial ? 5 : Math.round((big ? 10 : 6) + night * (big ? 2.2 : 1.4));
+  const count = tutorial ? 5 : Math.round((big ? 8 : 4) + night * (big ? 2 : 1.2)); // gentler early nights, same late curve
   const waves = tutorial ? [0] : big ? [0, 0.45, 0.8] : [0, 0.6];
   const span = tutorial ? 30000 : big ? 110000 : 75000;
   const lanes = [0, 1, 2, 3, 4];
@@ -60,7 +66,7 @@ export function buildRaid(night: number, big: boolean, tutorial = false): Raid {
 }
 
 export const BATTLE_LINES = {
-  start: 'Três alvos, pequeno bando. Perfeito para aprender. Coloque defensores nas raias!',
+  start: 'Um bando pequeno, um lobo de cada vez, pelas raias do meio. Ponha Sentinelas ali!',
   grab: ['Defendam o estoque! Espera. Eu sou o estoque.', 'Eu nunca pensei que torceria pelos vampiros.'],
   win: 'Eles recuaram. Mande a conta da cerca.',
   lose: 'Tecnicamente, a linha defensiva continua existindo. Em vários lugares.',

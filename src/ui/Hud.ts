@@ -215,7 +215,9 @@ export class Hud {
     q('.pay').style.display = r.blood >= quota ? 'block' : 'none';
     this.tithe.classList.toggle('behind', r.blood < quota && r.blood / quota < n.elapsed / NIGHT_MS - 0.15);
     // Floating elements sit just below the HUD, however tall it is on this screen.
-    document.documentElement.style.setProperty('--hud-bottom', `${this.root.getBoundingClientRect().bottom + 8}px`);
+    // (Skip while hidden, e.g. during a battle: a hidden HUD measures 0 and would pull everything to the top edge.)
+    const hb = this.root.getBoundingClientRect();
+    if (hb.height > 0) document.documentElement.style.setProperty('--hud-bottom', `${hb.bottom + 8}px`);
   }
 
   // Objective card: always visible while a mission is active, with a "where?" shortcut.
