@@ -1,5 +1,6 @@
-// Stale-while-revalidate: the game opens instantly (and offline) from cache, and refreshes files in the background.
-const CACHE = 'hemofazenda-v1';
+// Network-first for the app itself (HTML/JS/CSS/data) so updates always arrive; cache is only an offline fallback.
+// Images use stale-while-revalidate: instant from cache, refreshed in the background.
+const CACHE = 'hemofazenda-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => {
@@ -7,15 +8,22 @@ self.addEventListener('activate', e => {
     .then(() => self.clients.claim()));
 });
 
+const isApp = (req, url) => req.mode === 'navigate' || /\.(html|js|css|json|webmanifest)$/.test(url.pathname) || url.pathname === '/';
+
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
+  if (isApp(req, url)) {
+    e.respondWith(fetch(req, { cache: 'no-store' }).then(res => {
+      if (res.ok) caches.open(CACHE).then(c => c.put(req, res.clone()));
+      return res;
+    }).catch(() => caches.match(req)));
+    return;
+  }
   e.respondWith(caches.open(CACHE).then(async cache => {
     const cached = await cache.match(req);
-    const fresh = fetch(req).then(res => {
-      if (res.ok) cache.put(req, res.clone());
-      return res;
-    }).catch(() => cached);
+    const fresh = fetch(req).then(res => { if (res.ok) cache.put(req, res.clone()); return res; }).catch(() => cached);
     return cached || fresh;
   }));
 });

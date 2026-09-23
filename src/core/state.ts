@@ -20,7 +20,7 @@ export interface HumanSave { hunger: number; energy: number; morale: number; vit
   traits?: import('../data/humans').HumanTraits; contract?: string; uid?: number; partner?: number; kin?: number }
 export interface NightState { night: number; elapsed: number; strikes: number }
 export interface BuildingState { level: number; buildLeft?: number }  // buildLeft: ms until the next level is done
-export interface SaveData { v: 2; resources: Resources; humans: HumanSave[]; night: NightState; buildings?: Record<string, BuildingState>; plots?: Record<string, PlotState>; tutorial?: TutorialState; contracts?: ContractState; nextUid?: number; research?: ResearchState; world?: WorldState; savedAt: number }
+export interface SaveData { v: 2; resources: Resources; humans: HumanSave[]; night: NightState; buildings?: Record<string, BuildingState>; plots?: Record<string, PlotState>; tutorial?: TutorialState; contracts?: ContractState; nextUid?: number; research?: ResearchState; world?: WorldState; region?: string; savedAt: number }
 
 const KEY = 'hemo.save';
 
@@ -28,7 +28,7 @@ const KEY = 'hemo.save';
 export const NIGHT_MS = 5 * 60 * 1000;
 export const CARRIAGE_LEAD_MS = 25 * 1000;   // carriage arrives this long before the night ends
 export const MAX_STRIKES = 3;
-export const quotaFor = (night: number) => Math.round(40 * Math.pow(1.2, night - 1) / 5) * 5;
+export const quotaFor = (night: number) => Math.round(40 * Math.pow(1.2, night - 1) * state.mods.quota / 5) * 5;
 export const titheGold = (quota: number) => Math.round(quota * 2 * (state.research.done.includes('l1') ? 1.25 : 1)); // the castle pays for what it takes
 export const START_HUMANS = 8;
 // Humans taken on a failed tithe: 1 per started third of the quota missing, max 3
@@ -44,7 +44,12 @@ export const state = {
   contracts: { offers: ['rub_recepcao'], done: [] } as ContractState,
   research: { done: [] } as ResearchState,
   world: { tension: 10, pause: { collect: 0, food: 0, build: 0 }, nextEvent: 240000, recent: [], rebellion: false } as WorldState,
-  nextUid: 1,  // stable human ids across saves (partners reference them)
+  nextUid: 1,
+  region: 'bosque' as import('../data/regions').RegionId,
+  ascendOffered: false,
+  // Rule modifiers from region + permanent upgrades (core/meta.applyMods); recomputed at start, not saved.
+  mods: { quota: 1, blood: 1, regen: 1, hunger: 1, collectTime: 1, researchTime: 1, contractGold: 1, raidChance: 0.45, bigEvery: 4,
+    unitCost: 1, qualityBoost: 0 },  // stable human ids across saves (partners reference them)
   loaded: null as SaveData | null,
 };
 
@@ -60,6 +65,7 @@ export function load() {
       if (data.contracts) state.contracts = data.contracts;
       if (data.research) state.research = data.research;
       if (data.world) state.world = data.world;
+      if (data.region) state.region = data.region;
       state.nextUid = data.nextUid ?? Math.max(0, ...(data.humans ?? []).map((h: HumanSave) => h.uid ?? 0)) + 1;
       if (data.night) state.night = { ...data.night };
       if (data.buildings) state.buildings = data.buildings;
@@ -68,7 +74,7 @@ export function load() {
 }
 
 export function save(humans: HumanSave[]) {
-  const data: SaveData = { v: 2, resources: state.resources, humans, night: state.night, buildings: state.buildings, plots: state.plots, tutorial: state.tutorial, contracts: state.contracts, nextUid: state.nextUid, research: state.research, world: state.world, savedAt: Date.now() };
+  const data: SaveData = { v: 2, resources: state.resources, humans, night: state.night, buildings: state.buildings, plots: state.plots, tutorial: state.tutorial, contracts: state.contracts, nextUid: state.nextUid, research: state.research, world: state.world, region: state.region, savedAt: Date.now() };
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* storage unavailable */ }
 }
 

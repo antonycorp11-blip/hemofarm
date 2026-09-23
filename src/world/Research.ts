@@ -66,7 +66,7 @@ export class Research {
     if (state.research.current || r.blood < c.blood || r.prestige < c.prestige) return;
     r.blood -= c.blood;
     r.prestige -= c.prestige;
-    state.research.current = { id, left: c.ms };
+    state.research.current = { id, left: c.ms * state.mods.researchTime };
     bus.emit('RESEARCH_STARTED', { nodeId: id });
     this.hud.toast(`Hemático: ${n.name}! Vou precisar de frascos. Muitos frascos.`);
     this.open();

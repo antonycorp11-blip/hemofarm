@@ -9,7 +9,7 @@ import { heirOdds } from '../sim/genetics';
 import { has } from '../data/research';
 
 // Research can raise what buyers pay.
-const goldOf = (d: ContractDef) => Math.round(d.reward.gold * (has('l2') ? 1.2 : 1));
+const goldOf = (d: ContractDef) => Math.round(d.reward.gold * (has('l2') ? 1.2 : 1) * state.mods.contractGold);
 import { slotGeometry, FarmMap } from '../map/bosque';
 import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';

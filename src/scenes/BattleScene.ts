@@ -186,7 +186,7 @@ export class BattleScene extends Phaser.Scene {
       const frames = meta?.frames ?? 16, f = id === 'bats' ? 4 : id === 'chalice' ? 0 : 8;
       return `<button class="bc" data-u="${id}" title="${u.desc}"><span class="pic" style="background-image:url(assets/${u.tex}.webp);` +
         `background-size:${frames * 100}% 100%;background-position:${(f / (frames - 1)) * 100}% 0"></span>` +
-        `<span class="cn">${u.name}</span><span class="cc">${u.cost}</span><span class="cd"></span></button>`;
+        `<span class="cn">${u.name}</span><span class="cc">${this.costOf(id)}</span><span class="cd"></span></button>`;
     };
     el.innerHTML = `<style>
       .bt{font:600 13px Georgia,serif;color:#f3e2c8}
@@ -256,7 +256,7 @@ export class BattleScene extends Phaser.Scene {
     this.ui.querySelectorAll<HTMLButtonElement>('.bc').forEach(b => {
       const id = b.dataset.u as UnitId, u = UNITS[id];
       const left = Math.max(0, (this.ready[id] ?? 0) - this.t);
-      b.classList.toggle('off', blood < u.cost || left > 0);
+      b.classList.toggle('off', blood < this.costOf(id) || left > 0);
       b.classList.toggle('sel', id === this.selected);
       b.querySelector<HTMLElement>('.cd')!.style.height = `${(left / u.recharge) * 100}%`;
     });
@@ -295,7 +295,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.ended || !this.selected) return;
     const { lane, col } = this.cellAt(p);
     if (lane < 0 || lane >= LANES || col < 0 || col >= COLS) return;
-    const def = UNITS[this.selected];
+    const def = { ...UNITS[this.selected], cost: this.costOf(this.selected) };
     if (state.resources.blood < def.cost) { this.toast('Sangue insuficiente. A fazenda continua coletando.'); return; }
     if ((this.ready[this.selected] ?? 0) > this.t) { this.toast('Carta recarregando.'); return; }
     if (def.spell) { this.pay(def.cost); this.castBats(lane, col); this.ready.bats = this.t + def.recharge; this.selected = undefined; this.refreshUi(); return; }
@@ -304,6 +304,8 @@ export class BattleScene extends Phaser.Scene {
     this.place(this.selected, lane, col);
     this.refreshUi();
   }
+
+  private costOf(id: UnitId) { return Math.round(UNITS[id].cost * state.mods.unitCost); }
 
   private pay(n: number) { state.resources.blood -= n; this.spent += n; }
 

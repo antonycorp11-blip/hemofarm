@@ -100,10 +100,17 @@ export class Humans {
         look: sv?.look ?? named?.look,
         name,
         // New farms always get two sellable Rubra, so Lady Rubélia's first order is doable (named humans aren't for sale).
-        traits: sv?.traits ?? randomTraits(name ? NAMED_TRAITS[name] : !saved.length && (k === 2 || k === 3) ? { blood: 'rubra' } : {}),
+        traits: sv?.traits ?? this.boost(randomTraits(name ? NAMED_TRAITS[name] : !saved.length && (k === 2 || k === 3) ? { blood: 'rubra' } : {}), !name),
         save: sv,
       });
     }
+  }
+
+  // Vampire House / region bonus: some starting humans come one quality step higher.
+  private boost(t: HumanTraits, allow: boolean): HumanTraits {
+    const order = ['comum', 'especial', 'raro', 'excepcional'] as const;
+    if (!allow || Math.random() >= state.mods.qualityBoost) return t;
+    return { ...t, quality: order[Math.min(3, order.indexOf(t.quality) + 1)] };
   }
 
   private create(o: { tile: P; look?: string; name?: string; traits: HumanTraits; save?: HumanSave; source?: string }) {
@@ -141,9 +148,9 @@ export class Humans {
   update(dt: number) {
     const s = dt / 1000, now = this.scene.time.now;
     for (const h of this.list) {
-      if (h.state !== 'eating') h.hunger = Math.min(100, h.hunger + HUNGER_RATE * s);
+      if (h.state !== 'eating') h.hunger = Math.min(100, h.hunger + HUNGER_RATE * state.mods.hunger * s);
       if (h.state !== 'inside') h.energy = Math.max(0, h.energy - ENERGY_RATE * s);
-      if (h.state !== 'collecting') h.vitality = Math.min(100, h.vitality + (h.hunger < 50 ? 0.6 : 0.25) * (has('w1') ? 1.5 : 1) * s);
+      if (h.state !== 'collecting') h.vitality = Math.min(100, h.vitality + (h.hunger < 50 ? 0.6 : 0.25) * (has('w1') ? 1.5 : 1) * state.mods.regen * s);
       if (has('w3') && h.hunger < 70) h.morale = Math.min(100, h.morale + 0.04 * s);
       if (h.hunger > 85) h.morale = Math.max(0, h.morale - 0.2 * s);
       h.sprite.setDepth(h.sprite.y);
@@ -297,8 +304,8 @@ export class Humans {
     if (q.busy || !h || h.state !== 'queued') return;
     q.busy = true;
     const def = this.buildings.levelDef('collect');
-    const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult * (has('c1') ? 1.2 : 1));
-    this.enter(h, (def?.collectMs ?? 4000) * (has('c3') ? 0.7 : 1) * ((state.world.overtime ?? 0) > 0 ? 0.5 : 1), () => {
+    const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult * (has('c1') ? 1.2 : 1) * state.mods.blood);
+    this.enter(h, (def?.collectMs ?? 4000) * (has('c3') ? 0.7 : 1) * ((state.world.overtime ?? 0) > 0 ? 0.5 : 1) * state.mods.collectTime, () => {
       h.vitality = Math.max(0, h.vitality - (has('c2') ? 20 : 30));
       h.morale = Math.max(0, h.morale - 4);
       h.recoveringUntil = this.scene.time.now + 25000;

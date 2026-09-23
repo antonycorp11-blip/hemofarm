@@ -24,5 +24,13 @@ if (import.meta.env.DEV) Object.assign(window as any, { game, hemo: { state } })
 
 // Installable PWA: cache the game so it opens instantly and works offline.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => { /* not critical */ }));
+  // Check for a new version on every launch and reload once it takes over, so the installed app never runs stale code.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloaded) { reloaded = true; location.reload(); }
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { /* not critical */ });
+  });
 }
