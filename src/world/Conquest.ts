@@ -16,9 +16,11 @@ import type { Line } from '../data/tutorial';
 import type { Hud } from '../ui/Hud';
 import type { Modal } from '../ui/Modal';
 import type { Human, Humans } from './Humans';
+import { L } from '../core/i18n';
 
 export interface ConquestHost {
   say(lines: Line[], done?: () => void): void;
+  finale(): void;                 // the Pack Mother fell in the Crypt: Leonor's reveal and the ending choice
   fx(k: string, x: number, y: number, s?: number): void;
   bossFight(): void;
   conquer(): void;
@@ -75,15 +77,21 @@ export class Conquest {
     };
     if (!state.tutorial.done) return;
     if (!c.introSeen) { this.intro(); return; }
-    beat('rate', this.rateOk, [], `Domínio: meta de produção atingida (${this.chapter.rate} de Sangue/min)!`);
-    beat('boss', this.bossReady, [{ who: 'aureliano', text: `${this.chapter.boss.name} apareceu na trilha. Quando estiver pronto, abra o Domínio (coroa) e vamos atrás dele.` }]);
+    // A short hook at the start of each new night of the chapter (GDD_ADENDO A9), one per night, in order.
+    const hook = c.hook ??= { night: state.night.night, i: 0 };
+    if (state.night.night > hook.night && hook.i < this.chapter.nights.length) {
+      hook.night = state.night.night;
+      this.host.say(this.chapter.nights[hook.i++]);
+    }
+    beat('rate', this.rateOk, [], L(`Domínio: meta de produção atingida (${this.chapter.rate} de Sangue/min)!`, `Domain: production goal reached (${this.chapter.rate} Blood/min)!`));
+    beat('boss', this.bossReady, [{ who: 'aureliano', text: L(`${this.chapter.boss.name} apareceu na trilha. Quando estiver pronto, abra o Domínio (coroa) e vamos atrás dele.`, `${this.chapter.boss.name} has shown up on the trail. When you're ready, open the Domain (crown) and we'll go after them.`) }]);
     beat('ready', this.ready, this.chapter.ready);
     // The next step of the chapter lives in the objective card (tap "Onde?" to open the Domain panel).
     const ch = this.chapter;
-    const next = !this.rateOk ? { t: `Domínio: produzir ${ch.rate} de Sangue/min`, p: `${state.bloodRate}/${ch.rate}` }
-      : !this.regentOk ? { t: 'Domínio: transformar um humano Raro em Regente', p: '' }
-      : !this.clearOk ? (this.bossReady ? { t: `Domínio: derrotar ${ch.boss.name}`, p: '' } : { t: 'Domínio: vencer defesas sem perdas', p: `${Math.min(c.cleanWins, CLEAN_WINS)}/${CLEAN_WINS}` })
-      : { t: `Conquistar ${REGIONS[state.region].name} (coroa)`, p: '' };
+    const next = !this.rateOk ? { t: L(`Domínio: produzir ${ch.rate} de Sangue/min`, `Domain: produce ${ch.rate} Blood/min`), p: `${state.bloodRate}/${ch.rate}` }
+      : !this.regentOk ? { t: L('Domínio: transformar um humano Raro em Regente', 'Domain: turn a Rare human into a Regent'), p: '' }
+      : !this.clearOk ? (this.bossReady ? { t: L(`Domínio: derrotar ${ch.boss.name}`, `Domain: defeat ${ch.boss.name}`), p: '' } : { t: L('Domínio: vencer defesas sem perdas', 'Domain: win defenses without losses'), p: `${Math.min(c.cleanWins, CLEAN_WINS)}/${CLEAN_WINS}` })
+      : { t: L(`Conquistar ${REGIONS[state.region].name} (coroa)`, `Conquer ${REGIONS[state.region].name} (crown)`), p: '' };
     this.hud.objective(next.t, next.p || undefined);
     this.payDomains(false);
   }
@@ -92,18 +100,19 @@ export class Conquest {
     const c = state.conquest;
     if (c.introSeen || !state.tutorial.done) return;
     c.introSeen = true;
+    c.hook = { night: state.night.night, i: 0 };
     this.hud.toast(this.chapter.title, 'good', 6000);
     this.host.say(this.chapter.intro);
   }
 
   // ---------- the Regent ----------
   canCrown(h: Human): { ok: boolean; why?: string } {
-    if (this.regentOk) return { ok: false, why: 'Esta região já tem um Regente.' };
-    if (h.name || h.contract || h.taken) return { ok: false, why: 'Este humano não pode ser transformado.' };
-    if (QUALITY[h.traits.quality].rank < 2) return { ok: false, why: 'Só humanos Raros ou Excepcionais aguentam a transformação.' };
-    if (h.morale < 60) return { ok: false, why: `Precisa de moral 60 ou mais (agora ${Math.round(h.morale)}).` };
+    if (this.regentOk) return { ok: false, why: L('Esta região já tem um Regente.', 'This region already has a Regent.') };
+    if (h.name || h.contract || h.taken) return { ok: false, why: L('Este humano não pode ser transformado.', 'This human can\'t be transformed.') };
+    if (QUALITY[h.traits.quality].rank < 2) return { ok: false, why: L('Só humanos Raros ou Excepcionais aguentam a transformação.', 'Only Rare or Exceptional humans survive the transformation.') };
+    if (h.morale < 60) return { ok: false, why: L(`Precisa de moral 60 ou mais (agora ${Math.round(h.morale)}).`, `Needs morale 60 or more (now ${Math.round(h.morale)}).`) };
     const r = state.resources;
-    if (r.prestige < REGENT_COST.prestige || r.blood < REGENT_COST.blood) return { ok: false, why: `Custa ${REGENT_COST.prestige} Prestígio e ${REGENT_COST.blood} Sangue.` };
+    if (r.prestige < REGENT_COST.prestige || r.blood < REGENT_COST.blood) return { ok: false, why: L(`Custa ${REGENT_COST.prestige} Prestígio e ${REGENT_COST.blood} Sangue.`, `Costs ${REGENT_COST.prestige} Prestige and ${REGENT_COST.blood} Blood.`) };
     return { ok: true };
   }
 
@@ -112,7 +121,7 @@ export class Conquest {
     const r = state.resources;
     r.prestige -= REGENT_COST.prestige;
     r.blood -= REGENT_COST.blood;
-    const name = `Regente ${h.traits.code}`;
+    const name = `${L('Regente', 'Regent')} ${h.traits.code}`;
     this.host.fx('fx_vampire_poof', h.sprite.x, h.sprite.y - 20, 1.6);
     this.host.fx('fx_sparkle', h.sprite.x, h.sprite.y - 50, 1.6);
     sfx.chime(); sfx.bell();
@@ -145,7 +154,7 @@ export class Conquest {
     meta.legacy += Math.floor(gain);
     meta.domainClock = now - ((gain - Math.floor(gain)) / (n * DOMAIN_LEGACY_H)) * 3600000; // keep the fraction
     saveMeta();
-    if (onStart) this.hud.toast(`Seus ${n} Domínio${n > 1 ? 's' : ''} renderam +${Math.floor(gain)} Legado de Sangue enquanto você esteve fora.`, 'good', 8000);
+    if (onStart) this.hud.toast(L(`Seus ${n} Domínio${n > 1 ? 's' : ''} renderam +${Math.floor(gain)} Legado de Sangue enquanto você esteve fora.`, `Your ${n} Domain${n > 1 ? 's' : ''} yielded +${Math.floor(gain)} Blood Legacy while you were away.`), 'good', 8000);
   }
 
   // ---------- the Domain panel (crown) ----------
@@ -155,37 +164,39 @@ export class Conquest {
       `<div style="font-size:22px;width:28px;text-align:center">${ok ? '✅' : '⬜'}</div><div class="t"><b>${title}</b><br><small>${body}</small>${action}</div></div>`;
     const rate = Math.min(ch.rate, Math.round(c.bestRate));
     const meter = (v: number, max: number) => `<div class="meter"><i style="width:${Math.min(100, (v / max) * 100)}%"></i></div>`;
-    const boss = this.bossReady ? `<button class="go" data-boss style="margin-top:6px">Enfrentar ${ch.boss.name} ▸</button>`
-      : !c.alphaDown && c.bossNight === state.night.night ? '<div class="muted" style="margin-top:4px">Tente de novo na próxima noite.</div>' : '';
+    const boss = this.bossReady ? `<button class="go" data-boss style="margin-top:6px">${L('Enfrentar', 'Face')} ${ch.boss.name} ▸</button>`
+      : !c.alphaDown && c.bossNight === state.night.night ? `<div class="muted" style="margin-top:4px">${L('Tente de novo na próxima noite.', 'Try again next night.')}</div>` : '';
     const doms = Object.entries(meta.domains ?? {}).map(([id, d]) => `${REGIONS[id as keyof typeof REGIONS]?.name ?? id} (${d.regent})`).join(', ');
-    const box = this.modal.show(`<h2>Domínio · ${REGIONS[state.region].name}</h2><div class="sub">${ch.title}</div>
-      ${pill(this.rateOk, `Produção: ${ch.rate} de Sangue por minuto`, `Melhor marca neste mandato: ${Math.round(c.bestRate)}/min (agora ${state.bloodRate}/min). Mais humanos saudáveis, Tanques de Coleta, pesquisas de Sangue.`, meter(rate, ch.rate))}
-      ${pill(this.regentOk, c.regent ? `Regente: ${c.regent.name}` : 'Um Regente vampiro',
-        c.regent ? 'Governa esta região em seu nome.' : `Toque num humano <b>Raro ou Excepcional</b> com moral 60+ e escolha "Transformar em Regente" (${REGENT_COST.prestige} Prestígio + ${REGENT_COST.blood} Sangue). Pares bons na Casa das Famílias geram raros.`)}
-      ${pill(this.clearOk, `A matilha: ${ch.boss.name}`, c.alphaDown ? 'Derrotado. Nenhum ataque mais nesta região.'
-        : `Vença ${CLEAN_WINS} defesas sem perder ninguém (${Math.min(c.cleanWins, CLEAN_WINS)}/${CLEAN_WINS}); então o alfa aparece.`, (c.alphaDown ? '' : meter(Math.min(c.cleanWins, CLEAN_WINS), CLEAN_WINS)) + boss)}
-      <button class="go" data-conquer${this.ready ? '' : ' disabled'}>${this.ready ? `Conquistar ${REGIONS[state.region].name} ▸` : 'Conquistar (cumpra os 3 pilares)'}</button>
-      <p class="muted" style="font-size:12px;margin:8px 0 0">Cada Domínio rende ${DOMAIN_LEGACY_H} Legado por hora, para sempre, e +5% de Sangue em todos os mandatos. Novas regiões abrem conforme você conquista.
-      ${doms ? `<br>Seus Domínios: ${doms}.` : ''}</p>
-      <button class="go" data-abandon style="filter:brightness(.6);font-size:12px;min-height:34px">Encerrar este mandato sem conquistar (${Math.floor(r.prestige)} Prestígio vira Legado)</button>`);
+    const box = this.modal.show(`<h2>${L('Domínio', 'Domain')} · ${REGIONS[state.region].name}</h2><div class="sub">${ch.title}</div>
+      ${pill(this.rateOk, L(`Produção: ${ch.rate} de Sangue por minuto`, `Production: ${ch.rate} Blood per minute`), L(`Melhor marca neste mandato: ${Math.round(c.bestRate)}/min (agora ${state.bloodRate}/min). Mais humanos saudáveis, Tanques de Coleta, pesquisas de Sangue.`, `Best this mandate: ${Math.round(c.bestRate)}/min (now ${state.bloodRate}/min). More healthy humans, Collection Tanks, Blood research.`), meter(rate, ch.rate))}
+      ${pill(this.regentOk, c.regent ? `${L('Regente', 'Regent')}: ${c.regent.name}` : L('Um Regente vampiro', 'A vampire Regent'),
+        c.regent ? L('Governa esta região em seu nome.', 'Rules this region in your name.') : L(`Toque num humano <b>Raro ou Excepcional</b> com moral 60+ e escolha "Transformar em Regente" (${REGENT_COST.prestige} Prestígio + ${REGENT_COST.blood} Sangue). Pares bons na Casa das Famílias geram raros.`, `Tap a <b>Rare or Exceptional</b> human with 60+ morale and choose "Turn into Regent" (${REGENT_COST.prestige} Prestige + ${REGENT_COST.blood} Blood). Good pairs in the Family House produce rare ones.`))}
+      ${pill(this.clearOk, `${L('A matilha', 'The pack')}: ${ch.boss.name}`, c.alphaDown ? L('Derrotado. Nenhum ataque mais nesta região.', 'Defeated. No more attacks in this region.')
+        : L(`Vença ${CLEAN_WINS} defesas sem perder ninguém (${Math.min(c.cleanWins, CLEAN_WINS)}/${CLEAN_WINS}); então o alfa aparece.`, `Win ${CLEAN_WINS} defenses without losing anyone (${Math.min(c.cleanWins, CLEAN_WINS)}/${CLEAN_WINS}); then the alpha shows up.`), (c.alphaDown ? '' : meter(Math.min(c.cleanWins, CLEAN_WINS), CLEAN_WINS)) + boss)}
+      <button class="go" data-conquer${this.ready ? '' : ' disabled'}>${this.ready ? `${L('Conquistar', 'Conquer')} ${REGIONS[state.region].name} ▸` : L('Conquistar (cumpra os 3 pilares)', 'Conquer (complete the 3 pillars)')}</button>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">${L(`Cada Domínio rende ${DOMAIN_LEGACY_H} Legado por hora, para sempre, e +5% de Sangue em todos os mandatos. Novas regiões abrem conforme você conquista.`, `Each Domain yields ${DOMAIN_LEGACY_H} Legacy per hour, forever, and +5% Blood in every mandate. New regions open as you conquer.`)}
+      ${doms ? `<br>${L('Seus Domínios', 'Your Domains')}: ${doms}.` : ''}</p>
+      <button class="go" data-abandon style="filter:brightness(.6);font-size:12px;min-height:34px">${L(`Encerrar este mandato sem conquistar (${Math.floor(r.prestige)} Prestígio vira Legado)`, `End this mandate without conquering (${Math.floor(r.prestige)} Prestige becomes Legacy)`)}</button>`);
     box.querySelector<HTMLButtonElement>('[data-boss]')?.addEventListener('click', () => { this.modal.close(); c.bossNight = state.night.night; this.host.bossFight(); });
     box.querySelector<HTMLButtonElement>('[data-conquer]')!.onclick = () => { if (this.ready) { this.modal.close(); this.host.conquer(); } };
-    box.querySelector<HTMLButtonElement>('[data-abandon]')!.onclick = () => { if (confirm('Encerrar o mandato sem transformar a região em Domínio?')) { this.modal.close(); this.host.abandon(); } };
+    box.querySelector<HTMLButtonElement>('[data-abandon]')!.onclick = () => { if (confirm(L('Encerrar o mandato sem transformar a região em Domínio?', 'End the mandate without making the region a Domain?'))) { this.modal.close(); this.host.abandon(); } };
   }
 
   // Boss fight result (FarmScene runs the battle).
   bossResult(killed: boolean) {
-    if (!killed) { this.hud.toast(`Aureliano: ${this.chapter.boss.name} escapou. Amanhã à noite tentamos de novo.`, 'bad', 7000); return; }
+    if (!killed) { this.hud.toast(L(`Aureliano: ${this.chapter.boss.name} escapou. Amanhã à noite tentamos de novo.`, `Aureliano: ${this.chapter.boss.name} got away. Tomorrow night we try again.`), 'bad', 7000); return; }
     state.conquest.alphaDown = true;
     state.world.raid = { night: state.night.night, kind: 'none', status: 'done', warnLeft: 0 };
     bus.emit('REGION_CLEARED', { region: state.region });
     invalidate();
-    this.host.say(this.chapter.cleared);
+    // The last chapter doesn't end with a kill: the Pack Mother stands up, and she is Aunt Leonor.
+    if (this.chapter.boss.wolf === 'mother') this.host.finale();
+    else this.host.say(this.chapter.cleared);
   }
 
   // Record the Domain (called right before the mandate summary).
   recordDomain() {
-    meta.domains = { ...(meta.domains ?? {}), [state.region]: { regent: state.conquest.regent?.name ?? 'Regente', at: Date.now() } };
+    meta.domains = { ...(meta.domains ?? {}), [state.region]: { regent: state.conquest.regent?.name ?? L('Regente', 'Regent'), at: Date.now() } };
     if (!meta.domainClock) meta.domainClock = Date.now();
     saveMeta();
   }

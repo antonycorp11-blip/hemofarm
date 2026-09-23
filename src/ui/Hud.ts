@@ -2,6 +2,8 @@
 // a ☰ menu and toasts. Plain HTML so it stays crisp on phones.
 import { state, quotaFor, NIGHT_MS, MAX_STRIKES } from '../core/state';
 import { voice, sfx } from '../core/sfx';
+import { L, lang, setLang } from '../core/i18n';
+import { SHORT } from '../data/tutorial';
 
 const CSS = `
 .hud{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;user-select:none;
@@ -74,17 +76,27 @@ body.in-battle .hud,body.in-battle .toasts,body.in-battle .quest,body.in-battle 
   border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;font:15px Georgia,serif;color:#f3e2c8}
 .hmenu button{min-height:44px;border-radius:7px;border:1px solid #4a1620;background:#241218;color:#f3e2c8;font:inherit;cursor:pointer}
 .hmenu button.danger{border-color:#8a1424;color:#ff9aa4}
+.hmenu .srow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.hmenu .srow span{flex:1 0 100%;font-size:13px;color:#c9a98a}
+.hmenu .srow button{flex:1;min-height:38px;min-width:0;padding:0 6px;filter:brightness(.55) saturate(.6)}
+.hmenu .srow button.on{filter:none;color:#fff3c8;font-weight:700;text-shadow:0 0 6px #e8b54a}
+.hmenu .keys{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:12px;color:#c9b8a8}.hmenu .keys>b{grid-column:1/-1;margin-bottom:2px}
+.hmenu .keys b{color:#f6d9a0}
 @media (max-width:520px){
   .hud{font-size:13px}.hud .res{padding:2px 5px;gap:3px}.hud .res img{height:16px}
   .hud .res.prestige{display:none}  /* least urgent number on small screens: shown in the menu instead */
 }
 `;
 
-export interface HudSource { population: number; avgMorale: number; ordersReady: number; treeReady: boolean; hasLab: boolean }
+// "Bóris: ..." → portrait key. Names follow the current language; Leonor has no portrait yet (lines still get her voice).
+const SPEAKER_KEY: Record<string, string> = Object.fromEntries(Object.entries(SHORT).map(([k, v]) => [v, k]));
+const HAS_PORTRAIT = new Set(['boris', 'vesper', 'rubelia', 'hematico', 'aureliano', 'davi', 'lia', 'merchant', 'inspector', 'ulf']);
+
+export interface HudSource { population: number; avgMorale: number; ordersReady: number; treeReady: boolean; hasLab: boolean; diaryNew: number }
 export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
   onSpeed(): void; onPayTithe(): void; onMap(): void; onAscend(): void; onSound(): void;
   onTension(): void; onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void; onHunt(): void;
-  onMusic(): void; info(): { goal: number; region: string; mute: boolean; music: boolean } }
+  onMusic(): void; onDiary(): void; onUiScale(v: number): void; onFullscreen(): void;
+  info(): { goal: number; region: string; mute: boolean; music: boolean; uiScale: number; fullscreen: boolean; desktop: boolean } }
 
 export class Hud {
   private root: HTMLDivElement;
@@ -105,6 +117,7 @@ export class Hud {
   private evtClick?: () => void;
   private raid!: HTMLButtonElement;
   private raidClick?: () => void;
+  private diaryBtn!: HTMLButtonElement;
 
   constructor(private src: HudSource, private actions: HudActions) {
     const style = document.createElement('style');
@@ -117,13 +130,14 @@ export class Hud {
     bar.className = 'bar';
     const menuBtn = document.createElement('button');
     menuBtn.className = 'menu';
-    menuBtn.setAttribute('aria-label', 'Menu');
+    menuBtn.setAttribute('aria-label', L('Menu', 'Menu'));
+    menuBtn.title = L('Menu (Esc)', 'Menu (Esc)');
     menuBtn.textContent = '☰';
     menuBtn.onclick = () => { sfx.open(); this.openMenu(); };
     bar.appendChild(menuBtn);
     // [key, label, icon] — no icon means a CSS shape
-    const items: [string, string, string?][] = [['blood', 'Sangue', 'icon_blood'], ['gold', 'Ouro', 'icon_gold'], ['essence', 'Essência', 'icon_research'], ['food', 'Comida'],
-      ['pop', 'População', 'icon_population'], ['morale', 'Moral', 'icon_morale'], ['tension', 'Tensão', 'icon_tension'], ['prestige', 'Prestígio', 'icon_prestige']];
+    const items: [string, string, string?][] = [['blood', L('Sangue', 'Blood'), 'icon_blood'], ['gold', L('Ouro', 'Gold'), 'icon_gold'], ['essence', L('Essência', 'Essence'), 'icon_research'], ['food', L('Comida', 'Food')],
+      ['pop', L('População', 'Population'), 'icon_population'], ['morale', L('Moral', 'Morale'), 'icon_morale'], ['tension', L('Tensão (toque para detalhes)', 'Tension (tap for details)'), 'icon_tension'], ['prestige', L('Prestígio', 'Prestige'), 'icon_prestige']];
     for (const [k, label, icon] of items) {
       const r = document.createElement('div');
       r.className = `res ${k}`;
@@ -137,13 +151,14 @@ export class Hud {
     }
     const deals = document.createElement('button');
     deals.className = 'deals';
-    deals.setAttribute('aria-label', 'Contratos');
+    deals.setAttribute('aria-label', L('Contratos', 'Contracts'));
+    deals.title = L('Contratos (C)', 'Contracts (C)');
     deals.innerHTML = '<img src="assets/icon_contracts.webp" alt=""><span class="badge"></span>';
     deals.onclick = () => actions.onContracts();
     const crown = document.createElement('button');
     crown.className = 'deals crown';
-    crown.setAttribute('aria-label', 'Domínio da região');
-    crown.title = 'Domínio: conquiste a região';
+    crown.setAttribute('aria-label', L('Domínio da região', 'Region Domain'));
+    crown.title = L('Domínio: conquiste a região (K)', 'Domain: conquer the region (K)');
     crown.innerHTML = '<img src="assets/icon_prestige.webp" alt="">';
     crown.onclick = () => actions.onAscend();
     crown.style.display = 'none';
@@ -160,23 +175,26 @@ export class Hud {
       bar.appendChild(b);
       return b;
     };
-    this.ordersBtn = mk('orders', 'icon_quest', 'Encomendas do Castelo', () => actions.onOrders());
-    this.treeBtn = mk('tree', 'icon_research', 'Árvore de pesquisas', () => actions.onTree());
+    this.ordersBtn = mk('orders', 'icon_quest', L('Encomendas do Castelo (O)', 'Castle Orders (O)'), () => actions.onOrders());
+    this.treeBtn = mk('tree', 'icon_research', L('Árvore de pesquisas (R)', 'Research tree (R)'), () => actions.onTree());
+    this.diaryBtn = mk('diary', 'icon_codex', L('Diário de Leonor (J)', 'Leonor\'s Diary (J)'), () => actions.onDiary());
     bar.appendChild(crown);
     this.root.appendChild(bar);
 
     this.tithe = document.createElement('div');
     this.tithe.className = 'tithe';
-    this.tithe.title = 'Sangria: Sangue que o castelo cobra ao fim de cada noite';
-    this.tithe.innerHTML = '<div class="fill"></div><span class="n"></span><span class="q"></span><span class="t"></span><span class="x"></span><button class="pay">Pagar agora ▸</button>';
+    this.tithe.title = L('Sangria: Sangue que o castelo cobra ao fim de cada noite', 'Bloodletting: Blood the castle collects at the end of every night');
+    this.tithe.innerHTML = `<div class="fill"></div><span class="n"></span><span class="q"></span><span class="t"></span><span class="x"></span><button class="pay">${L('Pagar agora ▸', 'Pay now ▸')}</button>`;
     this.tithe.onclick = e => {
       if ((e.target as HTMLElement).classList.contains('pay')) { actions.onPayTithe(); return; }
-      this.toast(`Vesper: Ao fim da noite, ${quotaFor(state.night.night)} de Sangue. Se faltar, levamos humanos. Três faltas e a propriedade é minha.`, '', 6000);
+      this.toast(L(`Vesper: Ao fim da noite, ${quotaFor(state.night.night)} de Sangue. Se faltar, levamos humanos. Três faltas e a propriedade é minha.`,
+        `Vesper: At the end of the night, ${quotaFor(state.night.night)} Blood. If it's short, we take humans. Three strikes and the property is mine.`), '', 6000);
     };
     const speed = document.createElement('button');
     speed.className = 'speed';
     speed.textContent = '1×';
-    speed.setAttribute('aria-label', 'Velocidade do jogo');
+    speed.setAttribute('aria-label', L('Velocidade do jogo', 'Game speed'));
+    speed.title = L('Velocidade (1, 2, 3 · Espaço pausa)', 'Speed (1, 2, 3 · Space pauses)');
     speed.onclick = () => actions.onSpeed();
     this.speedBtn = speed;
     const row = document.createElement('div');
@@ -187,7 +205,7 @@ export class Hud {
 
     this.quest = document.createElement('div');
     this.quest.className = 'quest';
-    this.quest.innerHTML = '<img src="assets/icon_quest.webp" alt=""><span class="qt"></span><span class="qp"></span><button>Onde?</button>';
+    this.quest.innerHTML = `<img src="assets/icon_quest.webp" alt=""><span class="qt"></span><span class="qp"></span><button>${L('Onde?', 'Where?')}</button>`;
     this.quest.querySelector('button')!.onclick = () => actions.onWhere();
     document.body.appendChild(this.quest);
 
@@ -239,6 +257,10 @@ export class Hud {
     ob.style.display = ob.textContent ? 'block' : 'none';
     this.ordersBtn.classList.toggle('crown', this.src.ordersReady > 0);
     this.treeBtn.style.display = this.src.hasLab ? 'block' : 'none';
+    const db = this.diaryBtn.querySelector<HTMLElement>('.badge')!;
+    db.textContent = this.src.diaryNew ? String(this.src.diaryNew) : '';
+    db.style.display = db.textContent ? 'block' : 'none';
+    this.diaryBtn.classList.toggle('crown', this.src.diaryNew > 0);
     const tb = this.treeBtn.querySelector<HTMLElement>('.badge')!;
     tb.textContent = this.src.treeReady ? '!' : '';
     tb.style.display = tb.textContent ? 'block' : 'none';
@@ -259,8 +281,8 @@ export class Hud {
     const n = state.night, quota = quotaFor(n.night);
     const left = Math.max(0, NIGHT_MS - n.elapsed), mm = Math.floor(left / 60000), ss = Math.floor(left / 1000) % 60;
     const q = (sel: string) => this.tithe.querySelector<HTMLElement>(sel)!;
-    q('.n').textContent = `Noite ${n.night}`;
-    q('.q').textContent = `Sangria ${Math.floor(Math.min(r.blood, quota))}/${quota}`;
+    q('.n').textContent = `${L('Noite', 'Night')} ${n.night}`;
+    q('.q').textContent = `${L('Sangria', 'Bloodletting')} ${Math.floor(Math.min(r.blood, quota))}/${quota}`;
     q('.t').textContent = `${mm}:${String(ss).padStart(2, '0')}`;
     q('.x').textContent = '✕'.repeat(n.strikes) + '·'.repeat(MAX_STRIKES - n.strikes);
     q('.fill').style.width = `${Math.min(100, (r.blood / quota) * 100)}%`;
@@ -280,16 +302,16 @@ export class Hud {
     const qt = this.quest.querySelector('.qt')!, changed = qt.textContent !== text;
     qt.textContent = text;
     this.quest.querySelector('.qp')!.textContent = progress ?? '';
-    this.quest.querySelector('button')!.textContent = state.tutorial.done ? 'Ver' : 'Onde?';
+    this.quest.querySelector('button')!.textContent = state.tutorial.done ? L('Ver', 'View') : L('Onde?', 'Where?');
     if (changed) { this.quest.classList.remove('new'); void this.quest.offsetWidth; this.quest.classList.add('new'); } // pulse only for a new objective
   }
 
   // Ascension available: a glowing crown in the resource bar.
   setAscend(show: boolean, glow = false) { this.crown.style.display = show ? 'block' : 'none'; this.crown.classList.toggle('glow', glow); }
 
-  setSpeed(v: number) {
-    this.speedBtn.textContent = `${v}×`;
-    this.speedBtn.classList.toggle('fast', v > 1);
+  setSpeed(v: number, paused = false) {
+    this.speedBtn.textContent = paused ? '⏸' : `${v}×`;
+    this.speedBtn.classList.toggle('fast', v > 1 || paused);
   }
 
   // Pending event: a pulsing chip on the right; the player opens it when ready (never a surprise modal).
@@ -304,34 +326,82 @@ export class Hud {
   raidChip(title: string | null, onClick?: () => void) {
     this.raidClick = onClick;
     this.raid.classList.toggle('on', !!title);
-    if (title) this.raid.innerHTML = `<img src="assets/icon_raid.webp" alt=""><span>${title}<br><b>Defender ▸</b></span>`;
+    if (title) this.raid.innerHTML = `<img src="assets/icon_raid.webp" alt=""><span>${title}<br><b>${L('Defender ▸', 'Defend ▸')}</b></span>`;
+  }
+
+  get menuOpen() { return this.menu.classList.contains('on'); }
+  closeMenu() { this.menu.classList.remove('on'); }
+  toggleMenu() { if (this.menuOpen) this.closeMenu(); else { sfx.open(); this.openMenu(); } }
+
+  private menuBox(head: string) {
+    this.menu.innerHTML = `<div class="box">${head}</div>`;
+    const box = this.menu.querySelector('.box')!;
+    const add = (label: string, fn: () => void, cls = '', keep = false) => {
+      const b = document.createElement('button');
+      b.textContent = label; b.className = cls;
+      b.onclick = () => { if (!keep) this.menu.classList.remove('on'); fn(); };
+      box.appendChild(b);
+      return b;
+    };
+    return { box, add };
   }
 
   private openMenu() {
-    const r = state.resources;
     const info = this.actions.info();
-    this.menu.innerHTML = `<div class="box"><div style="text-align:center;color:#c9a98a;font-size:13px">${info.region} · Noite ${state.night.night}<br>` +
-      'Conquista da região: toque na coroa 👑</div></div>';
-    const box = this.menu.querySelector('.box')!;
-    const add = (label: string, fn: () => void, cls = '') => {
-      const b = document.createElement('button');
-      b.textContent = label; b.className = cls;
-      b.onclick = () => { this.menu.classList.remove('on'); fn(); };
-      box.appendChild(b);
+    const { add } = this.menuBox(`<div style="text-align:center;color:#c9a98a;font-size:13px">${info.region} · ${L('Noite', 'Night')} ${state.night.night}<br>` +
+      `${L('Conquista da região: toque na coroa 👑', 'Region conquest: tap the crown 👑')}</div>`);
+    add(L('Continuar', 'Continue'), () => undefined);
+    add(L('📖 Diário de Leonor', '📖 Leonor\'s Diary'), () => this.actions.onDiary());
+    add(L('Mensagens recentes', 'Recent messages'), () => this.openLog());
+    add(L('Árvore de pesquisas', 'Research tree'), () => this.actions.onTree());
+    add(L('Encomendas do Castelo', 'Castle Orders'), () => this.actions.onOrders());
+    add(L('Relíquias do mandato', 'Mandate relics'), () => this.actions.onRelics());
+    add(L('Álbum de Linhagens', 'Lineage Album'), () => this.actions.onAlbum());
+    add(L('Arsenal de Aureliano', 'Aureliano\'s Armory'), () => this.actions.onArsenal());
+    if (!this.actions.tutorialActive()) { add(L('⚔ Caçada (campanha)', '⚔ The Hunt (campaign)'), () => this.actions.onHunt()); add(L('Lua de Sangue (desafio)', 'Blood Moon (challenge)'), () => this.actions.onBloodMoon()); }
+    add(L('Mapa regional', 'Regional map'), () => this.actions.onMap());
+    add(L('⚙ Ajustes', '⚙ Settings'), () => this.openSettings(), '', true);
+    if (this.actions.tutorialActive()) add(L('Pular tutorial', 'Skip tutorial'), () => { if (confirm(L('Pular o tutorial?', 'Skip the tutorial?'))) this.actions.onSkipTutorial(); });
+    add(L('Novo jogo', 'New game'), () => { if (confirm(L('Apagar o progresso e começar de novo?', 'Erase your progress and start over?'))) this.actions.onNewGame(); }, 'danger');
+    this.menu.classList.add('on');
+  }
+
+  // Settings: language, sound, music, interface size, fullscreen and (on PC) the keyboard shortcuts.
+  openSettings() {
+    const info = this.actions.info();
+    const { box, add } = this.menuBox(`<b style="text-align:center;color:#f6d9a0">${L('Ajustes', 'Settings')}</b>`);
+    const row = (label: string, opts: [string, string, boolean, () => void][]) => {
+      const r = document.createElement('div');
+      r.className = 'srow';
+      r.innerHTML = `<span>${label}</span>`;
+      for (const [text, title, on, fn] of opts) {
+        const b = document.createElement('button');
+        b.textContent = text; b.title = title; b.className = on ? 'on' : '';
+        b.onclick = () => { fn(); this.openSettings(); };
+        r.appendChild(b);
+      }
+      box.appendChild(r);
     };
-    add('Continuar', () => undefined);
-    add('Mensagens recentes', () => this.openLog());
-    add('Árvore de pesquisas', () => this.actions.onTree());
-    add('Encomendas do Castelo', () => this.actions.onOrders());
-    add('Relíquias do mandato', () => this.actions.onRelics());
-    add('Álbum de Linhagens', () => this.actions.onAlbum());
-    add('Arsenal de Aureliano', () => this.actions.onArsenal());
-    if (!this.actions.tutorialActive()) { add('⚔ Caçada (campanha)', () => this.actions.onHunt()); add('Lua de Sangue (desafio)', () => this.actions.onBloodMoon()); }
-    add('Mapa regional', () => this.actions.onMap());
-    add(info.mute ? 'Som: desligado' : 'Som: ligado', () => this.actions.onSound());
-    add(info.music ? 'Música: ligada' : 'Música: desligada', () => this.actions.onMusic());
-    if (this.actions.tutorialActive()) add('Pular tutorial', () => { if (confirm('Pular o tutorial?')) this.actions.onSkipTutorial(); });
-    add('Novo jogo', () => { if (confirm('Apagar o progresso e começar de novo?')) this.actions.onNewGame(); }, 'danger');
+    row(L('Idioma', 'Language'), [['Português', 'Português', lang === 'pt', () => setLang('pt')], ['English', 'English', lang === 'en', () => setLang('en')]]);
+    row(L('Som', 'Sound'), [[L('Ligado', 'On'), '', !info.mute, () => { if (info.mute) this.actions.onSound(); }], [L('Desligado', 'Off'), '', info.mute, () => { if (!info.mute) this.actions.onSound(); }]]);
+    row(L('Música', 'Music'), [[L('Ligada', 'On'), '', info.music, () => { if (!info.music) this.actions.onMusic(); }], [L('Desligada', 'Off'), '', !info.music, () => { if (info.music) this.actions.onMusic(); }]]);
+    row(L('Interface', 'Interface'), [[L('Auto', 'Auto'), L('Ajusta ao tamanho da tela', 'Fits the screen size'), !info.uiScale, () => this.actions.onUiScale(0)],
+      ['100%', '', info.uiScale === 1, () => this.actions.onUiScale(1)], ['125%', '', info.uiScale === 1.25, () => this.actions.onUiScale(1.25)],
+      ['150%', '', info.uiScale === 1.5, () => this.actions.onUiScale(1.5)]]);
+    if (document.fullscreenEnabled) add(info.fullscreen ? L('Sair da tela cheia (F)', 'Exit fullscreen (F)') : L('Tela cheia (F)', 'Fullscreen (F)'), () => this.actions.onFullscreen());
+    if (info.desktop) {
+      const keys = document.createElement('div');
+      keys.className = 'keys';
+      keys.innerHTML = `<b style="color:#f6d9a0">${L('Atalhos do teclado', 'Keyboard shortcuts')}</b>` + [
+        [L('WASD / setas', 'WASD / arrows'), L('mover a câmera', 'move the camera')], [L('Roda / + −', 'Wheel / + −'), L('zoom', 'zoom')],
+        ['1 · 2 · 3', L('velocidade', 'speed')], [L('Espaço', 'Space'), L('pausar', 'pause')], ['C', L('contratos', 'contracts')], ['R', L('pesquisas', 'research')],
+        ['O', L('encomendas', 'orders')], ['K', L('domínio (coroa)', 'domain (crown)')], ['T', L('tensão', 'tension')], ['J', L('diário', 'diary')], ['M', L('mapa regional', 'regional map')],
+        ['F', L('tela cheia', 'fullscreen')], ['Esc', L('fechar / menu', 'close / menu')],
+        [L('Batalha: 1–9', 'Battle: 1–9'), L('escolher carta · botão direito cancela', 'pick a card · right click cancels')],
+      ].map(([k, v]) => `<div><b>${k}</b> — ${v}</div>`).join('');
+      box.appendChild(keys);
+    }
+    add(L('Voltar', 'Back'), () => this.openMenu(), '', true);
     this.menu.classList.add('on');
   }
 
@@ -345,9 +415,11 @@ export class Hud {
     const t = document.createElement('div');
     t.className = `toast ${kind}`;
     // A character speaking ("Bóris: ...") gets their portrait next to the line.
-    const who = msg.match(/(Bóris|Vesper|Rubélia|Hemático|Aureliano|Davi|Lia|Mercador):/)?.[1];
-    const key = who && { 'Bóris': 'boris', Vesper: 'vesper', 'Rubélia': 'rubelia', 'Hemático': 'hematico', Aureliano: 'aureliano', Davi: 'davi', Lia: 'lia', Mercador: 'merchant' }[who];
-    if (key) {
+    const colon = msg.indexOf(':');
+    const who = colon > 0 && colon < 16 ? msg.slice(0, colon) : '';
+    const key = who ? SPEAKER_KEY[who] : undefined;
+    if (key && !HAS_PORTRAIT.has(key)) voice(key, 200);
+    else if (key) {
       voice(key, 200);
       const img = document.createElement('img');
       img.src = `assets/portrait_${key}.webp`;
@@ -363,10 +435,10 @@ export class Hud {
 
   private openLog() {
     const esc = (x: string) => x.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
-    this.menu.innerHTML = `<div class="box"><b style="text-align:center;color:#f6d9a0">Mensagens recentes</b><div class="hlog">${
-      [...this.log].reverse().map(l => `<div class="${l.kind}">${esc(l.msg)}</div>`).join('') || '<div>Nada por enquanto.</div>'}</div></div>`;
+    this.menu.innerHTML = `<div class="box"><b style="text-align:center;color:#f6d9a0">${L('Mensagens recentes', 'Recent messages')}</b><div class="hlog">${
+      [...this.log].reverse().map(l => `<div class="${l.kind}">${esc(l.msg)}</div>`).join('') || `<div>${L('Nada por enquanto.', 'Nothing yet.')}</div>`}</div></div>`;
     const b = document.createElement('button');
-    b.textContent = 'Fechar';
+    b.textContent = L('Fechar', 'Close');
     b.onclick = () => this.menu.classList.remove('on');
     this.menu.querySelector('.box')!.appendChild(b);
     this.menu.classList.add('on');

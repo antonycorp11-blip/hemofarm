@@ -8,6 +8,7 @@ import { has } from '../data/research';
 import { fx, less } from '../core/bonus';
 import { meta, saveMeta } from '../core/meta';
 import { sfx, voice } from '../core/sfx';
+import { L } from '../core/i18n';
 
 const S = 0.5;
 const US = S * 1.35; // units and wolves read bigger than farm props: they're the focus here
@@ -35,9 +36,9 @@ const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 // Vampire spells: always available, paid in Blood, long cooldowns. Tap the spell, then the field.
 type SpellId = 'rain' | 'mist' | 'drain';
 const SPELLS: Record<SpellId, { name: string; cost: number; cd: number; desc: string; icon: string; color: number; css: string }> = {
-  rain: { name: 'Chuva Rubra', cost: 60, cd: 25000, icon: 'icon_blood', color: 0xd8122a, css: '#e0283c', desc: 'toque numa raia: 120 de dano em todos os lobos dela' },
-  mist: { name: 'Névoa Hipnótica', cost: 40, cd: 30000, icon: 'mk_sleep', color: 0x9a6aff, css: '#9a6aff', desc: 'toque no campo: todos os lobos ficam lentos por 6 s' },
-  drain: { name: 'Beijo Sombrio', cost: 30, cd: 18000, icon: 'icon_vitality', color: 0xff3a7a, css: '#ff4a8a', desc: 'toque numa área 3×3: 80 de dano e +10 Sangue por lobo atingido' },
+  rain: { name: L('Chuva Rubra', 'Crimson Rain'), cost: 60, cd: 25000, icon: 'icon_blood', color: 0xd8122a, css: '#e0283c', desc: L('toque numa raia: 120 de dano em todos os lobos dela', 'tap a lane: 120 damage to every wolf in it') },
+  mist: { name: L('Névoa Hipnótica', 'Hypnotic Mist'), cost: 40, cd: 30000, icon: 'mk_sleep', color: 0x9a6aff, css: '#9a6aff', desc: L('toque no campo: todos os lobos ficam lentos por 6 s', 'tap the field: every wolf slows down for 6 s') },
+  drain: { name: L('Beijo Sombrio', 'Dark Kiss'), cost: 30, cd: 18000, icon: 'icon_vitality', color: 0xff3a7a, css: '#ff4a8a', desc: L('toque numa área 3×3: 80 de dano e +10 Sangue por lobo atingido', 'tap a 3×3 area: 80 damage and +10 Blood per wolf hit') },
 };
 
 export class BattleScene extends Phaser.Scene {
@@ -132,9 +133,9 @@ export class BattleScene extends Phaser.Scene {
     this.buildUi();
     this.fitCamera();
     const w = WEATHER[this.weather];
-    const intro = this.endless ? 'Lua de Sangue. Ondas sem fim, Sangue próprio. Ninguém da fazenda corre perigo, só o seu orgulho.'
-      : this.mode === 'hunt' ? `${this.cfg.title ?? 'Caçada'} · ${this.arena.name}.` : `${BATTLE_LINES.start} Você tem alguns segundos para se preparar.`;
-    this.toast(`Aureliano: ${intro}${this.weather !== 'clear' ? ` Clima: ${w.name} (${w.desc})` : ''}${this.arena !== ARENAS.farm ? ` ${this.arena.desc}` : ''}`, 9000);
+    const intro = this.endless ? L('Lua de Sangue. Ondas sem fim, Sangue próprio. Ninguém da fazenda corre perigo, só o seu orgulho.', 'Blood Moon. Endless waves, its own Blood. Nobody from the farm is in danger, only your pride.')
+      : this.mode === 'hunt' ? `${this.cfg.title ?? L('Caçada', 'The Hunt')} · ${this.arena.name}.` : `${BATTLE_LINES.start} ${L('Você tem alguns segundos para se preparar.', 'You have a few seconds to prepare.')}`;
+    this.toast(`Aureliano: ${intro}${this.weather !== 'clear' ? ` ${L('Clima', 'Weather')}: ${w.name} (${w.desc})` : ''}${this.arena !== ARENAS.farm ? ` ${this.arena.desc}` : ''}`, 9000);
   }
 
   // Art that doesn't exist yet falls back to an existing sheet with a tint (the art replaces it once it's in the folder).
@@ -361,6 +362,7 @@ export class BattleScene extends Phaser.Scene {
       cam.scrollX += before.x - after.x; cam.scrollY += before.y - after.y;
     };
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonDown()) { this.cancelArm(); return; } // PC: right click drops the card in hand
       this.touches.set(p.id, { x: p.x, y: p.y });
       this.pinch = 0;
       this.down = this.touches.size === 1 ? { x: p.x, y: p.y, moved: false } : undefined;
@@ -368,7 +370,8 @@ export class BattleScene extends Phaser.Scene {
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       const t = this.touches.get(p.id);
-      if (!t) return;
+      // PC: with a card in hand, the aim follows the mouse before any click.
+      if (!t) { if (this.armed && !p.wasTouch && !this.cardDrag) this.aim = this.cellFrom(p.x, p.y); return; }
       const dx = p.x - t.x, dy = p.y - t.y;
       t.x = p.x; t.y = p.y;
       if (this.touches.size >= 2) {
@@ -397,7 +400,36 @@ export class BattleScene extends Phaser.Scene {
     window.addEventListener('pointermove', this.onCardMove);
     window.addEventListener('pointerup', this.onCardUp);
     window.addEventListener('pointercancel', this.onCardCancel);
+    window.addEventListener('keydown', this.onKey);
   }
+
+  private cancelArm() {
+    this.selected = undefined; this.spell = undefined; this.aim = undefined; this.cardDrag = undefined;
+    this.refreshUi();
+  }
+
+  // PC: 1–9 pick a card (in the order shown), Q/W/E a spell, Esc cancels, Space starts the fight during preparation.
+  private onKey = (e: KeyboardEvent) => {
+    if (!this.ui?.isConnected || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'escape') { this.cancelArm(); return; }
+    if (k === ' ') { e.preventDefault(); if (this.t < 0) this.t = 0; return; }
+    const pick = (id: UnitId | SpellId, spell: boolean) => {
+      const same = spell ? this.spell === id : this.selected === id;
+      if (same) { this.cancelArm(); return; }
+      if (spell) { this.spell = id as SpellId; this.selected = undefined; } else { this.selected = id as UnitId; this.spell = undefined; }
+      const ptr = this.input.activePointer;
+      this.aim = this.cellFrom(ptr.x, ptr.y);
+      this.refreshUi();
+    };
+    if (/^[1-9]$/.test(k)) {
+      const b = this.ui.querySelectorAll<HTMLButtonElement>('.bc')[Number(k) - 1];
+      if (b) pick(b.dataset.u as UnitId, false);
+      return;
+    }
+    const s = { q: 0, w: 1, e: 2 }[k as 'q' | 'w' | 'e'];
+    if (s !== undefined) { const b = this.ui.querySelectorAll<HTMLButtonElement>('.sp')[s]; if (b) pick(b.dataset.s as SpellId, true); }
+  };
 
   // The browser took the gesture (e.g. scrolling the card column): just drop the drag.
   private onCardCancel = () => { if (this.cardDrag) { this.cardDrag = undefined; this.aim = undefined; this.refreshUi(); } };
@@ -455,13 +487,14 @@ export class BattleScene extends Phaser.Scene {
     const m = this.cache.json.get('manifest');
     const el = document.createElement('div');
     el.className = 'bt';
-    const card = (id: UnitId) => {
+    const pc = matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const card = (id: UnitId, i: number) => {
       const u = UNITS[id], tex = this.texFor(u), mt = m[tex];
       const frames = mt?.frames ?? 16, f = id === 'bats' ? 4 : this.framesFor(u).idle[0];
       const tint = this.tintFor(u), lv = this.cfg.cardLv?.[id] ?? 0;
       return `<button class="bc${u.kind === 'hero' ? ' hero' : ''}" data-u="${id}" title="${u.desc}"${tint ? ` style="box-shadow:inset 0 -5px 0 ${hex(tint)}"` : ''}>` +
         `<span class="pic" style="background-image:url(assets/${tex}.webp);background-size:${frames * 100}% 100%;background-position:${(f / (frames - 1)) * 100}% 0"></span>` +
-        `<span class="cn">${u.name}${lv ? ` ${'★'.repeat(lv)}` : ''}</span><span class="cc">${this.costOf(id)}</span><span class="cd"></span></button>`;
+        `<span class="cn">${u.name}${lv ? ` ${'★'.repeat(lv)}` : ''}</span><span class="cc">${this.costOf(id)}</span><span class="cd"></span>${pc && i < 9 ? `<span class="kb">${i + 1}</span>` : ''}</button>`;
     };
     const w = WEATHER[this.weather];
     el.innerHTML = `<style>
@@ -482,6 +515,7 @@ export class BattleScene extends Phaser.Scene {
       .bt .hint{font-size:12px;color:#f6d9a0;min-height:15px}
       .bt .retreat{padding:6px 12px;border:6px solid transparent;border-image:url(assets/button_normal.webp) 18 fill / 6px stretch;background:none;color:#fff;font:inherit;cursor:pointer}
       .bt .cards{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding:4px 2px 2px}
+      .bt .bc .kb{position:absolute;top:3px;left:4px;min-width:14px;height:14px;border-radius:3px;background:#000a;color:#f6d9a0;font:700 10px/14px system-ui;text-align:center}
       .bt .bc{position:relative;flex:none;width:74px;height:100px;border:0;background:url(assets/card_unit.webp) center/100% 100% no-repeat;cursor:pointer;padding:0;color:#f3e2c8;overflow:hidden}
       .bt .bc.hero{filter:drop-shadow(0 0 5px #e8b54a)}
       .bt .bc .pic{position:absolute;left:14px;right:14px;top:10px;height:56px;background-repeat:no-repeat}
@@ -536,16 +570,16 @@ export class BattleScene extends Phaser.Scene {
       .bt.land .prev{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 92px)}
       .bt.land .btoast{left:auto;right:max(8px,env(safe-area-inset-right,0px));top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:none;max-width:min(250px,28vw)}
     </style>
-    <div class="horde"><div class="lbl"><span class="wl">Horda</span><span class="wx" title="${w.desc}">${w.icon} ${w.name}</span><span class="wk"></span></div>
+    <div class="horde"><div class="lbl"><span class="wl">${L('Horda', 'Horde')}</span><span class="wx" title="${w.desc}">${w.icon} ${w.name}</span><span class="wk"></span></div>
       <div class="track"><div class="fill"></div>${this.cfg.raid.waves.map(v => `<i class="flag" style="left:${(v / this.lastSpawn) * 100}%"></i>`).join('')}<i class="head"></i></div></div>
-    <button class="go-now"></button><div class="prev">${this.preview()}</div><div class="btoast"></div><div class="rotate">↻ Melhor com o celular deitado</div>
-    <div class="turn"><div><div class="ic">📱↻</div><b>Gire o celular</b><p>A batalha foi feita para jogar deitado.</p><button>Continuar assim mesmo</button></div></div>
-    <div class="bottom"><div class="top"><div class="blood"><img src="assets/icon_blood.webp" alt=""><b class="bv">0</b></div><button class="retreat">Recuar</button></div>
+    <button class="go-now"></button><div class="prev">${this.preview()}</div><div class="btoast"></div><div class="rotate">${L('↻ Melhor com o celular deitado', '↻ Better with your phone sideways')}</div>
+    <div class="turn"><div><div class="ic">📱↻</div><b>${L('Gire o celular', 'Turn your phone')}</b><p>${L('A batalha foi feita para jogar deitado.', 'The battle was made to be played sideways.')}</p><button>${L('Continuar assim mesmo', 'Continue anyway')}</button></div></div>
+    <div class="bottom"><div class="top"><div class="blood"><img src="assets/icon_blood.webp" alt=""><b class="bv">0</b></div><button class="retreat">${L('Recuar', 'Retreat')}</button></div>
       <div class="hint"></div>
       <div class="cards">${this.unlocked().map(card).join('')}</div></div>
     <div class="spells">${(Object.keys(SPELLS) as SpellId[]).map(id => `<button class="sp" data-s="${id}" style="--c:${SPELLS[id].css}" title="${SPELLS[id].name}: ${SPELLS[id].desc}">` +
       `<img src="assets/${SPELLS[id].icon}.webp" alt=""><span class="sc">${SPELLS[id].cost}</span><span class="scd"></span></button>`).join('')}</div>
-    <div class="res"><div class="box"><h3></h3><p class="rt"></p><button>${this.mode === 'hunt' ? 'Continuar a Caçada' : 'Voltar à fazenda'}</button></div></div>`;
+    <div class="res"><div class="box"><h3></h3><p class="rt"></p><button>${this.mode === 'hunt' ? L('Continuar a Caçada', 'Continue the Hunt') : L('Voltar à fazenda', 'Back to the farm')}</button></div></div>`;
     document.body.appendChild(el);
     document.body.classList.add('in-battle');
     this.ui = el;
@@ -554,7 +588,7 @@ export class BattleScene extends Phaser.Scene {
     el.querySelector<HTMLButtonElement>('.go-now')!.onclick = () => { if (this.t < 0) this.t = 0; };
     el.querySelector<HTMLButtonElement>('.turn button')!.onclick = () => { el.classList.add('stay'); this.fitCamera(); };
     el.querySelector<HTMLButtonElement>('.retreat')!.onclick = () => {
-      const q = this.endless ? 'Encerrar a Lua de Sangue?' : this.mode === 'hunt' ? 'Desistir desta luta? A Caçada termina aqui.' : 'Recuar? Os lobisomens que restarem levam humanos.';
+      const q = this.endless ? L('Encerrar a Lua de Sangue?', 'End the Blood Moon?') : this.mode === 'hunt' ? L('Desistir desta luta? A Caçada termina aqui.', 'Give up this fight? The Hunt ends here.') : L('Recuar? Os lobisomens que restarem levam humanos.', 'Retreat? The remaining werewolves will take humans.');
       if (confirm(q)) this.finish(false, true);
     };
     this.refreshUi();
@@ -566,8 +600,9 @@ export class BattleScene extends Phaser.Scene {
     for (const s of this.cfg.raid.spawns) n.set(s.wolf, (n.get(s.wolf) ?? 0) + 1);
     const list = [...n].map(([id, c]) => `${c}× ${WOLVES[id].name}`).join(' · ');
     const warn = [...n.keys()].filter(id => BYPASS[id]).map(id => `⚠ ${WOLVES[id].name} ${BYPASS[id]}`).join('<br>');
-    const tip = 'Dica: Cálices primeiro (Sangue), Sentinelas atrás, Muralhas na frente. Cada raia tem uma tocha de emergência na cerca.';
-    return `<b>${this.endless ? 'Primeira onda' : 'Vêm aí'}:</b> ${list}${warn ? `<br><span class="warn">${warn}</span>` : ''}<br>${tip}`;
+    const tip = L('Dica: Cálices primeiro (Sangue), Sentinelas atrás, Muralhas na frente. Cada raia tem uma tocha de emergência na cerca.', 'Tip: Chalices first (Blood), Sentinels behind, Walls in front. Each lane has an emergency torch at the fence.')
+      + (matchMedia('(hover: hover) and (pointer: fine)').matches ? L(' Teclado: 1–9 cartas · Q W E magias · Espaço começa · botão direito ou Esc cancela.', ' Keyboard: 1–9 cards · Q W E spells · Space starts · right click or Esc cancels.') : '');
+    return `<b>${this.endless ? L('Primeira onda', 'First wave') : L('Vêm aí', 'Incoming')}:</b> ${list}${warn ? `<br><span class="warn">${warn}</span>` : ''}<br>${tip}`;
   }
 
   private get lastSpawn() { const sp = this.cfg.raid.spawns; return Math.max(1, sp[sp.length - 1]?.at ?? 1); }
@@ -595,24 +630,24 @@ export class BattleScene extends Phaser.Scene {
     const prep = this.t < 0;
     this.ui.querySelector<HTMLElement>('.go-now')!.style.display = prep ? 'block' : 'none';
     this.ui.querySelector<HTMLElement>('.prev')!.style.display = prep ? 'block' : 'none';
-    if (prep) this.ui.querySelector('.go-now')!.textContent = `Preparação · ${Math.ceil(-this.t / 1000)} s · Começar já ▸`;
+    if (prep) this.ui.querySelector('.go-now')!.textContent = L(`Preparação · ${Math.ceil(-this.t / 1000)} s · Começar já ▸`, `Preparing · ${Math.ceil(-this.t / 1000)} s · Start now ▸`);
     this.ui.querySelector<HTMLElement>('.horde .fill')!.style.width = `${prog * 100}%`;
     this.ui.querySelector<HTMLElement>('.horde .head')!.style.left = `${prog * 100}%`;
     const wave = this.cfg.raid.waves.filter(v => this.t >= v).length;
     const hearts = `${'♥'.repeat(Math.max(0, this.lives))}${'♡'.repeat(Math.max(0, this.maxLives - this.lives))}`;
-    this.ui.querySelector('.wl')!.textContent = this.endless ? `Lua de Sangue · onda ${this.wave} · ${hearts}`
-      : this.mode === 'hunt' ? `${this.cfg.title ?? 'Caçada'} · ${hearts}`
-      : `${this.cfg.raid.big ? 'Lua cheia' : 'Horda'} · onda ${Math.max(1, wave)}/${this.cfg.raid.waves.length}`;
-    this.ui.querySelector('.wk')!.textContent = this.endless ? `${this.kills} abatidos · recorde ${meta.bestWave ?? 0}` : `${this.kills}/${total} abatidos`;
+    this.ui.querySelector('.wl')!.textContent = this.endless ? `${L('Lua de Sangue · onda', 'Blood Moon · wave')} ${this.wave} · ${hearts}`
+      : this.mode === 'hunt' ? `${this.cfg.title ?? L('Caçada', 'The Hunt')} · ${hearts}`
+      : `${this.cfg.raid.big ? L('Lua cheia', 'Full moon') : L('Horda', 'Horde')} · ${L('onda', 'wave')} ${Math.max(1, wave)}/${this.cfg.raid.waves.length}`;
+    this.ui.querySelector('.wk')!.textContent = this.endless ? L(`${this.kills} abatidos · recorde ${meta.bestWave ?? 0}`, `${this.kills} slain · record ${meta.bestWave ?? 0}`) : L(`${this.kills}/${total} abatidos`, `${this.kills}/${total} slain`);
     this.ui.querySelector('.hint')!.textContent = this.spell ? `${SPELLS[this.spell].name}: ${SPELLS[this.spell].desc}` : this.selected
-      ? `${UNITS[this.selected].name}: arraste até uma casa · ${UNITS[this.selected].desc}` : 'Arraste uma carta até a grade (ou toque na carta e depois na casa).';
+      ? `${UNITS[this.selected].name}: ${L('arraste até uma casa', 'drag onto a cell')} · ${UNITS[this.selected].desc}` : L('Arraste uma carta até a grade (ou toque na carta e depois na casa).', 'Drag a card onto the grid (or tap the card, then the cell).');
   }
 
   private toast(msg: string, ms = 4200) {
     const t = this.ui?.querySelector<HTMLElement>('.btoast');
     if (!t) return;
-    const who = msg.match(/^(Aureliano|Conde Valério|Ulf):/)?.[1];
-    if (who) voice(who === 'Conde Valério' ? 'count' : who.toLowerCase(), 200);
+    const who = msg.match(/^(Aureliano|Conde Valério|Count Valerio|Ulf):/)?.[1];
+    if (who) voice(who === 'Aureliano' || who === 'Ulf' ? who.toLowerCase() : 'count', 200);
     t.textContent = msg;
     t.classList.add('on');
     clearTimeout((t as any)._h);
@@ -635,12 +670,12 @@ export class BattleScene extends Phaser.Scene {
     if (this.spell) { this.cast(this.spell, lane, col); return; }
     if (!this.selected) return;
     const id = this.selected, def = UNITS[id], cost = this.costOf(id);
-    if (this.blood < cost) { this.toast('Sangue insuficiente.'); return; }
-    if ((this.ready[id] ?? -Infinity) > this.t) { this.toast('Carta recarregando.'); return; }
-    if (def.kind === 'hero' && this.units.some(x => x.def.kind === 'hero')) { this.toast('Só um herói por batalha.'); return; }
+    if (this.blood < cost) { this.toast(L('Sangue insuficiente.', 'Not enough Blood.')); return; }
+    if ((this.ready[id] ?? -Infinity) > this.t) { this.toast(L('Carta recarregando.', 'Card recharging.')); return; }
+    if (def.kind === 'hero' && this.units.some(x => x.def.kind === 'hero')) { this.toast(L('Só um herói por batalha.', 'Only one hero per battle.')); return; }
     if (def.spell) { this.pay(cost); this.castBats(lane, col); this.ready.bats = this.t + def.recharge; this.selected = undefined; this.refreshUi(); return; }
-    if (this.blocked.has(`${lane}:${col}`)) { this.toast(this.arena.flooded ? 'Casa alagada: ninguém fica de pé ali.' : 'Uma lápide ocupa essa casa.'); return; }
-    if (!this.cellFree(lane, col)) { this.toast('Essa casa já está ocupada.'); return; }
+    if (this.blocked.has(`${lane}:${col}`)) { this.toast(this.arena.flooded ? L('Casa alagada: ninguém fica de pé ali.', 'Flooded cell: nobody can stand there.') : L('Uma lápide ocupa essa casa.', 'A tombstone takes up that cell.')); return; }
+    if (!this.cellFree(lane, col)) { this.toast(L('Essa casa já está ocupada.', 'That cell is already taken.')); return; }
     this.pay(cost);
     this.place(id, lane, col);
     this.selected = undefined; // PvZ: one card, one placement
@@ -694,7 +729,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: spr, scale, duration: 250, ease: 'Back.easeOut' });
     this.burst(c.x, c.y - 20, def.kind === 'hero' ? 0xffd870 : 0xe8b54a, def.kind === 'hero' ? 30 : 12, 120, 450);
     sfx.latch();
-    if (def.kind === 'hero') { this.cameras.main.shake(200, 0.004); voice('count'); this.toast('Conde Valério: Boa noite, senhores. Vieram pelo jantar?'); }
+    if (def.kind === 'hero') { this.cameras.main.shake(200, 0.004); voice('count'); this.toast(L('Conde Valério: Boa noite, senhores. Vieram pelo jantar?', 'Count Valerio: Good evening, gentlemen. Have you come for dinner?')); }
     // The witch's fog: a permanent low cloud over the cells in front of her.
     if (def.kind === 'fog') {
       u.extra = this.add.particles(0, 0, 'bt_dot', { x: { min: (col + 0.8) * CW, max: (col + 1 + def.range!) * CW }, y: { min: lane * CH + 10, max: (lane + 1) * CH - 6 },
@@ -868,7 +903,7 @@ export class BattleScene extends Phaser.Scene {
       if (done) return;
       done = true;
       this.blood += u.def.gen!;
-      this.floatText(orb.x, orb.y, `+${u.def.gen} Sangue`);
+      this.floatText(orb.x, orb.y, L(`+${u.def.gen} Sangue`, `+${u.def.gen} Blood`));
       this.burst(orb.x, orb.y, 0xff3348, 8, 90, 350);
       sfx.coin();
       orb.destroy();
@@ -887,8 +922,8 @@ export class BattleScene extends Phaser.Scene {
   // ---------- vampire spells ----------
   private cast(id: SpellId, lane: number, col: number) {
     const sp = SPELLS[id];
-    if (this.blood < sp.cost) { this.toast('Sangue insuficiente para a magia.'); return; }
-    if ((this.spellReady[id] ?? -Infinity) > this.t) { this.toast('A magia ainda está recarregando.'); return; }
+    if (this.blood < sp.cost) { this.toast(L('Sangue insuficiente para a magia.', 'Not enough Blood for the spell.')); return; }
+    if ((this.spellReady[id] ?? -Infinity) > this.t) { this.toast(L('A magia ainda está recarregando.', 'The spell is still recharging.')); return; }
     this.pay(sp.cost);
     this.spellReady[id] = this.t + sp.cd;
     this.spell = undefined;
@@ -930,7 +965,7 @@ export class BattleScene extends Phaser.Scene {
         this.hurt(w, 80 * power);
         this.stream(w.spr.x, w.spr.y - 30, -40, w.spr.y - 30, sp.color);
       }
-      if (got) { this.blood += got * 10; this.floatText(c.x, c.y - 60, `+${got * 10} Sangue`); }
+      if (got) { this.blood += got * 10; this.floatText(c.x, c.y - 60, L(`+${got * 10} Sangue`, `+${got * 10} Blood`)); }
     }
     this.refreshUi();
   }
@@ -966,8 +1001,8 @@ export class BattleScene extends Phaser.Scene {
       hidden: false, phase: 0, bob: Math.random() * 6 };
     this.wolves.push(w);
     this.placeWolf(w);
-    if (id === 'alpha') { this.toast('Ulf: Boa noite, vizinho. Vim buscar o que é meu. E o que é seu.'); sfx.howl(); voice('ulf'); }
-    if (id === 'mother') { this.toast('A Mãe da Matilha chegou. A floresta inteira uivou junto.', 6000); this.cameras.main.shake(500, 0.01); sfx.howl(); voice('mother'); }
+    if (id === 'alpha') { this.toast(L('Ulf: Boa noite, vizinho. Vim buscar o que é meu. E o que é seu.', 'Ulf: Evening, neighbor. I came for what\'s mine. And what\'s yours.')); sfx.howl(); voice('ulf'); }
+    if (id === 'mother') { this.toast(L('A Mãe da Matilha chegou. A floresta inteira uivou junto. Ela tem olhos âmbar… e parece conhecer você.', 'The Pack Mother has arrived. The whole forest howled with her. She has amber eyes… and seems to know you.'), 6000); this.cameras.main.shake(500, 0.01); sfx.howl(); voice('mother'); }
   }
 
   private hurt(w: Wolf, dmg: number, quiet = false) {
@@ -983,7 +1018,7 @@ export class BattleScene extends Phaser.Scene {
       w.phase++;
       w.def.speed *= 1.15;
       this.cameras.main.shake(450, 0.012);
-      this.toast(`A Mãe da Matilha ruge (fase ${w.phase + 1})!`);
+      this.toast(L(`A Mãe da Matilha ruge (fase ${w.phase + 1})!`, `The Pack Mother roars (phase ${w.phase + 1})!`));
       for (const u of this.units) if (Math.abs(u.lane - w.lane) <= 1) u.stunUntil = this.t + 2500;
       this.summonPups(w);
     }
@@ -1094,7 +1129,7 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(1900, () => fire.destroy());
     this.cameras.main.shake(350, 0.008);
     sfx.hitHeavy(); sfx.bong();
-    this.toast('Aureliano: A tocha da cerca! Essa raia está limpa, mas não teremos outra ali.');
+    this.toast(L('Aureliano: A tocha da cerca! Essa raia está limpa, mas não teremos outra ali.', 'Aureliano: The fence torch! That lane is clear, but we won\'t get another one there.'));
     for (const o of this.wolves) {
       if (o.dead || o.lane !== lane) continue;
       const kill = () => { o.hidden = false; this.hurt(o, 99999, true); };
@@ -1152,7 +1187,7 @@ export class BattleScene extends Phaser.Scene {
         this.bank += 40 + this.wave * 10;
         raid.spawns.push(...endlessWave(this.wave, this.t + 5000, this.L));
         sfx.bell();
-        this.toast(`Aureliano: Onda ${this.wave}! +${40 + this.wave * 10} Sangue de reforço.`);
+        this.toast(L(`Aureliano: Onda ${this.wave}! +${40 + this.wave * 10} Sangue de reforço.`, `Aureliano: Wave ${this.wave}! +${40 + this.wave * 10} Blood in reinforcements.`));
       }
     }
   }
@@ -1228,14 +1263,17 @@ export class BattleScene extends Phaser.Scene {
     const res = this.ui.querySelector('.res')!;
     const shown = Math.min(3, stars);
     const starRow = this.mode === 'hunt' ? '' : `<div style="font-size:30px;letter-spacing:6px;color:#f6d9a0;text-shadow:0 0 10px #a07818">${'★'.repeat(shown)}<span style="color:#4a3a38">${'★'.repeat(3 - shown)}</span></div>`;
-    res.querySelector('h3')!.innerHTML = (this.endless ? `Lua de Sangue: ${waves} onda${waves === 1 ? '' : 's'}`
-      : this.mode === 'hunt' ? (won ? 'Vitória na Caçada!' : 'A Caçada termina aqui')
-      : won && this.grabbed === 0 ? 'Vitória!' : won ? 'Ataque repelido' : 'Recuada') + starRow;
+    res.querySelector('h3')!.innerHTML = (this.endless ? L(`Lua de Sangue: ${waves} onda${waves === 1 ? '' : 's'}`, `Blood Moon: ${waves} wave${waves === 1 ? '' : 's'}`)
+      : this.mode === 'hunt' ? (won ? L('Vitória na Caçada!', 'Hunt victory!') : L('A Caçada termina aqui', 'The Hunt ends here'))
+      : won && this.grabbed === 0 ? L('Vitória!', 'Victory!') : won ? L('Ataque repelido', 'Attack repelled') : L('Recuada', 'Retreat')) + starRow;
     res.querySelector('.rt')!.textContent = this.endless
-      ? `${this.kills} lobisomens derrotados · recorde: ${meta.bestWave} ondas · +${stars} marca${stars === 1 ? '' : 's'} de caça. Aureliano: ${waves >= 5 ? 'Isso foi quase elegante.' : 'Voltem amanhã. Eles voltam.'}`
-      : this.mode === 'hunt' ? `${this.kills} lobisomens derrotados · ${this.lives} voluntário${this.lives === 1 ? '' : 's'} restante${this.lives === 1 ? '' : 's'}.`
-      : `${this.kills} lobisomens derrotados · ${this.grabbed} humano${this.grabbed === 1 ? '' : 's'} levado${this.grabbed === 1 ? '' : 's'} · ` +
-        `${this.spent} de Sangue gasto · +${stars} marca${stars === 1 ? '' : 's'} de caça${this.weather === 'fullmoon' ? ' (Lua Cheia: em dobro)' : ''}. ${won && this.grabbed === 0 ? `Aureliano: ${BATTLE_LINES.win}` : `Aureliano: ${BATTLE_LINES.lose}`}`;
+      ? L(`${this.kills} lobisomens derrotados · recorde: ${meta.bestWave} ondas · +${stars} marca${stars === 1 ? '' : 's'} de caça. Aureliano: ${waves >= 5 ? 'Isso foi quase elegante.' : 'Voltem amanhã. Eles voltam.'}`,
+        `${this.kills} werewolves defeated · record: ${meta.bestWave} waves · +${stars} hunt mark${stars === 1 ? '' : 's'}. Aureliano: ${waves >= 5 ? 'That was almost elegant.' : 'Come back tomorrow. They will.'}`)
+      : this.mode === 'hunt' ? L(`${this.kills} lobisomens derrotados · ${this.lives} voluntário${this.lives === 1 ? '' : 's'} restante${this.lives === 1 ? '' : 's'}.`, `${this.kills} werewolves defeated · ${this.lives} volunteer${this.lives === 1 ? '' : 's'} left.`)
+      : L(`${this.kills} lobisomens derrotados · ${this.grabbed} humano${this.grabbed === 1 ? '' : 's'} levado${this.grabbed === 1 ? '' : 's'} · ` +
+        `${this.spent} de Sangue gasto · +${stars} marca${stars === 1 ? '' : 's'} de caça${this.weather === 'fullmoon' ? ' (Lua Cheia: em dobro)' : ''}.`,
+        `${this.kills} werewolves defeated · ${this.grabbed} human${this.grabbed === 1 ? '' : 's'} taken · ` +
+        `${this.spent} Blood spent · +${stars} hunt mark${stars === 1 ? '' : 's'}${this.weather === 'fullmoon' ? ' (Full Moon: doubled)' : ''}.`) + ` ${won && this.grabbed === 0 ? `Aureliano: ${BATTLE_LINES.win}` : `Aureliano: ${BATTLE_LINES.lose}`}`;
     res.classList.add('on');
     if (won) sfx.chime(); else sfx.bad();
     res.querySelector('button')!.onclick = () => {
@@ -1246,6 +1284,7 @@ export class BattleScene extends Phaser.Scene {
       window.removeEventListener('pointermove', this.onCardMove);
       window.removeEventListener('pointerup', this.onCardUp);
       window.removeEventListener('pointercancel', this.onCardCancel);
+      window.removeEventListener('keydown', this.onKey);
       this.ghost = undefined;
       this.cfg.onEnd({ bossKilled: this.bossKilled, won, grabbed: this.grabbed, bloodSpent: this.spent, kills: this.kills, retreated, stars, waves, livesLeft: this.lives, weather: this.weather });
     };

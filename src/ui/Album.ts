@@ -5,6 +5,7 @@ import { meta, saveMeta } from '../core/meta';
 import { invalidate } from '../core/bonus';
 import { BLOOD, BloodType, QUALITY, Quality, TRAIT, Trait, HumanTraits } from '../data/humans';
 import type { Modal } from './Modal';
+import { L } from '../core/i18n';
 
 export const ALBUM_SIZE = Object.keys(BLOOD).length * Object.keys(QUALITY).length + Object.keys(TRAIT).length;
 
@@ -16,7 +17,7 @@ export function discover(t: HumanTraits, quiet = false) {
     meta.album.push(key);
     saveMeta();
     invalidate();
-    const name = key.startsWith('trait:') ? TRAIT[key.slice(6) as Trait].name : `${BLOOD[t.blood].name} ${QUALITY[t.quality].name}`;
+    const name = key.startsWith('trait:') ? TRAIT[key.slice(6) as Trait].name : L(`${BLOOD[t.blood].name} ${QUALITY[t.quality].name}`, `${QUALITY[t.quality].name} ${BLOOD[t.blood].name}`);
     if (!quiet) bus.emit('LINEAGE_DISCOVERED', { key, name, total: meta.album.length });
   }
 }
@@ -31,7 +32,7 @@ export function openAlbum(modal: Modal) {
     bloods.map(b => `<div style="font-size:12px;color:#c9a98a;padding-right:4px">${BLOOD[b].name}</div>${quals.map(q => cell(`${b}:${q}`, '✓')).join('')}`).join('') + '</div>';
   const traits = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px">${(Object.keys(TRAIT) as Trait[]).map(t => cell(`trait:${t}`, TRAIT[t].name)).join('')}</div>`;
   const n = meta.album?.length ?? 0;
-  modal.show(`<h2>Álbum de Linhagens</h2><div class="sub">${n}/${ALBUM_SIZE} descobertas · +${n}% de Sangue em todos os mandatos</div>
-    ${grid}${traits}<p class="muted" style="font-size:12px;margin:10px 0 0">Cada combinação nova de sangue e qualidade que aparecer na fazenda entra no álbum para sempre.
-    Forme pares de qualidades diferentes para descobrir as mais raras.</p>`);
+  modal.show(`<h2>${L('Álbum de Linhagens', 'Lineage Album')}</h2><div class="sub">${L(`${n}/${ALBUM_SIZE} descobertas · +${n}% de Sangue em todos os mandatos`, `${n}/${ALBUM_SIZE} discovered · +${n}% Blood in every mandate`)}</div>
+    ${grid}${traits}<p class="muted" style="font-size:12px;margin:10px 0 0">${L('Cada combinação nova de sangue e qualidade que aparecer na fazenda entra no álbum para sempre. Forme pares de qualidades diferentes para descobrir as mais raras.',
+      'Every new combination of blood and quality that shows up on the farm enters the album forever. Pair different qualities to discover the rarest.')}</p>`);
 }

@@ -2,6 +2,29 @@ import Phaser from 'phaser';
 import { FarmScene } from './scenes/FarmScene';
 import { BattleScene } from './scenes/BattleScene';
 import { state } from './core/state';
+import { L, lang, setLang } from './core/i18n';
+
+// Title screen in the chosen language, with a PT/EN switch right there (portals send players from everywhere).
+(() => {
+  document.title = L('Hemofazenda', 'Hemofarm');
+  const box = document.getElementById('loading');
+  if (!box) return;
+  box.querySelector('.s')!.textContent = L('Preparando a noite…', 'Preparing the night…');
+  box.querySelector('.play')!.textContent = L('JOGAR', 'PLAY');
+  const logo = box.querySelector<HTMLImageElement>('.logo')!;
+  logo.alt = L('Hemofazenda: Cultivando para a Noite', 'Hemofarm: Growing for the Night');
+  if (lang === 'en') { const en = new Image(); en.onload = () => { logo.src = en.src; }; en.src = '/assets/title_logo_en.webp'; }
+  const sw = document.createElement('div');
+  sw.className = 'lang';
+  sw.innerHTML = `<button data-l="pt"${lang === 'pt' ? ' class="on"' : ''}>Português</button><button data-l="en"${lang === 'en' ? ' class="on"' : ''}>English</button>`;
+  sw.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.onclick = () => setLang(b.dataset.l as 'pt' | 'en'));
+  box.appendChild(sw);
+  // PC: Enter or Space starts once the game is ready.
+  window.addEventListener('keydown', function start(e) {
+    const play = box.querySelector<HTMLButtonElement>('.play');
+    if ((e.key === 'Enter' || e.key === ' ') && box.classList.contains('ready') && play) { e.preventDefault(); play.click(); window.removeEventListener('keydown', start); }
+  });
+})();
 
 // Some embedded browsers report WebGL support but fail to create a context: probe first.
 const hasWebGL = (() => {
@@ -18,6 +41,14 @@ const game = new Phaser.Game({
   disableContextMenu: true, // long-press on phones shouldn't open the browser menu
   scene: [FarmScene, BattleScene],
 });
+
+// Phaser listens for mouseup/touchend on the whole window, so tapping a button of an HTML window that sits over a lot or a
+// human also "clicked" the map underneath (e.g. closing a letter opened a building panel). A press that started outside
+// the canvas never reaches Phaser; a drag that started on the map and ends over the HUD still does.
+let downOnGame = false;
+const onGame = (e: Event) => !!(e.target as Element | null)?.closest?.('#game');
+for (const t of ['mousedown', 'touchstart']) document.addEventListener(t, e => { downOnGame = onGame(e); }, true);
+for (const t of ['mouseup', 'touchend']) document.addEventListener(t, e => { if (!downOnGame && !onGame(e)) e.stopPropagation(); });
 
 // An exception inside a frame would stop Phaser's loop for good (the game "freezes"). Log it and keep running instead.
 const seen = new Set<string>();

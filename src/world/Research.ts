@@ -6,6 +6,7 @@ import { invalidate, less, more, ratePreview } from '../core/bonus';
 import { sfx } from '../core/sfx';
 import { BRANCHES, NODES, Node, lvl, node } from '../data/research';
 import type { Hud } from '../ui/Hud';
+import { L } from '../core/i18n';
 
 export const ESSENCE_RATE = 0.3; // Essência per point of Blood collected, before bonuses
 
@@ -109,14 +110,14 @@ export class Research {
     sfx.chime();
     bus.emit('RESEARCH_STARTED', { nodeId: id });
     bus.emit('RESEARCH_DONE', { nodeId: id });
-    if (n.unlock) this.hud.toast(`Hemático: ${n.name}! Aureliano vai adorar. Ou temer. As duas coisas.`, 'good', 6000);
+    if (n.unlock) this.hud.toast(L(`Hemático: ${n.name}! Aureliano vai adorar. Ou temer. As duas coisas.`, `Hematic: ${n.name}! Aureliano will love it. Or fear it. Both.`), 'good', 6000);
     this.render();
   }
 
   // ---------- screen ----------
   open() {
     if (!this.labBuilt()) {
-      this.hud.toast('Hemático: Preciso de um Laboratório! O lote a leste, perto dos tanques. Por favor. Pela ciência.');
+      this.hud.toast(L('Hemático: Preciso de um Laboratório! O lote a leste, perto dos tanques. Por favor. Pela ciência.', 'Hematic: I need a Laboratory! The lot to the east, near the tanks. Please. For science.'));
       return;
     }
     this.el.classList.add('on');
@@ -154,8 +155,8 @@ export class Research {
     const legend = (['sangue', 'rebanho', 'defesa', 'castelo'] as const).map(b => `<span><i style="background:${BRANCHES[b].color}"></i>${BRANCHES[b].name}</span>`).join('');
     const keep = this.world ? this.view : undefined;
     this.el.innerHTML = `<div class="vp"><div class="world"><svg width="1200" height="800">${lines}</svg>${nodes}</div></div>
-      <div class="head"><h2>Pesquisas do Dr. Hemático</h2><div class="ess"><img src="assets/icon_research.webp" alt=""><b>${Math.floor(r.essence)}</b> Essência <small>+${this.rate}/min</small></div>
-      <button class="close" aria-label="Fechar">×</button></div><div class="leg">${legend}</div><div class="sheet"></div>`;
+      <div class="head"><h2>${L('Pesquisas do Dr. Hemático', 'Dr. Hematic\'s Research')}</h2><div class="ess"><img src="assets/icon_research.webp" alt=""><b>${Math.floor(r.essence)}</b> ${L('Essência', 'Essence')} <small>+${this.rate}/min</small></div>
+      <button class="close" aria-label="${L('Fechar', 'Close')}">×</button></div><div class="leg">${legend}</div><div class="sheet"></div>`;
     this.world = this.el.querySelector('.world')!;
     if (keep) this.view = keep;
     this.apply();
@@ -179,13 +180,13 @@ export class Research {
     const bl = n.fx?.find(([k]) => k === 'blood');
     const prev = bl && l < n.max ? ratePreview(bl[1]) : '';
     let btn: string;
-    if (l >= n.max) btn = '<button disabled>Completo</button>';
-    else if (excl) btn = '<button disabled>Você escolheu o outro caminho</button>';
-    else if (!open) btn = `<button disabled>Requer: ${n.req.filter(p => !lvl(p)).map(p => node(p).name).join(' e ')}</button>`;
-    else btn = `<button data-buy${state.resources.essence >= c ? '' : ' disabled'}>${l ? 'Melhorar' : 'Pesquisar'} · ${c} Essência</button>`;
-    el.innerHTML = `<button class="sx" aria-label="Fechar">×</button><h3>${n.name}</h3>
-      <div class="br" style="color:${BRANCHES[n.branch].color}">${BRANCHES[n.branch].name}${n.max > 1 ? ` · nível ${l}/${n.max}` : ''}</div>
-      <p>${n.desc}</p>${n.fx && n.max > 1 ? `<div class="st">${l ? `Agora: ${effect(l)}` : ''}${l < n.max ? `${l ? '<br>' : ''}Próximo: ${effect(l + 1)}` : ''}</div>` : ''}${prev ? `<div class="st" style="color:#ff8a98">${prev}</div>` : ''}${btn}`;
+    if (l >= n.max) btn = `<button disabled>${L('Completo', 'Complete')}</button>`;
+    else if (excl) btn = `<button disabled>${L('Você escolheu o outro caminho', 'You chose the other path')}</button>`;
+    else if (!open) btn = `<button disabled>${L('Requer', 'Requires')}: ${n.req.filter(p => !lvl(p)).map(p => node(p).name).join(L(' e ', ' and '))}</button>`;
+    else btn = `<button data-buy${state.resources.essence >= c ? '' : ' disabled'}>${l ? L('Melhorar', 'Upgrade') : L('Pesquisar', 'Research')} · ${c} ${L('Essência', 'Essence')}</button>`;
+    el.innerHTML = `<button class="sx" aria-label="${L('Fechar', 'Close')}">×</button><h3>${n.name}</h3>
+      <div class="br" style="color:${BRANCHES[n.branch].color}">${BRANCHES[n.branch].name}${n.max > 1 ? ` · ${L('nível', 'level')} ${l}/${n.max}` : ''}</div>
+      <p>${n.desc}</p>${n.fx && n.max > 1 ? `<div class="st">${l ? `${L('Agora', 'Now')}: ${effect(l)}` : ''}${l < n.max ? `${l ? '<br>' : ''}${L('Próximo', 'Next')}: ${effect(l + 1)}` : ''}</div>` : ''}${prev ? `<div class="st" style="color:#ff8a98">${prev}</div>` : ''}${btn}`;
     el.classList.add('on');
     el.querySelector<HTMLButtonElement>('[data-buy]')?.addEventListener('click', () => this.buy(n.id));
     el.querySelector<HTMLButtonElement>('.sx')!.onclick = () => { this.sel = undefined; this.render(); };
@@ -230,16 +231,18 @@ export class Research {
 }
 
 const FX_TEXT: Record<string, (v: number) => string> = {
-  vitCost: v => `${v >= 0 ? '−' : '+'}${Math.abs(v)} de cansaço por coleta`,
-  moraleUp: v => `+${v} de moral ao acordar`,
-  offers: v => `+${v} oferta`,
-  collectMorale: v => `+${v} de moral por coleta`,
+  vitCost: v => `${v >= 0 ? '−' : '+'}${Math.abs(v)} ${L('de cansaço por coleta', 'fatigue per collection')}`,
+  moraleUp: v => `+${v} ${L('de moral ao acordar', 'morale on waking')}`,
+  offers: v => `+${v} ${L('oferta', 'offer')}`,
+  collectMorale: v => `+${v} ${L('de moral por coleta', 'morale per collection')}`,
 };
 const FX_NAME: Record<string, string> = {
-  blood: 'Sangue', collectSpeed: 'velocidade de coleta', regen: 'recuperação', sleep: 'sono mais curto', grow: 'crescimento', harvest: 'Comida',
-  kin: 'parentes', heirQ: 'qualidade de parentes', bond: 'vínculos', titheGold: 'Ouro da Sangria', contractGold: 'Ouro de contratos', quota: 'cota menor',
-  unitDmg: 'dano', unitHp: 'vida', chalice: 'Cálices', unitCost: 'custo menor', essence: 'Essência', orb: 'valor dos orbes', orbRate: 'orbes',
-  defense: 'recompensa de defesa', raidSize: 'lobos a menos', researchCost: 'custo de pesquisa', moraleBlood: 'Sangue com moral alta', vigil: '',
+  blood: L('Sangue', 'Blood'), collectSpeed: L('velocidade de coleta', 'collection speed'), regen: L('recuperação', 'recovery'), sleep: L('sono mais curto', 'shorter sleep'),
+  grow: L('crescimento', 'growth'), harvest: L('Comida', 'Food'), kin: L('parentes', 'relatives'), heirQ: L('qualidade de parentes', 'relative quality'),
+  bond: L('vínculos', 'bonds'), titheGold: L('Ouro da Sangria', 'Bloodletting Gold'), contractGold: L('Ouro de contratos', 'contract Gold'), quota: L('cota menor', 'lower quota'),
+  unitDmg: L('dano', 'damage'), unitHp: L('vida', 'health'), chalice: L('Cálices', 'Chalices'), unitCost: L('custo menor', 'lower cost'), essence: L('Essência', 'Essence'),
+  orb: L('valor dos orbes', 'orb value'), orbRate: L('orbes', 'orbs'), defense: L('recompensa de defesa', 'defense reward'), raidSize: L('lobos a menos', 'fewer wolves'),
+  researchCost: L('custo de pesquisa', 'research cost'), moraleBlood: L('Sangue com moral alta', 'Blood at high morale'), vigil: '',
 };
 export function fmtFx(k: string, v: number) {
   if (FX_TEXT[k]) return FX_TEXT[k](Math.round(v * 100) / 100);

@@ -8,6 +8,7 @@ import type { FarmMap, Pen } from '../map/bosque';
 import { iso, tileCenter } from '../map/iso';
 import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';
+import { L } from '../core/i18n';
 
 type P = [number, number];
 export interface FloatHost { floatText(x: number, y: number, msg: string, color: string): void; fx(key: string, x: number, y: number, scale?: number): void }
@@ -120,7 +121,7 @@ export class Farms {
     st.phase = 'growing'; st.growth = 0; // replanted right away with the same crop
     bus.emit('CROP_HARVESTED', { plotId: job.penId, crop: st.crop, food });
     const c = tileCenter(pen.i0, pen.j0);
-    this.scene.floatText(c.x, c.y - 20, `+${food} Comida`, '#9fd86b');
+    this.scene.floatText(c.x, c.y - 20, L(`+${food} Comida`, `+${food} Food`), '#9fd86b');
     this.scene.fx('fx_sparkle', c.x, c.y - 10);
   }
 
@@ -130,16 +131,16 @@ export class Farms {
     const pen = this.views.find(v => v.pen.id === id)!.pen;
     const n = this.tiles(pen).length;
     const crop = st ? CROPS[st.crop as CropId] : undefined;
-    const phase = !st ? 'Sem cultivo' : st.phase === 'harvest' ? 'Pronta — aguardando um humano para colher'
-      : `Crescendo · ${Math.floor((st.growth / crop!.growMs) * 100)}%`;
+    const phase = !st ? L('Sem cultivo', 'Nothing planted') : st.phase === 'harvest' ? L('Pronta — aguardando um humano para colher', 'Ready — waiting for a human to harvest')
+      : `${L('Crescendo', 'Growing')} · ${Math.floor((st.growth / crop!.growMs) * 100)}%`;
     this.panel.open({
-      title: 'Horta',
-      subtitle: `${crop?.name ?? 'Vazia'} · ${phase}`,
-      desc: crop ? `${crop.desc} Humanos plantam e colhem sozinhos; quem está na horta não entra na fila de coleta.`
-        : 'Toque numa cultura para plantar. Humanos colhem quando amadurecer.',
+      title: L('Horta', 'Garden'),
+      subtitle: `${crop?.name ?? L('Vazia', 'Empty')} · ${phase}`,
+      desc: crop ? `${crop.desc} ${L('Humanos plantam e colhem sozinhos; quem está na horta não entra na fila de coleta.', 'Humans plant and harvest on their own; whoever works the garden stays out of the collection line.')}`
+        : L('Toque numa cultura para plantar. Humanos colhem quando amadurecer.', 'Tap a crop to plant it. Humans harvest when it ripens.'),
       stats: [
-        ...(crop ? [`Rende ${Math.round(n * crop.yieldPerTile)} Comida a cada ${Math.round(crop.growMs / 1000)} s`] : []),
-        `Estoque de comida: ${Math.floor(state.resources.food)}`,
+        ...(crop ? [L(`Rende ${Math.round(n * crop.yieldPerTile)} Comida a cada ${Math.round(crop.growMs / 1000)} s`, `Yields ${Math.round(n * crop.yieldPerTile)} Food every ${Math.round(crop.growMs / 1000)} s`)] : []),
+        L(`Estoque de comida: ${Math.floor(state.resources.food)}`, `Food in stock: ${Math.floor(state.resources.food)}`),
       ],
       choices: (Object.keys(CROPS) as CropId[]).map(k => ({
         label: `${CROPS[k].name} · ${Math.round(n * CROPS[k].yieldPerTile)}/${Math.round(CROPS[k].growMs / 1000)}s`,
@@ -152,12 +153,13 @@ export class Farms {
   // Choosing a crop plants it immediately (the ghouls sow); humans come later to harvest.
   private setCrop(id: string, crop: CropId) {
     const st = state.plots[id];
-    if (st?.crop === crop) { this.hud.toast(`${CROPS[crop].name} já está plantado aqui.`); return; }
-    if (st && st.growth > 0) this.hud.toast('Bóris: Cultivo anterior descartado. Registrado como "adubo estratégico".');
+    if (st?.crop === crop) { this.hud.toast(L(`${CROPS[crop].name} já está plantado aqui.`, `${CROPS[crop].name} is already planted here.`)); return; }
+    if (st && st.growth > 0) this.hud.toast(L('Bóris: Cultivo anterior descartado. Registrado como "adubo estratégico".', 'Boris: Previous crop discarded. Filed as "strategic compost".'));
     state.plots[id] = { crop, growth: 0, phase: 'growing' };
     this.claims.delete(id);
     bus.emit('CROP_PLANTED', { plotId: id, crop });
-    this.hud.toast(`Plantado: ${CROPS[crop].name}. Colheita em ${Math.round(CROPS[crop].growMs / 1000)} s — os humanos colhem sozinhos.`, 'good');
+    this.hud.toast(L(`Plantado: ${CROPS[crop].name}. Colheita em ${Math.round(CROPS[crop].growMs / 1000)} s — os humanos colhem sozinhos.`,
+      `Planted: ${CROPS[crop].name}. Harvest in ${Math.round(CROPS[crop].growMs / 1000)} s — the humans harvest on their own.`), 'good');
     const pen = this.views.find(v => v.pen.id === id)!.pen;
     const c = tileCenter((pen.i0 + pen.i1) / 2, (pen.j0 + pen.j1) / 2);
     this.scene.fx('fx_sparkle', c.x, c.y - 10, 1.4);

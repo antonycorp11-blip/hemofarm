@@ -5,6 +5,7 @@ import { meta } from './meta';
 import { NODES, Fx } from '../data/research';
 import { RELICS } from '../data/relics';
 import { TRACKS } from '../data/buildings';
+import { L } from './i18n';
 
 let cache: Partial<Record<Fx, number>> | null = null;
 
@@ -41,7 +42,7 @@ export function ratePreview(extra: number) {
   const now = state.bloodRate;
   if (!now || !extra) return '';
   const base = 1 + fx('blood');
-  return `Sangue: +${now}/min → +${Math.round(now * (base + extra) / base)}/min`;
+  return `${L('Sangue', 'Blood')}: +${now}/min → +${Math.round(now * (base + extra) / base)}/min`;
 }
 
 // Multiplier helpers for the common cases.

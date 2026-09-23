@@ -2,6 +2,7 @@
 // the Blood quota. If it's short, it takes random humans instead.
 import Phaser from 'phaser';
 import { bus } from '../core/events';
+import { L } from '../core/i18n';
 import { state, quotaFor, takenFor, titheGold, NIGHT_MS, CARRIAGE_LEAD_MS, MAX_STRIKES } from '../core/state';
 import { tileCenter } from '../map/iso';
 import type { Humans } from './Humans';
@@ -53,7 +54,7 @@ export class Tithe {
     this.carriage = c;
     this.scene.tweens.add({ targets: c, x: STOP.x, y: STOP.y, alpha: 1, duration: 2500, ease: 'Sine.easeOut', onComplete: () => this.clerkOut() });
     bus.emit('CARRIAGE_ARRIVED', { night: state.night.night });
-    this.hud.toast(`A carruagem do castelo chegou. Sangria: ${quotaFor(state.night.night)} de Sangue.`);
+    this.hud.toast(L(`A carruagem do castelo chegou. Sangria: ${quotaFor(state.night.night)} de Sangue.`, `The castle carriage has arrived. Bloodletting: ${quotaFor(state.night.night)} Blood.`));
     this.humans.react('carriage', 2);
   }
 
@@ -67,7 +68,7 @@ export class Tithe {
       const gold = titheGold(quota);
       r.gold += gold;
       bus.emit('TITHE_PAID', { night: n.night, amount: quota, prestige });
-      this.hud.toast(`Sangria paga: ${quota} de Sangue. O castelo pagou ${gold} Ouro. +${prestige} Prestígio.`, 'good');
+      this.hud.toast(L(`Sangria paga: ${quota} de Sangue. O castelo pagou ${gold} Ouro. +${prestige} Prestígio.`, `Bloodletting paid: ${quota} Blood. The castle paid ${gold} Gold. +${prestige} Prestige.`), 'good');
       this.scene.fx('fx_coins', COLLECTOR_SPOT.x, COLLECTOR_SPOT.y - 60, 1.6);
       this.humans.react('tithe_paid', 2);
       this.scene.time.delayedCall(2500, () => this.depart());
@@ -82,10 +83,11 @@ export class Tithe {
     const done = () => { if (--pending <= 0) this.depart(); };
     pending = this.humans.summon(want, GATE, { x: STOP.x, y: STOP.y - 20 }, done);
     bus.emit('TITHE_FAILED', { night: n.night, deficit, taken: pending, strikes: n.strikes });
-    this.hud.toast(`Cota falhou (faltaram ${deficit}). O castelo levou ${pending} humano${pending === 1 ? '' : 's'}. Advertência ${n.strikes}/${MAX_STRIKES}.`, 'bad', 7000);
+    this.hud.toast(L(`Cota falhou (faltaram ${deficit}). O castelo levou ${pending} humano${pending === 1 ? '' : 's'}. Advertência ${n.strikes}/${MAX_STRIKES}.`,
+      `Quota missed (${deficit} short). The castle took ${pending} human${pending === 1 ? '' : 's'}. Strike ${n.strikes}/${MAX_STRIKES}.`), 'bad', 7000);
     if (n.strikes >= MAX_STRIKES) {
       bus.emit('MANDATE_REVOKED', { night: n.night });
-      this.hud.toast('Vesper: Três faltas. A propriedade é minha.', 'bad', 9000);
+      this.hud.toast(L('Vesper: Três faltas. A propriedade é minha.', 'Vesper: Three strikes. The property is mine.'), 'bad', 9000);
     }
     this.scene.time.delayedCall(1500, () => this.humans.react('tithe_failed', 2));
     if (pending === 0) this.scene.time.delayedCall(2500, () => this.depart());
@@ -137,6 +139,6 @@ export class Tithe {
     n.night++;
     n.elapsed = 0;
     bus.emit('NIGHT_STARTED', { night: n.night, quota: quotaFor(n.night) });
-    this.hud.toast(`Noite ${n.night} começou. Nova cota: ${quotaFor(n.night)} de Sangue.`);
+    this.hud.toast(L(`Noite ${n.night} começou. Nova cota: ${quotaFor(n.night)} de Sangue.`, `Night ${n.night} has begun. New quota: ${quotaFor(n.night)} Blood.`));
   }
 }

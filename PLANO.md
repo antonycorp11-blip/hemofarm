@@ -73,3 +73,26 @@ Arquivos em `assets_raw/`. Fundo transparente ou magenta #FF00FF.
 - **7 climas e 6 arenas por região:** pântano com água, cemitério com lápides, ponte de 3 raias, fogo, muralhas de 7 raias.
 - **Caçada:** 12 etapas, deck, draft, mercador, eventos, fogueira, relíquias e chefe. As cartas conquistadas passam a valer na fazenda.
 - **Arte:** provisória, com tinta. Os blocos 20–22 entram automaticamente pelo `process_assets.py`, com os nomes já mapeados.
+
+## Fase 15 — História "A Herança" (GDD A9) · 🟡
+- **Carta da Tia Leonor** na primeira abertura, antes da primeira fala do tutorial.
+- **Diário de Leonor:** 16 páginas encontradas em marcos do jogo; botão no HUD com contador de páginas novas, item no menu e tecla J. Fica salvo entre mandatos (`src/world/Story.ts`, `src/data/lore.ts`).
+- **Ganchos de noite:** de 3 a 4 por capítulo, em `CHAPTERS[...].nights` (`src/data/story.ts`), disparados pelo `Conquest`.
+- **Chefes com passado:** falas finais de Ulf, Grenda, Korvus, Sóror e Capitão.
+- **Eventos novos:** Porão Trancado, Carta Sem Remetente, Uivo com Nome e Caravana da Cripta. Só aparecem depois do tutorial.
+- **Coração × Presa:** `meta.soul`, alterado por eventos, vendas, rebeliões, Banquete, Folga, Presentes e Hora extra.
+- **Finale na Cripta:** revelação da Leonor, escolha entre Casa Eterna, Revolta (Coração 25+) e Pacto (12+ páginas), epílogo e créditos.
+- **Falta:** arte `portrait_leonor` (hoje é uma silhueta) e `title_logo_en`.
+
+## Fase 16 — Inglês + PC · ✅
+- **Idiomas:** todo texto está em `L('pt', 'en')` (`src/core/i18n.ts`). Padrão é o idioma do navegador. A troca fica em Ajustes e na tela de título e recarrega o jogo (o save é mantido).
+- **Ajustes:** idioma, som, música, tamanho da interface (Auto/100/125/150%), tela cheia e lista de atalhos.
+- **PC:**
+  - A interface cresce em telas grandes (`src/ui/display.ts`).
+  - Fazenda: WASD/setas movem a câmera, +/− dão zoom, 1–3 mudam a velocidade, Espaço pausa, C/R/O/K/T/J/M/F abrem painéis e Esc abre o menu.
+  - Batalha: 1–9 escolhem cartas, Q/W/E magias, a mira segue o mouse, botão direito ou Esc cancelam e Espaço começa a luta.
+  - Enter/Espaço avançam diálogos.
+  - O áudio silencia com a aba em segundo plano.
+- **Correções:**
+  - Clicar num botão de janela não "clica" mais no lote do mapa embaixo.
+  - `npm run assets` voltou a funcionar: `exists()` era usada antes de ser definida.
