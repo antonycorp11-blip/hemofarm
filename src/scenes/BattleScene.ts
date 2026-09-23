@@ -7,6 +7,7 @@ import { ARENAS, ArenaId, Arena, BATTLE_LINES, COLS, Raid, UNITS, UnitDef, UnitI
 import { has } from '../data/research';
 import { fx, less } from '../core/bonus';
 import { meta, saveMeta } from '../core/meta';
+import { sfx, voice } from '../core/sfx';
 
 const S = 0.5;
 const US = S * 1.35; // units and wolves read bigger than farm props: they're the focus here
@@ -282,6 +283,7 @@ export class BattleScene extends Phaser.Scene {
     g.strokePath();
     this.tweens.add({ targets: g, alpha: 0, duration: 350, onComplete: () => g.destroy() });
     this.cameras.main.flash(120, 200, 210, 255);
+    sfx.hitHeavy();
     this.burst(p.x, p.y - 20, 0xb0d0ff, 16, 200);
     for (const w of this.wolves) if (!w.dead && w.lane === lane && Math.abs(w.j - (col + 0.5)) < 0.8) this.hurt(w, wolfDmg, true);
     for (const u of [...this.units]) if (u.lane === lane && u.col === col) this.hitUnit(u, unitDmg);
@@ -583,6 +585,8 @@ export class BattleScene extends Phaser.Scene {
   private toast(msg: string, ms = 4200) {
     const t = this.ui?.querySelector<HTMLElement>('.btoast');
     if (!t) return;
+    const who = msg.match(/^(Aureliano|Conde Valério|Ulf):/)?.[1];
+    if (who) voice(who === 'Conde Valério' ? 'count' : who.toLowerCase(), 200);
     t.textContent = msg;
     t.classList.add('on');
     clearTimeout((t as any)._h);
@@ -663,7 +667,8 @@ export class BattleScene extends Phaser.Scene {
     spr.setScale(scale * 0.2);
     this.tweens.add({ targets: spr, scale, duration: 250, ease: 'Back.easeOut' });
     this.burst(c.x, c.y - 20, def.kind === 'hero' ? 0xffd870 : 0xe8b54a, def.kind === 'hero' ? 30 : 12, 120, 450);
-    if (def.kind === 'hero') { this.cameras.main.shake(200, 0.004); this.toast('Conde Valério: Boa noite, senhores. Vieram pelo jantar?'); }
+    sfx.latch();
+    if (def.kind === 'hero') { this.cameras.main.shake(200, 0.004); voice('count'); this.toast('Conde Valério: Boa noite, senhores. Vieram pelo jantar?'); }
     // The witch's fog: a permanent low cloud over the cells in front of her.
     if (def.kind === 'fog') {
       u.extra = this.add.particles(0, 0, 'bt_dot', { x: { min: (col + 0.8) * CW, max: (col + 1 + def.range!) * CW }, y: { min: lane * CH + 10, max: (lane + 1) * CH - 6 },
@@ -791,6 +796,7 @@ export class BattleScene extends Phaser.Scene {
     this.burst(c.x, c.y - 20, 0xff7a1a, 36, 280, 700);
     this.burst(c.x, c.y - 20, 0xd8122a, 20, 200, 600);
     this.cameras.main.shake(260, 0.008);
+    sfx.hitHeavy(); sfx.bong();
     for (const w of this.wolves) if (!w.dead && !w.def.fly && w.lane === u.lane && Math.abs(w.j - (u.col + 0.5)) < 1.5) this.hurt(w, this.dmgOf(u));
     this.killUnit(u);
   }
@@ -806,6 +812,7 @@ export class BattleScene extends Phaser.Scene {
 
   private shoot(u: Unit, w: Wolf, mult = 1, tint?: number) {
     this.act(u);
+    sfx.shot();
     const from = { x: u.spr.x + 10, y: u.spr.y - 34 }, to = { x: w.spr.x, y: w.spr.y - 30 };
     const bolt = this.add.sprite(from.x, from.y, 'fx_bolt', 0).setScale(S * 0.8).setDepth(9e5).setRotation(Phaser.Math.Angle.Between(from.x, from.y, to.x, to.y));
     if (tint ?? this.tintFor(u.def)) bolt.setTint(tint ?? this.tintFor(u.def)!);
@@ -820,6 +827,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: fl, y: { from: fl.y, to: ty }, duration: 500, ease: 'Quad.easeIn', onComplete: () => {
       fl.play(this.anim('flask_splash', 'fx_flask', [4, 5, 6, 7], 10, 0)).once('animationcomplete', () => fl.destroy());
       this.burst(tx, ty, 0x7aff8a, 10, 120, 450);
+      sfx.flask();
       for (const o of this.wolves) if (!o.dead && Math.abs(o.lane - w.lane) <= 1 && Math.abs(o.j - w.j) < 0.9) { this.hurt(o, this.dmgOf(u)); o.slowUntil = this.t + 3000; }
     } });
   }
@@ -836,6 +844,7 @@ export class BattleScene extends Phaser.Scene {
       this.blood += u.def.gen!;
       this.floatText(orb.x, orb.y, `+${u.def.gen} Sangue`);
       this.burst(orb.x, orb.y, 0xff3348, 8, 90, 350);
+      sfx.coin();
       orb.destroy();
       this.refreshUi();
     };
@@ -860,6 +869,7 @@ export class BattleScene extends Phaser.Scene {
     const power = (1 + fx('unitDmg') + (this.cfg.boost?.dmg ?? 0)) * (this.weather === 'eclipse' ? 1.3 : 1);
     const cam = this.cameras.main;
     if (id === 'rain') {
+      sfx.blade();
       const y0 = lane * CH;
       const band = this.add.rectangle(COLS * CW / 2, y0 + CH / 2, COLS * CW, CH, sp.color, 0).setDepth(-1.4e5);
       this.tweens.add({ targets: band, fillAlpha: 0.35, duration: 250, yoyo: true, hold: 500, onComplete: () => band.destroy() });
@@ -873,6 +883,7 @@ export class BattleScene extends Phaser.Scene {
         for (const w of this.wolves) if (!w.dead && w.lane === lane && w.j < COLS + 0.8) { this.burst(w.spr.x, w.spr.y - 30, sp.color, 10); this.hurt(w, 120 * power); }
       });
     } else if (id === 'mist') {
+      sfx.pluck(); sfx.glass();
       const fog = this.add.rectangle(COLS * CW / 2, this.L * CH / 2, COLS * CW + 200, this.L * CH + 100, sp.color, 0).setDepth(9.4e5);
       this.tweens.add({ targets: fog, fillAlpha: 0.22, duration: 500, yoyo: true, hold: 5000, onComplete: () => fog.destroy() });
       const wisps = this.add.particles(0, 0, 'bt_dot', { x: { min: 0, max: COLS * CW }, y: { min: 0, max: this.L * CH }, speedX: { min: -20, max: 20 }, speedY: { min: -12, max: 4 },
@@ -885,6 +896,7 @@ export class BattleScene extends Phaser.Scene {
       const ring = this.add.circle(c.x, c.y - 20, 10, sp.color, 0.5).setDepth(9.5e5).setBlendMode(Phaser.BlendModes.ADD);
       this.tweens.add({ targets: ring, radius: CW * 1.6, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
       this.burst(c.x, c.y - 20, sp.color, 24, 220, 700);
+      sfx.glass();
       let got = 0;
       for (const w of this.wolves) {
         if (w.dead || Math.abs(w.lane - lane) > 1 || Math.abs(w.j - (col + 0.5)) > 1.6) continue;
@@ -928,8 +940,8 @@ export class BattleScene extends Phaser.Scene {
       hidden: false, phase: 0, bob: Math.random() * 6 };
     this.wolves.push(w);
     this.placeWolf(w);
-    if (id === 'alpha') this.toast('Ulf: Boa noite, vizinho. Vim buscar o que é meu. E o que é seu.');
-    if (id === 'mother') { this.toast('A Mãe da Matilha chegou. A floresta inteira uivou junto.', 6000); this.cameras.main.shake(500, 0.01); }
+    if (id === 'alpha') { this.toast('Ulf: Boa noite, vizinho. Vim buscar o que é meu. E o que é seu.'); sfx.howl(); voice('ulf'); }
+    if (id === 'mother') { this.toast('A Mãe da Matilha chegou. A floresta inteira uivou junto.', 6000); this.cameras.main.shake(500, 0.01); sfx.howl(); voice('mother'); }
   }
 
   private hurt(w: Wolf, dmg: number, quiet = false) {
@@ -949,7 +961,7 @@ export class BattleScene extends Phaser.Scene {
       for (const u of this.units) if (Math.abs(u.lane - w.lane) <= 1) u.stunUntil = this.t + 2500;
       this.summonPups(w);
     }
-    if (w.hp > 0) { if (dmg >= 15 && !quiet) this.burst(w.spr.x, w.spr.y - 34, 0xff6a4a, 4, 90, 300); return; }
+    if (w.hp > 0) { if (dmg >= 15 && !quiet) { this.burst(w.spr.x, w.spr.y - 34, 0xff6a4a, 4, 90, 300); sfx.hit(); } return; }
     w.dead = true;
     this.kills++;
     const hit = this.add.sprite(w.spr.x, w.spr.y - 20, 'fx_hit', 0).setScale(S).setDepth(9e5);
@@ -957,6 +969,7 @@ export class BattleScene extends Phaser.Scene {
     const big = w.def.boss || w.id === 'alpha';
     this.burst(w.spr.x, w.spr.y - 30, 0xd8122a, big ? 40 : w.id === 'brute' || w.id === 'armored' ? 24 : 14, big ? 260 : 170);
     if (w.id === 'brute' || w.id === 'armored' || big) this.cameras.main.shake(big ? 450 : 200, big ? 0.012 : 0.005);
+    if (big || w.id === 'brute' || w.id === 'armored') sfx.hitHeavy(); else sfx.thud();
     if (fx('defense') && this.mode === 'raid') state.resources.essence += 2;
     this.tweens.add({ targets: w.spr, alpha: 0, y: w.spr.y + 6, duration: 450, onComplete: () => w.spr.destroy() });
     this.refreshUi();
@@ -1052,6 +1065,7 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: victim, alpha: 0, duration: 500, onComplete: () => victim.destroy() });
     }
     this.cameras.main.flash(250, 90, 0, 0);
+    sfx.bad(); voice('human_f');
     this.toast(`Humano: ${Phaser.Utils.Array.GetRandom(BATTLE_LINES.grab)}`);
     w.spr.setFlipX(false);
     this.tweens.add({ targets: w.spr, alpha: 0, x: w.spr.x + 140, duration: 900, onComplete: () => w.spr.destroy() });
@@ -1088,6 +1102,7 @@ export class BattleScene extends Phaser.Scene {
         this.wave++;
         this.bank += 40 + this.wave * 10;
         raid.spawns.push(...endlessWave(this.wave, this.t + 5000, this.L));
+        sfx.bell();
         this.toast(`Aureliano: Onda ${this.wave}! +${40 + this.wave * 10} Sangue de reforço.`);
       }
     }
@@ -1173,6 +1188,7 @@ export class BattleScene extends Phaser.Scene {
       : `${this.kills} lobisomens derrotados · ${this.grabbed} humano${this.grabbed === 1 ? '' : 's'} levado${this.grabbed === 1 ? '' : 's'} · ` +
         `${this.spent} de Sangue gasto · +${stars} marca${stars === 1 ? '' : 's'} de caça${this.weather === 'fullmoon' ? ' (Lua Cheia: em dobro)' : ''}. ${won && this.grabbed === 0 ? `Aureliano: ${BATTLE_LINES.win}` : `Aureliano: ${BATTLE_LINES.lose}`}`;
     res.classList.add('on');
+    if (won) sfx.chime(); else sfx.bad();
     res.querySelector('button')!.onclick = () => {
       this.ui.remove();
       document.body.classList.remove('in-battle');

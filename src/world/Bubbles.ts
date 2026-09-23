@@ -1,6 +1,7 @@
 // Ambient speech bubbles (GDD §6.3): non-blocking, 2.5–4 s, max 3 on screen, per-speaker cooldown.
 import Phaser from 'phaser';
 import { BubbleState, LINES } from '../data/lines';
+import { voice } from '../core/sfx';
 
 const MAX_ACTIVE = 3;
 const SPEAKER_COOLDOWN = 20000;
@@ -50,6 +51,11 @@ export class Bubbles {
 
     const duration = Phaser.Math.Clamp(1800 + line.length * 30, 2500, 4000);
     s.lastSpoke = this.scene.time.now;
+    // A wordless murmur, only for people you can see.
+    if (this.scene.cameras.main.worldView.contains(s.sprite.x, s.sprite.y)) {
+      const who = s.name === 'Davi' ? 'davi' : s.name === 'Lia' ? 'lia' : (s.sprite.texture.key.length + Math.round(s.sprite.x)) % 2 ? 'human_f' : 'human_m';
+      voice(who, 250);
+    }
     this.active.push({ box, speaker: s, until: this.scene.time.now + duration, w, h: h + 8 });
     return true;
   }

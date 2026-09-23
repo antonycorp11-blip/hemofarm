@@ -1,6 +1,7 @@
 // HUD (GDD §15.1: map first, compact UI). One slim resource bar + a tithe strip, a floating objective card,
 // a ☰ menu and toasts. Plain HTML so it stays crisp on phones.
 import { state, quotaFor, NIGHT_MS, MAX_STRIKES } from '../core/state';
+import { voice, sfx } from '../core/sfx';
 
 const CSS = `
 .hud{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;user-select:none;
@@ -83,7 +84,7 @@ export interface HudSource { population: number; avgMorale: number; ordersReady:
 export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
   onSpeed(): void; onPayTithe(): void; onMap(): void; onAscend(): void; onSound(): void;
   onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void; onHunt(): void;
-  info(): { goal: number; region: string; mute: boolean } }
+  onMusic(): void; info(): { goal: number; region: string; mute: boolean; music: boolean } }
 
 export class Hud {
   private root: HTMLDivElement;
@@ -118,7 +119,7 @@ export class Hud {
     menuBtn.className = 'menu';
     menuBtn.setAttribute('aria-label', 'Menu');
     menuBtn.textContent = '☰';
-    menuBtn.onclick = () => this.openMenu();
+    menuBtn.onclick = () => { sfx.open(); this.openMenu(); };
     bar.appendChild(menuBtn);
     // [key, label, icon] — no icon means a CSS shape
     const items: [string, string, string?][] = [['blood', 'Sangue', 'icon_blood'], ['gold', 'Ouro', 'icon_gold'], ['essence', 'Essência', 'icon_research'], ['food', 'Comida'],
@@ -323,6 +324,7 @@ export class Hud {
     if (!this.actions.tutorialActive()) { add('⚔ Caçada (campanha)', () => this.actions.onHunt()); add('Lua de Sangue (desafio)', () => this.actions.onBloodMoon()); }
     add('Mapa regional', () => this.actions.onMap());
     add(info.mute ? 'Som: desligado' : 'Som: ligado', () => this.actions.onSound());
+    add(info.music ? 'Música: ligada' : 'Música: desligada', () => this.actions.onMusic());
     if (this.actions.tutorialActive()) add('Pular tutorial', () => { if (confirm('Pular o tutorial?')) this.actions.onSkipTutorial(); });
     add('Novo jogo', () => { if (confirm('Apagar o progresso e começar de novo?')) this.actions.onNewGame(); }, 'danger');
     this.menu.classList.add('on');
@@ -341,6 +343,7 @@ export class Hud {
     const who = msg.match(/(Bóris|Vesper|Rubélia|Hemático|Aureliano|Davi|Lia|Mercador):/)?.[1];
     const key = who && { 'Bóris': 'boris', Vesper: 'vesper', 'Rubélia': 'rubelia', 'Hemático': 'hematico', Aureliano: 'aureliano', Davi: 'davi', Lia: 'lia', Mercador: 'merchant' }[who];
     if (key) {
+      voice(key, 200);
       const img = document.createElement('img');
       img.src = `assets/portrait_${key}.webp`;
       img.alt = who!;

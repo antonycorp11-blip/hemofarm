@@ -1,0 +1,15 @@
+Hemofazenda — audio credits. Every file is CC0 (public domain): no attribution required, credited anyway.
+
+Music (OpenGameArt.org)
+- music_night.mp3  — "Vampire's Piano" by tad — https://opengameart.org/content/vampires-piano
+- music_forest.mp3 — "Dark Forest Theme" by cynicmusic — https://opengameart.org/content/dark-forest-theme
+- music_battle.mp3 — "Battle Theme A" by cynicmusic — https://opengameart.org/content/battle-theme-a
+
+Voices (wordless dialogue blips)
+- voice_*.mp3 — "Dialog Vocal Samples" — https://opengameart.org/content/dialog-vocal-samples
+
+Sound effects
+- sfx_howl.mp3 — "Wolf monster sound" — https://opengameart.org/content/wolf-monster-sound
+- sfx_* (others) — Kenney (kenney.nl): RPG Audio, Impact Sounds, Interface Sounds
+
+Converted to mono MP3 (48–80 kbps) for mobile.

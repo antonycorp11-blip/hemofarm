@@ -120,6 +120,7 @@ export class Research {
       return;
     }
     this.el.classList.add('on');
+    sfx.page();
     this.render();
     this.fit();
   }

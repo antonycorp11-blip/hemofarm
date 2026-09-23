@@ -1,4 +1,5 @@
 // Contextual card for a plot/building (bottom of the screen, thumb-friendly). Art skin arrives with the HUD kit.
+import { sfx } from '../core/sfx';
 const CSS = `
 .bpanel{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-height:62vh;overflow:auto;box-sizing:border-box;transform:translateX(-50%);z-index:7;width:min(360px,calc(100vw - 32px));
   background:#140a10f2;border:1px solid #6b1d2a;border-radius:8px;box-shadow:0 6px 18px #000c;color:#f3e2c8;
@@ -54,6 +55,7 @@ export class BuildPanel {
   }
 
   open(info: PanelInfo) {
+    if (!this.el.classList.contains('on')) sfx.open();
     const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
     this.el.innerHTML = `<button class="x" aria-label="Fechar">×</button><h3>${esc(info.title)}</h3><div class="sub">${esc(info.subtitle)}</div>` +
       (info.desc ? `<p class="desc">${esc(info.desc)}</p>` : '') + (info.html ?? '') + (info.stats.length ? `<ul>${info.stats.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : '') +
@@ -72,6 +74,7 @@ export class BuildPanel {
   private onClose?: () => void;
 
   close() {
+    if (this.el.classList.contains('on')) sfx.close();
     this.el.classList.remove('on');
     const cb = this.onClose;
     this.onClose = undefined;

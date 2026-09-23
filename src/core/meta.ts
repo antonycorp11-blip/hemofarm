@@ -22,6 +22,7 @@ export interface Meta {
   bestNight: number;
   nextRegion: RegionId;
   mute: boolean;
+  music?: boolean;             // background music on/off (separate from all sound)
   album: string[];             // lineages discovered ("rubra:raro", "trait:lunar"), +1% Blood each, forever
   marks: number;               // hunt marks from battle stars, spent on unit levels
   unitLv: Record<string, number>;

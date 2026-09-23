@@ -2,6 +2,8 @@
 // "Pular" skips only this conversation (straight to the objective); skipping the whole tutorial lives in the ☰ menu.
 import { Line, SPEAKERS } from '../data/tutorial';
 
+import { voice, sfx } from '../core/sfx';
+
 const CSS = `
 .dlg{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:8;
   width:min(540px,calc(100vw - 20px));box-sizing:border-box;display:none;padding:12px 14px 10px 108px;min-height:96px;
@@ -28,6 +30,8 @@ body.dlg-open .bpanel{bottom:calc(150px + env(safe-area-inset-bottom,0px));max-h
 
 export class Dialogue {
   private el: HTMLDivElement;
+  private typing?: ReturnType<typeof setInterval>;
+  private full = '';
   private lines: Line[] = [];
   private i = 0;
   private onDone?: () => void;
@@ -43,6 +47,7 @@ export class Dialogue {
     document.body.appendChild(this.el);
     this.el.addEventListener('click', e => {
       if ((e.target as HTMLElement).classList.contains('skip')) { this.i = this.lines.length; }
+      else if (this.typing) { this.finishTyping(); return; } // first tap completes the line
       this.advance();
     });
   }
@@ -57,6 +62,7 @@ export class Dialogue {
   }
 
   private advance() {
+    sfx.click();
     this.i++;
     this.render();
   }
@@ -64,6 +70,7 @@ export class Dialogue {
   private render() {
     const line = this.lines[this.i];
     if (!line) {
+      this.finishTyping();
       this.el.classList.remove('on');
       document.body.classList.remove('dlg-open');
       const done = this.onDone;
@@ -73,9 +80,31 @@ export class Dialogue {
     }
     (this.el.querySelector('.pic') as HTMLElement).style.backgroundImage = `url(assets/portrait_${line.who}.webp)`;
     this.el.querySelector('.who')!.textContent = SPEAKERS[line.who];
-    this.el.querySelector('.txt')!.textContent = line.text;
+    this.type(line.text, line.who);
     this.el.querySelector('.dots')!.innerHTML = this.lines.map((_, k) => `<i class="${k <= this.i ? 'on' : ''}"></i>`).join('');
     this.el.classList.add('on');
     document.body.classList.add('dlg-open'); // panels move up so both stay usable
+  }
+
+  // Typewriter with a wordless voice every few letters (each character has their own timbre).
+  private type(text: string, who: string) {
+    this.finishTyping();
+    this.full = text;
+    const el = this.el.querySelector('.txt')!;
+    let n = 0;
+    el.textContent = '';
+    this.typing = setInterval(() => {
+      n += 2;
+      el.textContent = text.slice(0, n);
+      if (n % 6 === 0 && text[n - 1] !== ' ') voice(who, 60);
+      if (n >= text.length) this.finishTyping();
+    }, 28);
+  }
+
+  private finishTyping() {
+    if (!this.typing) return;
+    clearInterval(this.typing);
+    this.typing = undefined;
+    this.el.querySelector('.txt')!.textContent = this.full;
   }
 }

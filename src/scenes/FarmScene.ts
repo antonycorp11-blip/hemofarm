@@ -8,7 +8,7 @@ import { state, load, save, resetSave, NIGHT_MS, CARRIAGE_LEAD_MS } from '../cor
 import { loadMeta, applyNewGame, applyMods, goalFor, meta } from '../core/meta';
 import { REGIONS } from '../data/regions';
 import { Mandate } from '../ui/Mandate';
-import { sfx, unlockAudio, setMute } from '../core/sfx';
+import { sfx, unlockAudio, setMute, setMusic, farmMusic, battleMusic } from '../core/sfx';
 import { Buildings } from '../world/Buildings';
 import { BuildPanel } from '../ui/BuildPanel';
 import { Farms } from '../world/Farms';
@@ -167,6 +167,7 @@ export class FarmScene extends Phaser.Scene {
       this.scene.pause(); // night clock and simulation wait for the player
       loading.querySelector<HTMLButtonElement>('.play')!.onclick = () => {
         unlockAudio();
+        farmMusic();
         loading.style.opacity = '0';
         setTimeout(() => loading.remove(), 500);
         this.scene.resume();
@@ -319,7 +320,15 @@ export class FarmScene extends Phaser.Scene {
     bus.on('CONTRACT_COMPLETED', () => sfx.coin());
     bus.on('HEIR_ARRIVED', () => sfx.chime());
     bus.on('RESEARCH_DONE', () => sfx.chime());
-    bus.on('CROP_HARVESTED', () => sfx.click());
+    bus.on('CROP_HARVESTED', () => sfx.chop());
+    bus.on('CROP_PLANTED', () => sfx.pluck());
+    bus.on('HUMAN_TAKEN', () => sfx.bad());
+    bus.on('ORB_TAPPED', () => sfx.coin());
+    bus.on('UPGRADE_BOUGHT', () => sfx.build());
+    bus.on('ORDER_DONE', () => sfx.bong());
+    bus.on('LINEAGE_DISCOVERED', () => sfx.chime());
+    bus.on('CONTRACT_ACCEPTED', () => sfx.page());
+    bus.on('EVENT_RAISED', () => sfx.bong());
   }
 
   // "While you were away…" (GDD §13.1): coarse offline gains, capped at 2 h. The night clock doesn't run offline.
@@ -386,10 +395,12 @@ export class FarmScene extends Phaser.Scene {
     this.buildings.closePanel?.();
     this.scene.pause();
     this.scene.setVisible(false);
+    battleMusic();
     this.scene.launch('Battle', {
       ...opts, raid, collectLevel: this.buildings.level('collect'), looks: this.humans.looks,
       onEnd: (r: BattleResult) => {
         this.scene.stop('Battle');
+        farmMusic();
         this.scene.setVisible(true);
         this.scene.resume();
         done(r);
@@ -461,6 +472,7 @@ export class FarmScene extends Phaser.Scene {
       onMap: () => this.mandate.map(false, state.region),
       onAscend: () => this.mandate.end(true, this.humans.population, () => undefined),
       onSound: () => setMute(!meta.mute),
+      onMusic: () => setMusic(meta.music === false),
       onOrders: () => this.orders.open(),
       onTree: () => this.research.open(),
       onRelics: () => this.relics.list(),
@@ -468,7 +480,7 @@ export class FarmScene extends Phaser.Scene {
       onArsenal: () => openArsenal(this.modal),
       onBloodMoon: () => this.bloodMoon(),
       onHunt: () => this.hunt.open(),
-      info: () => ({ goal: goalFor(), region: REGIONS[state.region].name, mute: meta.mute }),
+      info: () => ({ goal: goalFor(), region: REGIONS[state.region].name, mute: meta.mute, music: meta.music !== false }),
     });
   }
 
