@@ -173,7 +173,7 @@ for n, h in CHARS.items():
 
 # ---- effects: row 1 of a 4x4 grid = 4 frames sharing one box
 for n in ['fx_dust', 'fx_hit', 'fx_smoke', 'fx_sparkle', 'fx_blood_drop', 'fx_bolt', 'fx_bomb', 'fx_bell_wave', 'fx_fear', 'fx_coins',
-          'fx_vampire_poof', 'wave_flag']:
+          'fx_vampire_poof', 'fx_spells', 'fx_weather', 'wave_flag']:
     if not exists(n): continue
     im = load(n); cw = im.width / 4
     cells = [im.crop((round(c * cw), 0, round((c + 1) * cw), round(cw))) for c in range(4)]

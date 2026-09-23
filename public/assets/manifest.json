@@ -31,6 +31,30 @@
   "w": 128.0,
   "h": 64.0
  },
+ "tile_swamp_water": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_swamp_mud": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_grave_soil": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_bridge": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_castle_stone": {
+  "w": 128.0,
+  "h": 64.0
+ },
+ "tile_burnt": {
+  "w": 128.0,
+  "h": 64.0
+ },
  "decal_0": {
   "w": 19.0,
   "h": 11.0
@@ -658,11 +682,32 @@
   "frameH": 111,
   "frames": 4
  },
+ "fx_spells": {
+  "w": 256.0,
+  "h": 62.0,
+  "frameW": 128,
+  "frameH": 124,
+  "frames": 4
+ },
+ "fx_weather": {
+  "w": 256.0,
+  "h": 64.0,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 4
+ },
  "wave_flag": {
   "w": 256.0,
   "h": 64.0,
   "frameW": 128,
   "frameH": 128,
+  "frames": 4
+ },
+ "tombstone_set": {
+  "w": 208.0,
+  "h": 56.0,
+  "frameW": 104,
+  "frameH": 112,
   "frames": 4
  },
  "hunt_nodes": {
