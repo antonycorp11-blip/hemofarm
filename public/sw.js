@@ -1,6 +1,6 @@
 // Network-first for the app itself (HTML/JS/CSS/data) so updates always arrive; cache is only an offline fallback.
 // Images use stale-while-revalidate: instant from cache, refreshed in the background.
-const CACHE = 'hemofazenda-v2';
+const CACHE = 'hemofazenda-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => {
