@@ -30,10 +30,12 @@ export interface Meta {
   cards: string[];             // cards won in the Caçada, available in farm defenses
   huntBest: number;            // deepest floor reached in a Caçada
   hunts: number;
+  domains: Record<string, { regent: string; at: number }>; // conquered regions (Domains of the House)
+  domainClock: number;         // last time Domain income was paid
 }
 
 const KEY = 'hemo.meta';
-export const meta: Meta = { legacy: 0, levels: {}, mandates: 0, bestNight: 0, nextRegion: 'bosque', mute: false, album: [], marks: 0, unitLv: {}, bestWave: 0, cards: [], huntBest: 0, hunts: 0 };
+export const meta: Meta = { legacy: 0, levels: {}, mandates: 0, bestNight: 0, nextRegion: 'bosque', mute: false, album: [], marks: 0, unitLv: {}, bestWave: 0, cards: [], huntBest: 0, hunts: 0, domains: {}, domainClock: 0 };
 
 export function loadMeta() {
   try { Object.assign(meta, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { /* fresh meta */ }
@@ -74,6 +76,8 @@ export function applyNewGame() {
   state.region = meta.nextRegion;
   const reg = REGIONS[state.region];
   state.resources.gold += 120 * lv('gold');
+  // Veterans skip the tutorial: each new mandate opens with its region's story chapter instead.
+  if (meta.mandates > 0 || Object.keys(meta.domains ?? {}).length) state.tutorial.done = true;
   if (lv('lab')) state.buildings.lab = { level: 1 };
   if (lv('watch')) { state.buildings.watch = { level: 1 }; state.buildings.boarding = { level: 1 }; }
   return 8 + lv('colonists') + (reg.mods.startHumans ?? 0);

@@ -97,3 +97,33 @@ Galhos: **Coleta**, **Bem-estar**, **Agricultura**, **Genética**, **Defesa**, *
 - **Deck próprio:** começa com 4 cartas. Após cada vitória, escolhe 1 entre 3 cartas ou uma melhoria.
 - **Durante a run:** relíquias de caçada; vidas = humanos voluntários.
 - **Recompensas:** Marcas, Essência e desbloqueio de cartas para as defesas da fazenda.
+
+## A8 — Conquista de regiões, história e tensão (23/09/2026)
+
+### Conquista de região
+Uma região vira **Domínio** com 3 pilares, acompanhados no painel da coroa (👑):
+1. **Produção:** meta de Sangue/min do capítulo, medida só por coletas e orbes. Metas: Bosque 45, Pântano 60, Fronteira 70, Vale 80, Costa 95, Cripta 110.
+2. **Regente:** um humano Raro+ com moral 60+ é transformado em vampiro. Custa 40 Prestígio + 200 Sangue e aparece no mapa com nome.
+3. **Matilha:** vencer 2 defesas sem perdas faz o alfa da região aparecer. Derrotá-lo encerra os ataques na região.
+
+### Domínios
+- Cada Domínio rende 8 Legado/hora, também offline, até 24 h.
+- Dá +5% de Sangue em todos os mandatos.
+- As regiões abrem por número de Domínios. Regiões conquistadas só podem ser rejogadas depois de conquistar todas.
+
+### História
+- Um capítulo por região, com falas, chefe nomeado e atmosfera próprios (cor da noite, névoa, partículas, terreno em volta da fazenda).
+- Veteranos pulam o tutorial.
+- O próximo passo do capítulo fica sempre no cartão de objetivo.
+
+### Tensão
+- Painel no ícone de tensão: fatores ao vivo em "/min" e ações (Banquete, Folga, Discurso, Presentes).
+- A rebelião traz 3 exigências concretas; atender 1 encerra.
+- Reprimir gera ressentimento por 3 noites.
+- Ignorar a rebelião gera vandalismo a cada minuto.
+
+### Tower defense mais justo
+- Sangue próprio da batalha, separado da Sangria.
+- Uma tocha de emergência por raia, no estilo dos cortadores de grama do PvZ.
+- Prévia da horda com aviso dos lobos que passam de propósito (Saltador, Escavador, Corvo).
+- Lobos 15% mais lentos; Sentinela e Muralha mais fortes.

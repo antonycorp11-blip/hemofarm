@@ -20,7 +20,7 @@ export interface ContractDef {
 
 export const BUYER_NAMES: Record<ContractDef['buyer'], string> = {
   rubelia: 'Lady Rubélia', hematico: 'Dr. Hemático', vesper: 'Conde Vesper', boris: 'Bóris', davi: 'Davi', lia: 'Lia',
-  aureliano: 'Sir Aureliano', merchant: 'Mercador de Sangue',
+  aureliano: 'Sir Aureliano', merchant: 'Mercador de Sangue', inspector: 'Fiscal da Casa Rubra',
 };
 
 export const CONTRACTS: ContractDef[] = [

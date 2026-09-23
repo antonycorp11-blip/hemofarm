@@ -3,6 +3,7 @@
 import { state, resetSave } from '../core/state';
 import { meta, saveMeta, UPGRADES, lv, legacyFor } from '../core/meta';
 import { REGIONS, RegionId } from '../data/regions';
+import { CHAPTERS } from '../data/story';
 
 const CSS = `
 .mand{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:#050308ee;color:#f3e2c8;font:14px Georgia,serif}
@@ -24,6 +25,9 @@ const CSS = `
   font-size:10px;background:#000b;padding:1px 4px;border-radius:4px;color:#f3e2c8}
 .mand .reg{margin-top:8px;padding:8px;background:#1a0f14;border-radius:8px;min-height:52px}
 `;
+
+const domains = () => Object.keys(meta.domains ?? {}).length;
+const allDone = () => domains() >= Object.keys(REGIONS).length;
 
 export class Mandate {
   private el: HTMLDivElement;
@@ -47,10 +51,10 @@ export class Mandate {
   close() { this.el.style.display = 'none'; }
 
   // ---------- 1. summary ----------
-  end(ascended: boolean, population: number, onCancel?: () => void) {
-    const gain = legacyFor(ascended);
+  end(ascended: boolean, population: number, onCancel?: () => void, title?: string, extra = 0) {
+    const gain = legacyFor(ascended) + extra;
     const n = state.night.night, r = state.resources;
-    const root = this.show(`<h2>${ascended ? 'Ascensão da Casa' : 'Propriedade confiscada'}</h2>
+    const root = this.show(`<h2>${title ?? (ascended ? 'Ascensão da Casa' : 'Propriedade confiscada')}</h2>
       <div class="sub">${ascended ? 'Vesper: A casa superior está impressionada. Isso quase nunca acontece.' : 'Vesper: Três noites sem Sangria. A propriedade volta para mim. Você, por enquanto, não.'}</div>
       <div class="stats"><div>Noites: <b>${n}</b></div><div>Prestígio: <b>${Math.floor(r.prestige)}</b></div>
       <div>Humanos: <b>${population}</b></div><div>Contratos: <b>${state.contracts.done.length}</b></div></div>
@@ -95,15 +99,15 @@ export class Mandate {
   // ---------- 3. regional map ----------
   map(starting: boolean, selected: RegionId = meta.nextRegion) {
     const pins = (Object.keys(REGIONS) as RegionId[]).map(id => {
-      const g = REGIONS[id], open = meta.mandates >= g.unlock;
+      const g = REGIONS[id], dom = meta.domains?.[id], open = domains() >= g.unlock && (!dom || allDone());
       const current = !starting && id === state.region;
       return `<button class="pin${id === selected ? ' sel' : ''}" data-r="${id}" style="left:${g.x}%;top:${g.y}%;background-image:url(assets/${open ? 'pin_farm' : 'pin_locked'}.webp)">` +
-        `<span>${current ? '★ ' : ''}${g.name}</span></button>`;
+        `<span>${current ? '★ ' : ''}${dom ? '👑 ' : ''}${g.name}</span></button>`;
     }).join('');
-    const g = REGIONS[selected], open = meta.mandates >= g.unlock;
+    const g = REGIONS[selected], dom = meta.domains?.[selected], open = domains() >= g.unlock && (!dom || allDone());
     const root = this.show(`<h2>Mapa Regional</h2><div class="sub">${starting ? 'Onde será o próximo mandato?' : `Mandato atual: ${REGIONS[state.region].name}`}</div>
       <div class="map">${pins}</div>
-      <div class="reg"><b>${g.name}</b> · ${g.tag}<br><small>${g.desc}</small>${open ? '' : `<br><small style="color:#ff9aa4">Libera após ${g.unlock} mandato${g.unlock === 1 ? '' : 's'} concluído${g.unlock === 1 ? '' : 's'}.</small>`}</div>
+      <div class="reg"><b>${g.name}</b> · ${g.tag}<br><small>${g.desc}</small><br><small style="color:#c9a98a">${CHAPTERS[selected].title} · meta ${CHAPTERS[selected].rate} de Sangue/min</small>${dom ? `<br><small style="color:#e8b54a">👑 Domínio da Casa · ${dom.regent}${allDone() ? ' · pode ser jogado de novo' : ''}</small>` : ''}${!dom && domains() < g.unlock ? `<br><small style="color:#ff9aa4">Abre com ${g.unlock} Domínio${g.unlock === 1 ? '' : 's'} conquistado${g.unlock === 1 ? '' : 's'} (você tem ${domains()}).</small>` : ''}</div>
       ${starting ? `<button class="go" data-a="start"${open ? '' : ' disabled'}>Iniciar novo mandato em ${g.name}</button>` : '<button class="ghost" data-a="close">Fechar</button>'}`);
     root.querySelectorAll<HTMLButtonElement>('[data-r]').forEach(b => b.onclick = () => this.map(starting, b.dataset.r as RegionId));
     root.querySelector<HTMLButtonElement>('[data-a="close"]')?.addEventListener('click', () => this.close());

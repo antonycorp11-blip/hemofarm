@@ -38,6 +38,7 @@ export function describe(r: Requirement) {
 export class Contracts {
   private ring?: Phaser.GameObjects.Graphics;
   private selected?: Human;
+  crownHook?: { can(h: Human): { ok: boolean; why?: string }; crown(h: Human): void };
   // Active contract helpers on the map: a golden aura under every human who fits, and a "Send" tag over their head.
   private auras = new Map<number, { aura: Phaser.GameObjects.Ellipse; tag: Phaser.GameObjects.Text }>();
 
@@ -60,6 +61,15 @@ export class Contracts {
     if (!c) return;
     const a = this.assigned();
     if (a.length >= c.count && a.every(h => h.state === 'boarding')) this.deliver(c, a.slice(0, c.count));
+  }
+
+  // Rare humans can be turned into the region's vampire Regent (a pillar of the conquest).
+  private regentHtml(h: Human) {
+    if (!this.crownHook || !state.tutorial.done || h.name || QUALITY[h.traits.quality].rank < 2) return '';
+    const c = this.crownHook.can(h);
+    if (!c.ok && c.why === 'Esta região já tem um Regente.') return '';
+    return `<div class="card" style="border-color:#8a6aff;margin-top:8px"><h4>🦇 Transformar em Regente</h4><div class="muted">Um vampiro para governar esta região em seu nome. ` +
+      `Pilar da conquista.</div><button class="go" data-a="regent"${c.ok ? '' : ' disabled'} style="background:#4a2a7a">${c.ok ? 'Transformar' : c.why}</button></div>`;
   }
 
   // ---------- contract auras ----------
@@ -126,9 +136,12 @@ export class Contracts {
         `<p class="muted" style="margin:8px 0">${TEMPER[t.temper].desc}${t.trait ? ` ${TRAIT[t.trait].desc}` : ''}</p>` +
         `<div style="display:flex;gap:6px;margin-bottom:8px"><button class="go" data-a="collect"${this.humans.canQueue(h) ? '' : ' disabled'}>Enviar à coleta</button>` +
         `<button class="go" data-a="feed"${state.resources.food >= 1 && h.hunger > 5 ? '' : ' disabled'}>Alimentar · 1 Comida</button></div>` +
-        this.bondHtml(h) + action,
+        this.bondHtml(h) + action + this.regentHtml(h),
       bind: root => {
         root.querySelector<HTMLButtonElement>('[data-a="assign"]')?.addEventListener('click', () => this.assign(h));
+        root.querySelector<HTMLButtonElement>('[data-a="regent"]')?.addEventListener('click', () => {
+          if (confirm(`Transformar ${this.label(h)} em vampiro Regente? Ele deixa o rebanho para governar a região.`)) { this.crownHook!.crown(h); this.panel.close(); }
+        });
         root.querySelector<HTMLButtonElement>('[data-a="unassign"]')?.addEventListener('click', () => { this.humans.unassign(h); this.openHuman(h); });
         root.querySelector<HTMLButtonElement>('[data-a="pair"]')?.addEventListener('click', () => this.openPairing(h));
         root.querySelector<HTMLButtonElement>('[data-a="collect"]')?.addEventListener('click', () => {

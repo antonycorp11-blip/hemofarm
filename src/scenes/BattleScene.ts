@@ -3,7 +3,7 @@
 // and a Caçada battle (run deck, own Blood, volunteers as lives). Arenas and weather change the rules of each fight.
 import Phaser from 'phaser';
 import { state } from '../core/state';
-import { ARENAS, ArenaId, Arena, BATTLE_LINES, COLS, Raid, UNITS, UnitDef, UnitId, WEATHER, WeatherId, WOLVES, WolfDef, WolfId, endlessWave } from '../data/battle';
+import { ARENAS, ArenaId, Arena, BATTLE_LINES, BYPASS, COLS, Raid, UNITS, UnitDef, UnitId, WEATHER, WeatherId, WOLVES, WolfDef, WolfId, endlessWave } from '../data/battle';
 import { has } from '../data/research';
 import { fx, less } from '../core/bonus';
 import { meta, saveMeta } from '../core/meta';
@@ -12,7 +12,7 @@ import { sfx, voice } from '../core/sfx';
 const S = 0.5;
 const US = S * 1.35; // units and wolves read bigger than farm props: they're the focus here
 export type BattleMode = 'raid' | 'endless' | 'hunt';
-export interface BattleResult { won: boolean; grabbed: number; bloodSpent: number; kills: number; retreated: boolean; stars: number; waves: number; livesLeft: number; weather: WeatherId }
+export interface BattleResult { bossKilled?: boolean; won: boolean; grabbed: number; bloodSpent: number; kills: number; retreated: boolean; stars: number; waves: number; livesLeft: number; weather: WeatherId }
 export interface BattleData {
   raid: Raid; collectLevel: number; looks: string[]; onEnd: (r: BattleResult) => void;
   mode?: BattleMode; arena?: ArenaId; weather?: WeatherId;
@@ -45,7 +45,9 @@ export class BattleScene extends Phaser.Scene {
   private L = 5;                                // lanes in this arena
   private arena!: Arena;
   private weather: WeatherId = 'clear';
-  private blocked = new Set<string>();          // "lane:col" cells where units can't stand
+  private blocked = new Set<string>();
+  private torches: boolean[] = [];               // PvZ lawnmower: one emergency fire per lane
+  private torchImgs: Phaser.GameObjects.Image[] = [];          // "lane:col" cells where units can't stand
   private burning = new Map<string, number>();  // fire arena: cell → time it stops burning
   private nextFire = 8000;
   private nextBolt = 7000;
@@ -55,6 +57,7 @@ export class BattleScene extends Phaser.Scene {
   private spawnIdx = 0;
   private selected?: UnitId;
   private grabbed = 0;
+  private bossKilled = false;
   private spell?: SpellId;
   private spellReady: Partial<Record<SpellId, number>> = {};
   private bank = 0;
@@ -81,7 +84,7 @@ export class BattleScene extends Phaser.Scene {
 
   private get mode(): BattleMode { return this.cfg.mode ?? (this.cfg.raid.endless ? 'endless' : 'raid'); }
   private get endless() { return this.mode === 'endless'; }
-  private get ownBank() { return this.mode !== 'raid'; }
+  private get ownBank() { return true; } // battles have their own Blood: defending never competes with the farm's Sangria
 
   init(data: BattleData) {
     this.cfg = data;
@@ -89,9 +92,9 @@ export class BattleScene extends Phaser.Scene {
     this.L = data.raid.lanes ?? this.arena.lanes;
     this.weather = data.weather ?? 'clear';
     const lives = data.lives ?? 3;
-    Object.assign(this, { aim: undefined, ghost: undefined, cardDrag: undefined, spell: undefined, spellReady: {}, bank: data.bank ?? 150, wave: 1, lives, maxLives: Math.max(3, lives),
+    Object.assign(this, { bossKilled: false, aim: undefined, ghost: undefined, cardDrag: undefined, spell: undefined, spellReady: {}, bank: data.bank ?? 150, wave: 1, lives, maxLives: Math.max(3, lives),
       units: [], wolves: [], t: 0, spawnIdx: 0, selected: undefined, grabbed: 0, spent: 0, kills: 0, trickle: 0, ended: false, folk: [], ready: {}, uiTick: 0,
-      touches: new Map(), pinch: 0, blocked: new Set(), burning: new Map(), nextFire: 8000, nextBolt: 7000, mistUntil: 0 });
+      touches: new Map(), pinch: 0, blocked: new Set(), torches: [], torchImgs: [], burning: new Map(), nextFire: 8000, nextBolt: 7000, mistUntil: 0 });
     this.t = -(this.endless ? 12000 : data.raid.spawns.length <= 5 ? PREP_MS + 5000 : PREP_MS);
   }
 
@@ -208,6 +211,14 @@ export class BattleScene extends Phaser.Scene {
       this.folk.push(spr);
     });
     for (const y of [-CH * 0.5, L * CH + 20]) this.add.image(-10, y, 'torch_stand').setOrigin(0.5, 1).setScale(S).setDepth(y + 1);
+    // Emergency torches: one per lane, at the fence. The first wolf to reach it sets the whole lane on fire.
+    for (let l = 0; l < L; l++) {
+      this.torches[l] = true;
+      const p = cellPos(l, -0.25);
+      const t = this.add.image(p.x, p.y, 'torch_stand').setOrigin(0.5, 1).setScale(S * 0.8).setDepth(p.y + 1);
+      this.tweens.add({ targets: t, scaleY: S * 0.84, duration: 400 + l * 60, yoyo: true, repeat: -1 });
+      this.torchImgs[l] = t;
+    }
   }
 
   // ---------- weather ----------
@@ -519,11 +530,15 @@ export class BattleScene extends Phaser.Scene {
         color:#c9a98a;font:inherit;padding:8px 14px}
       .bt.portrait:not(.stay) .turn{display:flex}
       .bt.land .go-now{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 50px)}
+      .bt .prev{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 110px);z-index:9;max-width:min(520px,80vw);padding:5px 10px;
+        background:#0d070ae0;border:1px solid #4a2a30;border-radius:8px;font-size:11px;line-height:1.35;text-align:center;pointer-events:none}
+      .bt .prev b{color:#f6d9a0}.bt .prev .warn{color:#ffb070}
+      .bt.land .prev{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 92px)}
       .bt.land .btoast{left:auto;right:max(8px,env(safe-area-inset-right,0px));top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:none;max-width:min(250px,28vw)}
     </style>
     <div class="horde"><div class="lbl"><span class="wl">Horda</span><span class="wx" title="${w.desc}">${w.icon} ${w.name}</span><span class="wk"></span></div>
       <div class="track"><div class="fill"></div>${this.cfg.raid.waves.map(v => `<i class="flag" style="left:${(v / this.lastSpawn) * 100}%"></i>`).join('')}<i class="head"></i></div></div>
-    <button class="go-now"></button><div class="btoast"></div><div class="rotate">↻ Melhor com o celular deitado</div>
+    <button class="go-now"></button><div class="prev">${this.preview()}</div><div class="btoast"></div><div class="rotate">↻ Melhor com o celular deitado</div>
     <div class="turn"><div><div class="ic">📱↻</div><b>Gire o celular</b><p>A batalha foi feita para jogar deitado.</p><button>Continuar assim mesmo</button></div></div>
     <div class="bottom"><div class="top"><div class="blood"><img src="assets/icon_blood.webp" alt=""><b class="bv">0</b></div><button class="retreat">Recuar</button></div>
       <div class="hint"></div>
@@ -543,6 +558,16 @@ export class BattleScene extends Phaser.Scene {
       if (confirm(q)) this.finish(false, true);
     };
     this.refreshUi();
+  }
+
+  // What's coming, so the player can plan: counts per wolf type, and a warning for those that get past defenders on purpose.
+  private preview() {
+    const n = new Map<WolfId, number>();
+    for (const s of this.cfg.raid.spawns) n.set(s.wolf, (n.get(s.wolf) ?? 0) + 1);
+    const list = [...n].map(([id, c]) => `${c}× ${WOLVES[id].name}`).join(' · ');
+    const warn = [...n.keys()].filter(id => BYPASS[id]).map(id => `⚠ ${WOLVES[id].name} ${BYPASS[id]}`).join('<br>');
+    const tip = 'Dica: Cálices primeiro (Sangue), Sentinelas atrás, Muralhas na frente. Cada raia tem uma tocha de emergência na cerca.';
+    return `<b>${this.endless ? 'Primeira onda' : 'Vêm aí'}:</b> ${list}${warn ? `<br><span class="warn">${warn}</span>` : ''}<br>${tip}`;
   }
 
   private get lastSpawn() { const sp = this.cfg.raid.spawns; return Math.max(1, sp[sp.length - 1]?.at ?? 1); }
@@ -569,6 +594,7 @@ export class BattleScene extends Phaser.Scene {
     const prog = this.endless ? Phaser.Math.Clamp(this.spawnIdx / Math.max(1, total), 0, 1) : Phaser.Math.Clamp(this.t / this.lastSpawn, 0, 1);
     const prep = this.t < 0;
     this.ui.querySelector<HTMLElement>('.go-now')!.style.display = prep ? 'block' : 'none';
+    this.ui.querySelector<HTMLElement>('.prev')!.style.display = prep ? 'block' : 'none';
     if (prep) this.ui.querySelector('.go-now')!.textContent = `Preparação · ${Math.ceil(-this.t / 1000)} s · Começar já ▸`;
     this.ui.querySelector<HTMLElement>('.horde .fill')!.style.width = `${prog * 100}%`;
     this.ui.querySelector<HTMLElement>('.horde .head')!.style.left = `${prog * 100}%`;
@@ -935,7 +961,7 @@ export class BattleScene extends Phaser.Scene {
     const spr = this.add.sprite(c.x, c.y, tex, 0).setOrigin(0.5, 1).setScale(scale).setFlipX(true).setDepth(c.y);
     if (tint) spr.setTint(tint);
     spr.play(this.anim(`${tex}_walk`, tex, [0, 1, 2, 3], base.speed > 0.8 ? 10 : 7));
-    const hp = base.hp * (1 + (this.cfg.raid.night - 1) * 0.08) * (this.weather === 'fullmoon' ? 1.25 : 1);
+    const hp = base.hp * (1 + (this.cfg.raid.night - 1) * 0.06) * (this.weather === 'fullmoon' ? 1.25 : 1);
     const w: Wolf = { def: { ...base, hp }, id, tex, lane, j, spr, hp, bite: 0, slowUntil: 0, buffUntil: 0, jumped: false, skill: 4000, busy: false, dead: false,
       hidden: false, phase: 0, bob: Math.random() * 6 };
     this.wolves.push(w);
@@ -967,6 +993,7 @@ export class BattleScene extends Phaser.Scene {
     const hit = this.add.sprite(w.spr.x, w.spr.y - 20, 'fx_hit', 0).setScale(S).setDepth(9e5);
     hit.play(this.anim('hit', 'fx_hit', [0, 1, 2, 3], 14, 0)).once('animationcomplete', () => hit.destroy());
     const big = w.def.boss || w.id === 'alpha';
+    if (big) this.bossKilled = true;
     this.burst(w.spr.x, w.spr.y - 30, 0xd8122a, big ? 40 : w.id === 'brute' || w.id === 'armored' ? 24 : 14, big ? 260 : 170);
     if (w.id === 'brute' || w.id === 'armored' || big) this.cameras.main.shake(big ? 450 : 200, big ? 0.012 : 0.005);
     if (big || w.id === 'brute' || w.id === 'armored') sfx.hitHeavy(); else sfx.thud();
@@ -1037,7 +1064,7 @@ export class BattleScene extends Phaser.Scene {
         continue;
       }
       const water = (this.arena.water ?? []).includes(w.lane) && !w.def.fly ? 0.6 : 1;
-      const speed = w.def.speed * (this.t < w.slowUntil ? 0.55 : 1) * (this.t < w.buffUntil ? 1.35 : 1) * water
+      const speed = w.def.speed * 0.85 * (this.t < w.slowUntil ? 0.55 : 1) * (this.t < w.buffUntil ? 1.35 : 1) * water
         * (this.weather === 'fullmoon' ? 1.25 : this.weather === 'snow' ? 0.8 : 1);
       w.j -= speed * s;
       this.placeWolf(w);
@@ -1054,9 +1081,31 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // A wolf reached the fence: it takes someone and runs back to the forest.
+  // Last line of defense: the lane's torch burns every wolf in it, once per battle.
+  private burnLane(lane: number) {
+    this.torches[lane] = false;
+    const img = this.torchImgs[lane];
+    this.tweens.killTweensOf(img);
+    img.setTint(0x3a3a3a).setAlpha(0.5);
+    const y = lane * CH + CH * 0.6;
+    const fire = this.add.particles(0, 0, 'bt_dot', { x: { min: -20, max: 60 }, y: { min: y - 20, max: y + 10 }, speedX: { min: 700, max: 1000 }, speedY: { min: -60, max: 20 },
+      scale: { start: 1.4, end: 0.2 }, lifespan: 1100, tint: [0xff7a1a, 0xffc040, 0xd8122a], quantity: 6, frequency: 16, blendMode: 'ADD' }).setDepth(9.7e5);
+    this.time.delayedCall(700, () => fire.stop());
+    this.time.delayedCall(1900, () => fire.destroy());
+    this.cameras.main.shake(350, 0.008);
+    sfx.hitHeavy(); sfx.bong();
+    this.toast('Aureliano: A tocha da cerca! Essa raia está limpa, mas não teremos outra ali.');
+    for (const o of this.wolves) {
+      if (o.dead || o.lane !== lane) continue;
+      const kill = () => { o.hidden = false; this.hurt(o, 99999, true); };
+      if (o.j < 0.6) kill(); else this.time.delayedCall((o.j + 0.3) * 110, kill); // the fire sweeps the lane from the fence outwards
+    }
+  }
+
   private grab(w: Wolf) {
+    if (this.torches[w.lane]) { this.burnLane(w.lane); return; }
     w.dead = true;
-    if (this.ownBank) { this.lives--; if (this.lives <= 0) this.time.delayedCall(600, () => this.finish(false)); }
+    if (this.mode !== 'raid') { this.lives--; if (this.lives <= 0) this.time.delayedCall(600, () => this.finish(false)); }
     else this.grabbed++;
     const victim = this.folk.shift();
     if (victim) {
@@ -1086,7 +1135,7 @@ export class BattleScene extends Phaser.Scene {
     }
     // The farm keeps collecting while you defend: a slow Blood trickle (the hunt and the Blood Moon get a small stipend).
     this.trickle += dt;
-    const every = this.ownBank ? 3000 : 2500 / Math.max(1, this.cfg.collectLevel);
+    const every = this.mode !== 'raid' ? 3000 : 2500 / Math.max(1, this.cfg.collectLevel);
     if (this.trickle >= every) { this.trickle -= every; this.blood += 2; this.refreshUi(); }
     this.updateUnits(dt);
     this.updateWolves(dt);
@@ -1198,7 +1247,7 @@ export class BattleScene extends Phaser.Scene {
       window.removeEventListener('pointerup', this.onCardUp);
       window.removeEventListener('pointercancel', this.onCardCancel);
       this.ghost = undefined;
-      this.cfg.onEnd({ won, grabbed: this.grabbed, bloodSpent: this.spent, kills: this.kills, retreated, stars, waves, livesLeft: this.lives, weather: this.weather });
+      this.cfg.onEnd({ bossKilled: this.bossKilled, won, grabbed: this.grabbed, bloodSpent: this.spent, kills: this.kills, retreated, stars, waves, livesLeft: this.lives, weather: this.weather });
     };
   }
 }

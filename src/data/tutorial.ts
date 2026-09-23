@@ -2,15 +2,15 @@
 import type { GameEvents } from '../core/events';
 import { state, type Resources } from '../core/state';
 
-export type Speaker = 'vesper' | 'boris' | 'hematico' | 'davi' | 'lia' | 'rubelia' | 'aureliano';
+export type Speaker = 'vesper' | 'boris' | 'hematico' | 'davi' | 'lia' | 'rubelia' | 'aureliano' | 'merchant' | 'inspector';
 export const SPEAKERS: Record<Speaker, string> = {
   vesper: 'Conde Vesper', boris: 'Bóris Ossário', hematico: 'Dr. Hemático', davi: 'Davi 17-B', lia: 'Lia 04-A',
-  rubelia: 'Lady Rubélia', aureliano: 'Sir Aureliano',
+  rubelia: 'Lady Rubélia', aureliano: 'Sir Aureliano', merchant: 'Mercador de Sangue', inspector: 'Fiscal da Casa Rubra',
 };
 
 // Short names as they appear in toasts ("Bóris: ...") so the HUD can attach the portrait.
 export const SHORT: Record<Speaker, string> = {
-  vesper: 'Vesper', boris: 'Bóris', hematico: 'Hemático', davi: 'Davi', lia: 'Lia', rubelia: 'Rubélia', aureliano: 'Aureliano',
+  vesper: 'Vesper', boris: 'Bóris', hematico: 'Hemático', davi: 'Davi', lia: 'Lia', rubelia: 'Rubélia', aureliano: 'Aureliano', merchant: 'Mercador', inspector: 'Fiscal',
 };
 
 export interface Line { who: Speaker; text: string }

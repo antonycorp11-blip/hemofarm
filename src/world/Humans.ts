@@ -531,6 +531,16 @@ export class Humans {
     return `Unidade ${h.traits.code}`;
   }
 
+  // Rebellion demand "free our spokesperson": a rebel (not a story character) walks out of the farm for good.
+  releaseRebel(to: { x: number; y: number }) {
+    const pool = this.list.filter(h => h.rebel && !h.taken && !h.name);
+    const h = pool.find(x => x.traits.temper === 'lider') ?? pool[0];
+    if (!h) return null;
+    h.rebel = false;
+    this.sell(h, to);
+    return `Unidade ${h.traits.code}`;
+  }
+
   // Micro-event: two humans near each other start arguing (no modal, just life on the map).
   argue(lines: string[]) {
     const social = this.list.filter(h => (h.state === 'socializing' || h.state === 'queued') && h.sprite.visible);

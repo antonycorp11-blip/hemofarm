@@ -5,6 +5,7 @@ export interface Resources { blood: number; gold: number; prestige: number; food
 export interface ContractState { offers: string[]; active?: { id: string; night: number }; done: string[] }
 export interface ResearchState { lv: Record<string, number> }   // node id → level bought
 export interface Order { kind: string; target: number; progress: number; claimed: boolean }
+export interface ConquestState { bestRate: number; cleanWins: number; alphaDown: boolean; introSeen: boolean; bossNight: number; regent?: { name: string; look: string }; beats?: string[] }
 export interface OrdersState { night: number; list: Order[]; bonus: boolean }
 export interface WorldState {
   tension: number;                                   // 0..100, partly hidden (GDD §5)
@@ -13,6 +14,9 @@ export interface WorldState {
   recent: string[];
   rebellion: boolean;
   overtime?: number;      // ms of 'hora extra' left at the collection station
+  resentment?: number;    // ms left of resentment after a repressed rebellion (tension creeps up)
+  demands?: { kind: string; cost: number }[]; // the current rebellion's demands
+  unrest?: number;        // ms until the next act of vandalism during a rebellion
   cooldown?: Record<string, number>; // ms until a manual action can be used again
   raid?: { night: number; kind: 'none' | 'small' | 'big'; status: 'waiting' | 'warned' | 'done'; warnLeft: number };
 }
@@ -23,7 +27,7 @@ export interface HumanSave { hunger: number; energy: number; morale: number; vit
 export interface NightState { night: number; elapsed: number; strikes: number }
 export interface BuildingState { level: number; buildLeft?: number }  // buildLeft: ms until the next level is done
 export interface SaveData { v: 2; resources: Resources; humans: HumanSave[]; night: NightState; buildings?: Record<string, BuildingState>; plots?: Record<string, PlotState>; tutorial?: TutorialState; contracts?: ContractState; nextUid?: number; research?: ResearchState; world?: WorldState; region?: string; savedAt: number;
-  upg?: Record<string, number>; orders?: OrdersState; relics?: string[]; relicPick?: string[]; endlessNight?: number }
+  upg?: Record<string, number>; orders?: OrdersState; conquest?: ConquestState; relics?: string[]; relicPick?: string[]; endlessNight?: number }
 
 const KEY = 'hemo.save';
 
@@ -51,6 +55,8 @@ export const state = {
   relics: [] as string[],                         // relics picked this mandate
   relicPick: undefined as string[] | undefined,   // offer waiting for the player
   endlessNight: 0,                                // last night the Blood Moon reward was paid
+  // Region conquest (GDD_ADENDO A8): production, a vampire Regent, the region's pack defeated.
+  conquest: { bestRate: 0, cleanWins: 0, alphaDown: false, introSeen: false, bossNight: 0 } as ConquestState,
   titheBonus: 0,                                  // set by core/bonus (avoids an import cycle)
   quotaCut: 0,
   bloodRate: 0,                                   // Blood/min measured by the HUD (for before → after previews)
@@ -80,6 +86,7 @@ export function load() {
       if (data.relics) state.relics = data.relics;
       state.relicPick = data.relicPick;
       state.endlessNight = data.endlessNight ?? 0;
+      if (data.conquest) state.conquest = { ...state.conquest, ...data.conquest };
       if (data.world) state.world = data.world;
       if (data.region) state.region = data.region;
       state.nextUid = data.nextUid ?? Math.max(0, ...(data.humans ?? []).map((h: HumanSave) => h.uid ?? 0)) + 1;
@@ -91,7 +98,7 @@ export function load() {
 
 export function save(humans: HumanSave[]) {
   const data: SaveData = { v: 2, resources: state.resources, humans, night: state.night, buildings: state.buildings, plots: state.plots, tutorial: state.tutorial, contracts: state.contracts, nextUid: state.nextUid, research: state.research, world: state.world, region: state.region, savedAt: Date.now(),
-    upg: state.upg, orders: state.orders, relics: state.relics, relicPick: state.relicPick, endlessNight: state.endlessNight };
+    upg: state.upg, orders: state.orders, relics: state.relics, relicPick: state.relicPick, endlessNight: state.endlessNight, conquest: state.conquest };
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* storage unavailable */ }
 }
 

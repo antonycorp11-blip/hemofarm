@@ -17,7 +17,7 @@ const CSS = `
 .hud .res.food .dot{width:12px;height:12px;border-radius:40% 40% 50% 50%;background:#9fd86b}
 .hud .deals{pointer-events:auto;position:relative;background:none;border:0;padding:0 4px 0 6px;cursor:pointer}.hud .deals img{height:22px;display:block}
 .hud .deals .badge{position:absolute;top:-6px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:#d8122a;color:#fff;font:700 10px/15px system-ui;text-align:center;padding:0 3px}
-.hud .crown img{filter:drop-shadow(0 0 6px #e8b54a);animation:qnew 1s ease-in-out infinite alternate}
+.hud .crown.glow img{filter:drop-shadow(0 0 6px #e8b54a);animation:qnew 1s ease-in-out infinite alternate}
 .hud .menu{pointer-events:auto;background:none;border:0;color:#e0c8a8;font-size:20px;line-height:1;padding:2px 8px;cursor:pointer}
 .hud .tithe{pointer-events:auto;position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:3px 12px;
   background:#120a10e8;border:1px solid #4a1620;border-radius:8px;font-size:12px;box-shadow:0 3px 10px #000a}
@@ -83,7 +83,7 @@ body.in-battle .hud,body.in-battle .toasts,body.in-battle .quest,body.in-battle 
 export interface HudSource { population: number; avgMorale: number; ordersReady: number; treeReady: boolean; hasLab: boolean }
 export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
   onSpeed(): void; onPayTithe(): void; onMap(): void; onAscend(): void; onSound(): void;
-  onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void; onHunt(): void;
+  onTension(): void; onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void; onHunt(): void;
   onMusic(): void; info(): { goal: number; region: string; mute: boolean; music: boolean } }
 
 export class Hud {
@@ -130,6 +130,7 @@ export class Hud {
       r.title = label;
       r.innerHTML = `${icon ? `<img src="assets/${icon}.webp" alt="${label}">` : '<span class="dot"></span>'}<span class="v">0</span>`;
       if (k === 'blood') r.insertAdjacentHTML('beforeend', '<small class="rate"></small>');
+      if (k === 'tension') { r.style.pointerEvents = 'auto'; r.style.cursor = 'pointer'; r.onclick = () => actions.onTension(); }
       this.vals[k] = r.querySelector('.v')!;
       this.res[k] = r;
       bar.appendChild(r);
@@ -141,7 +142,8 @@ export class Hud {
     deals.onclick = () => actions.onContracts();
     const crown = document.createElement('button');
     crown.className = 'deals crown';
-    crown.setAttribute('aria-label', 'Encerrar mandato');
+    crown.setAttribute('aria-label', 'Domínio da região');
+    crown.title = 'Domínio: conquiste a região';
     crown.innerHTML = '<img src="assets/icon_prestige.webp" alt="">';
     crown.onclick = () => actions.onAscend();
     crown.style.display = 'none';
@@ -229,8 +231,8 @@ export class Hud {
     }
     let gain = 0;
     for (let i = 1; i < this.samples.length; i++) gain += Math.max(0, this.samples[i] - this.samples[i - 1]);
-    const perMin = this.samples.length > 5 ? Math.round(gain * 60 / (this.samples.length - 1)) : 0;
-    state.bloodRate = perMin;
+    void gain;
+    const perMin = state.bloodRate; // production (collections + orbs), measured by the conquest tracker
     this.res.blood.querySelector<HTMLElement>('.rate')!.textContent = perMin ? `+${perMin}/min` : '';
     const ob = this.ordersBtn.querySelector<HTMLElement>('.badge')!;
     ob.textContent = this.src.ordersReady ? String(this.src.ordersReady) : '';
@@ -246,7 +248,8 @@ export class Hud {
     // Tension is partly hidden (GDD §5): it only shows up once it starts to matter.
     const t = state.world.tension;
     this.vals.tension.textContent = String(Math.round(t));
-    this.res.tension.style.display = t >= 25 ? 'flex' : 'none';
+    this.res.tension.style.display = 'flex'; // always visible and tappable: the panel explains what moves it
+    this.res.tension.style.color = t >= 60 ? '#ff8a8a' : t >= 25 ? '#f6d9a0' : '#9fd86b';
     this.res.tension.classList.toggle('low', t >= 60);
     const c = state.contracts;
     const badge = this.deals.querySelector<HTMLElement>('.badge')!;
@@ -274,13 +277,15 @@ export class Hud {
   objective(text: string | null, progress?: string) {
     this.quest.classList.toggle('on', !!text);
     if (!text) return;
-    this.quest.querySelector('.qt')!.textContent = text;
+    const qt = this.quest.querySelector('.qt')!, changed = qt.textContent !== text;
+    qt.textContent = text;
     this.quest.querySelector('.qp')!.textContent = progress ?? '';
-    this.quest.classList.remove('new'); void this.quest.offsetWidth; this.quest.classList.add('new');
+    this.quest.querySelector('button')!.textContent = state.tutorial.done ? 'Ver' : 'Onde?';
+    if (changed) { this.quest.classList.remove('new'); void this.quest.offsetWidth; this.quest.classList.add('new'); } // pulse only for a new objective
   }
 
   // Ascension available: a glowing crown in the resource bar.
-  setAscend(on: boolean) { this.crown.style.display = on ? 'block' : 'none'; }
+  setAscend(show: boolean, glow = false) { this.crown.style.display = show ? 'block' : 'none'; this.crown.classList.toggle('glow', glow); }
 
   setSpeed(v: number) {
     this.speedBtn.textContent = `${v}×`;
@@ -306,7 +311,7 @@ export class Hud {
     const r = state.resources;
     const info = this.actions.info();
     this.menu.innerHTML = `<div class="box"><div style="text-align:center;color:#c9a98a;font-size:13px">${info.region} · Noite ${state.night.night}<br>` +
-      `Meta do mandato: ${Math.floor(r.prestige)}/${info.goal} Prestígio</div></div>`;
+      'Conquista da região: toque na coroa 👑</div></div>';
     const box = this.menu.querySelector('.box')!;
     const add = (label: string, fn: () => void, cls = '') => {
       const b = document.createElement('button');

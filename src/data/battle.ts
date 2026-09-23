@@ -23,8 +23,8 @@ const SENT = { idle: [8, 9], act: [10, 11] }, CHAL = { idle: [0, 1, 2, 3], act: 
 
 export const UNITS: Record<UnitId, UnitDef> = {
   chalice: { name: 'Cálice', kind: 'gen', tex: 'blood_chalice', cost: 30, hp: 60, gen: 15, rate: 7000, recharge: 5000, fr: CHAL, desc: 'Gera Sangue durante a batalha.' },
-  sentinel: { name: 'Sentinela', kind: 'shoot', tex: 'sentinel_vampire', cost: 50, hp: 90, dmg: 18, rate: 1400, recharge: 5000, fr: SENT, desc: 'Atira na raia inteira à frente.' },
-  wall: { name: 'Muralha', kind: 'wall', tex: 'ghoul_wall', cost: 40, hp: 420, recharge: 12000, fr: { idle: [0, 1], act: [0, 1] }, desc: 'Ghoul com escudo. Segura o avanço.' },
+  sentinel: { name: 'Sentinela', kind: 'shoot', tex: 'sentinel_vampire', cost: 50, hp: 100, dmg: 22, rate: 1300, recharge: 5000, fr: SENT, desc: 'Atira na raia inteira à frente.' },
+  wall: { name: 'Muralha', kind: 'wall', tex: 'ghoul_wall', cost: 40, hp: 520, recharge: 12000, fr: { idle: [0, 1], act: [0, 1] }, desc: 'Ghoul com escudo. Segura o avanço.' },
   gargoyle: { name: 'Gárgula', kind: 'garg', tex: 'gargoyle', cost: 110, hp: 140, dmg: 160, rate: 20000, recharge: 18000, research: 'n1', fr: { idle: [0, 1, 2, 3], act: [8, 9, 10, 11] },
     desc: 'Abate o primeiro lobisomem que chegar perto e vira pedra por um tempo.' },
   alchemist: { name: 'Alquimista', kind: 'alch', tex: 'alchemist_unit', cost: 90, hp: 70, dmg: 26, rate: 2600, recharge: 10000, research: 'n4', fr: ALCH,
@@ -48,6 +48,9 @@ export const UNITS: Record<UnitId, UnitDef> = {
   count: { name: 'Conde Valério', kind: 'hero', tex: 'sentinel_vampire', art: 'unit_count', tint: 0xffd870, scale: 1.2, cost: 150, hp: 650, dmg: 45, rate: 900, recharge: 60000, hunt: true, fr: SENT,
     desc: 'Herói (um por batalha): segura a raia e golpeia tudo o que encosta.' },
 };
+
+// Wolves that get past a defender on purpose, and how (shown in the horde preview so it never feels like a bug).
+export const BYPASS: Partial<Record<WolfId, string>> = { leaper: 'pula a 1ª defesa', digger: 'cava por baixo da 1ª defesa', raven: 'voa por cima de tudo (só tiros o acertam)' };
 
 export interface WolfDef {
   name: string; tex: string; hp: number; speed: number; dmg: number; reward: number; h: number;

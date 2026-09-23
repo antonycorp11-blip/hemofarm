@@ -38,6 +38,9 @@ import { openAlbum } from '../ui/Album';
 import { openArsenal } from '../ui/Arsenal';
 import { ARENAS, ArenaId, endlessWave, rollWeather } from '../data/battle';
 import { Hunt } from '../ui/Hunt';
+import { Conquest } from '../world/Conquest';
+import { CHAPTERS } from '../data/story';
+import { REGION_ARENA, buildRaid } from '../data/battle';
 import { more } from '../core/bonus';
 
 const S = 0.5; // assets are stored at 2x world scale
@@ -80,6 +83,8 @@ export class FarmScene extends Phaser.Scene {
   private orders!: Orders;
   private relics!: Relics;
   private hunt!: Hunt;
+  private conquest!: Conquest;
+  private dialogue!: Dialogue;
   private secTick = 0;
   private speed = 1;
   private tutorial!: Tutorial;
@@ -133,7 +138,8 @@ export class FarmScene extends Phaser.Scene {
     this.research = new Research(this.hud, () => this.buildings.level('lab') > 0);
     this.modal = new Modal();
     this.orders = new Orders(this.hud, this.modal, kind => this.buildings.built(kind as never).length > 0);
-    this.relics = new Relics(this.modal, p => (p ? this.scene.pause() : this.scene.resume()));
+    // Relic offers get their own overlay: a shared one could be replaced by another window and leave the farm paused forever.
+    this.relics = new Relics(new Modal(), p => (p ? this.scene.pause() : this.scene.resume()));
     this.hunt = new Hunt(this.modal, {
       battle: (data, done) => this.startBattle(data.raid, done, data),
       pause: p => (p ? this.scene.pause() : this.scene.resume()),
@@ -146,6 +152,16 @@ export class FarmScene extends Phaser.Scene {
     this.buildings.extras = kind => this.world.extras(kind);
     this.raids = new Raids(this.humans, this.buildings, this.hud, (raid, done) => this.startBattle(raid, done));
     this.mandate = new Mandate();
+    this.dialogue = new Dialogue();
+    this.conquest = new Conquest(this, this.humans, this.hud, this.modal, {
+      // Story lines wait for any conversation already on screen.
+      say: (lines, done) => { const go = () => (this.dialogue.open ? this.time.delayedCall(2500, go) : this.dialogue.say(lines, done ?? (() => undefined))); go(); },
+      fx: (k, x, y, sc) => this.fx(k, x, y, sc),
+      bossFight: () => this.bossFight(),
+      conquer: () => { this.conquest.recordDomain(); this.mandate.end(true, this.humans.population, undefined, `${REGIONS[state.region].name} conquistado!`, 40); },
+      abandon: () => this.mandate.end(true, this.humans.population, () => undefined, 'Mandato encerrado'),
+    }, tileCenter(20, 31));
+    this.contracts.crownHook = { can: h => this.conquest.canCrown(h), crown: h => this.conquest.crown(h) };
     this.setupMandate();
     this.setupSounds();
     this.offlineSummary();
@@ -184,10 +200,25 @@ export class FarmScene extends Phaser.Scene {
 
   private buildGround(decalKeys: string[]) {
     const rnd = new Phaser.Math.RandomDataGenerator(['ground']);
+    // Each region reshapes the wilds around the farm: swamp pools, scorched frontier, crypt ruins, sandy coast...
+    const wild: Partial<Record<string, { tile: string; p: number; props: string[]; pp: number }>> = {
+      pantano: { tile: 'tile_water', p: 0.4, props: ['dead_tree_a', 'dead_tree_b', 'bush_b'], pp: 0.05 },
+      fronteira: { tile: 'tile_dirt_road', p: 0.3, props: ['rock_a', 'rock_b', 'dead_tree_b'], pp: 0.04 },
+      vale: { tile: 'tile_grass_b', p: 0.5, props: ['rock_c', 'bush_a'], pp: 0.03 },
+      costa: { tile: 'tile_dirt_road', p: 0.35, props: ['barrel', 'crates', 'rock_b'], pp: 0.035 },
+      cripta: { tile: 'tile_cobble_b', p: 0.35, props: ['rock_a', 'rock_c', 'dead_tree_a'], pp: 0.05 },
+    };
+    const w = wild[state.region];
+    const prnd = new Phaser.Math.RandomDataGenerator([`wild${state.region}`]);
     for (const t of this.map.tiles) {
       const c = tileCenter(t.i, t.j);
-      this.add.image(c.x, c.y, rnd.pick(TILE_KEYS[t.kind]))
+      const swap = w && t.kind === 'forest' && prnd.frac() < w.p && this.textures.exists(w.tile);
+      this.add.image(c.x, c.y, swap ? w!.tile : rnd.pick(TILE_KEYS[t.kind]))
         .setScale(S * 1.03).setFlipX(rnd.frac() < 0.5).setDepth(DEPTH.ground + c.y * 0.001).setTint(REGIONS[state.region]?.tint ?? 0xffffff);
+      if (w && t.kind === 'forest' && !swap && prnd.frac() < w.pp) {
+        const k = prnd.pick(w.props);
+        if (this.textures.exists(k)) this.add.image(c.x, c.y + 6, k).setOrigin(0.5, 1).setScale(S * prnd.realInRange(0.8, 1.1)).setDepth(c.y).setTint(REGIONS[state.region]?.tint ?? 0xffffff);
+      }
     }
     for (const d of this.map.decals) {
       this.add.image(d.x, d.y, rnd.pick(decalKeys)).setScale(S).setFlipX(!!d.flipX).setDepth(DEPTH.decal);
@@ -248,7 +279,8 @@ export class FarmScene extends Phaser.Scene {
   private updateLighting(time: number) {
     const cam = this.cameras.main, view = cam.worldView, z = cam.zoom;
     const dark = this.dark;
-    dark?.clear().fill(NIGHT.color, NIGHT.alpha);
+    const look = CHAPTERS[state.region]?.look;
+    dark?.clear().fill(look?.night ?? NIGHT.color, look?.nightAlpha ?? NIGHT.alpha);
     for (const g of this.glows) {
       const { light } = g;
       const f = 1 + Math.sin(time * 0.012 + g.phase) * light.flicker + Math.sin(time * 0.031 + g.phase * 2) * light.flicker * 0.5;
@@ -269,7 +301,8 @@ export class FarmScene extends Phaser.Scene {
 
   private buildAmbience() {
     // fireflies over the property and forest edge
-    this.add.particles(0, 0, this.glowTexture(0xd8ff8a), {
+    const look = CHAPTERS[state.region]?.look ?? CHAPTERS.bosque.look; // each region has its own air
+    this.add.particles(0, 0, this.glowTexture(look.motes), {
       x: { min: -1500, max: 1500 }, y: { min: 700, max: 2200 },
       lifespan: { min: 3000, max: 6000 }, speed: { min: 4, max: 18 },
       scale: { start: 0.05, end: 0.01 }, alpha: { start: 0, end: 1, ease: (t: number) => Math.sin(t * Math.PI) },
@@ -278,7 +311,7 @@ export class FarmScene extends Phaser.Scene {
     // slow drifting fog banks
     for (let k = 0; k < 14; k++) {
       const x = Phaser.Math.Between(-2200, 2200), y = Phaser.Math.Between(200, 2800);
-      const fog = this.add.image(x, y, this.glowTexture(0x8ea6d8)).setScale(Phaser.Math.FloatBetween(5, 9), Phaser.Math.FloatBetween(1.6, 2.6))
+      const fog = this.add.image(x, y, this.glowTexture(look.fog)).setScale(Phaser.Math.FloatBetween(5, 9), Phaser.Math.FloatBetween(1.6, 2.6))
         .setAlpha(Phaser.Math.FloatBetween(0.04, 0.08)).setDepth(DEPTH.fog);
       this.tweens.add({ targets: fog, x: x + Phaser.Math.Between(250, 500), duration: Phaser.Math.Between(25000, 45000), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
@@ -299,15 +332,27 @@ export class FarmScene extends Phaser.Scene {
   }
 
   // Reaching the region's Prestige goal unlocks Ascension (the run can go on if the player prefers).
+  // The crown (Domain panel) is always there after the tutorial; it glows when something is waiting in it.
   private checkAscension() {
-    const ok = state.resources.prestige >= goalFor();
-    this.hud.setAscend(ok);
-    if (ok && !state.ascendOffered) {
-      state.ascendOffered = true;
-      this.hud.toast(`Vesper: ${goalFor()} de Prestígio. A casa superior quer conversar. Toque na coroa quando quiser encerrar o mandato.`, 'good', 9000);
-      sfx.bell();
-    }
+    this.hud.setAscend(state.tutorial.done, this.conquest.ready || this.conquest.bossReady);
   }
+
+  // The region's alpha: a big raid on the region's ground with the boss in the middle of it.
+  private bossFight() {
+    const ch = CHAPTERS[state.region] ?? CHAPTERS.bosque;
+    const arena = REGION_ARENA[state.region] ?? 'farm', lanes = ARENAS[arena].lanes;
+    const raid = buildRaid(state.night.night + 2, true, false, 0, lanes);
+    raid.spawns = raid.spawns.filter(sp => sp.wolf !== 'alpha' && sp.wolf !== 'mother'); // only the region's boss leads this one
+    raid.spawns.push({ at: raid.waves[1] ?? 40000, wolf: ch.boss.wolf, lane: Math.floor(lanes / 2) });
+    raid.spawns.sort((a, b) => a.at - b.at);
+    this.startBattle(raid, res => {
+      const lost = this.humans.takeByRaid(res.grabbed);
+      if (lost.length) this.hud.toast(`Os lobisomens levaram ${lost.join(', ')}.`, 'bad', 7000);
+      this.conquest.bossResult(!!res.bossKilled);
+    }, { arena, weather: 'fullmoon', title: ch.boss.name });
+    this.time.delayedCall(800, () => this.hud.toast(ch.boss.taunt, 'bad', 6000));
+  }
+
 
   private setupSounds() {
     bus.on('BLOOD_COLLECTED', () => sfx.drop());
@@ -397,6 +442,8 @@ export class FarmScene extends Phaser.Scene {
     this.scene.setVisible(false);
     battleMusic();
     this.scene.launch('Battle', {
+      // Farm raids: a war chest that grows with the farm (collection station + watchtower), separate from the Sangria.
+      bank: 130 + 40 * this.buildings.level('collect') + (this.buildings.level('watch') ? 60 : 0),
       ...opts, raid, collectLevel: this.buildings.level('collect'), looks: this.humans.looks,
       onEnd: (r: BattleResult) => {
         this.scene.stop('Battle');
@@ -410,7 +457,7 @@ export class FarmScene extends Phaser.Scene {
 
   // ---------- tutorial ----------
   private setupTutorial() {
-    const dialogue = new Dialogue();
+    const dialogue = this.dialogue;
     this.tutorial = new Tutorial({
       say: (lines, done) => dialogue.say(lines, done),
       objective: (text, progress) => this.hud.objective(text, progress),
@@ -465,14 +512,15 @@ export class FarmScene extends Phaser.Scene {
       onNewGame: () => { resetting = true; resetSave(); location.reload(); },
       onSkipTutorial: () => this.tutorial.skip(),
       tutorialActive: () => !state.tutorial.done,
-      onWhere: () => this.tutorial.where(),
+      onWhere: () => (state.tutorial.done ? this.conquest.open() : this.tutorial.where()),
       onContracts: () => this.contracts.openBoard(),
       onSpeed: () => this.setSpeed(this.speed >= 3 ? 1 : this.speed + 1),
       onPayTithe: () => this.tithe.payNow(),
       onMap: () => this.mandate.map(false, state.region),
-      onAscend: () => this.mandate.end(true, this.humans.population, () => undefined),
+      onAscend: () => this.conquest.open(),
       onSound: () => setMute(!meta.mute),
       onMusic: () => setMusic(meta.music === false),
+      onTension: () => this.world.openTension(),
       onOrders: () => this.orders.open(),
       onTree: () => this.research.open(),
       onRelics: () => this.relics.list(),
@@ -627,6 +675,7 @@ export class FarmScene extends Phaser.Scene {
     this.contracts.update();
     this.research.update(sim);
     this.world.update(sim);
+    this.conquest.update(delta);
     this.orbs.update(sim);
     this.raids.update(sim);
     this.secTick -= delta;

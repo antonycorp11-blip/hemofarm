@@ -19,6 +19,15 @@ const START_DECK: UnitId[] = ['chalice', 'sentinel', 'wall', 'maid'];
 const MAX_LIVES = 8;
 const KEY = 'hemo.hunt';
 
+const NODE_DESC: Record<NodeType, string> = {
+  battle: 'Uma luta normal. Vencer dá ossos e a escolha de uma carta nova (ou melhoria) para o seu deck.',
+  elite: 'Luta difícil com um líder da matilha. Vencer dá mais ossos e uma relíquia da Caçada.',
+  event: 'Um encontro na trilha com duas escolhas. Pode dar vidas, ossos, cartas... ou custar algo.',
+  shop: 'Gaste ossos em cartas, melhorias, voluntários e relíquias.',
+  rest: 'Descanse (+2 voluntários) ou treine (melhora uma carta).',
+  boss: 'A Mãe da Matilha. Vencê-la termina a Caçada com a recompensa máxima.',
+};
+
 const NODE: Record<NodeType, { name: string; icon: string; frame: number }> = {
   battle: { name: 'Batalha', icon: '⚔', frame: 0 }, elite: { name: 'Elite', icon: '☠', frame: 1 }, event: { name: 'Evento', icon: '?', frame: 2 },
   shop: { name: 'Mercador', icon: '⚖', frame: 3 }, rest: { name: 'Fogueira', icon: '🔥', frame: 4 }, boss: { name: 'Mãe da Matilha', icon: '☾', frame: 5 },
@@ -68,8 +77,12 @@ export class Hunt {
     this.host.pause(true);
     if (this.run) { this.map(); return; }
     const box = this.modal.show(`<h2>Caçada</h2><div class="sub">Uma campanha longa contra a matilha, longe da fazenda</div>
-      <div class="row"><div class="t"><b>Como funciona</b><br><small>12 etapas: batalhas, elites, eventos, mercador, fogueira e a Mãe da Matilha no fim.
-      Você começa com 4 cartas e 5 voluntários (vidas). Após cada vitória escolhe uma carta nova ou uma melhoria.</small></div></div>
+      <div class="row"><div class="t"><b>O que é</b><br><small>Aureliano leva um grupo de voluntários floresta adentro para caçar a matilha antes que ela chegue à fazenda.
+      É uma sequência de batalhas de tower defense, separada da fazenda: <b>nada da fazenda é gasto e ninguém da fazenda é levado</b>.</small></div></div>
+      <div class="row"><div class="t"><b>Como jogar</b><br><small>1. Um mapa com 12 etapas; em cada uma você escolhe um caminho (⚔ batalha, ☠ elite, ? evento, ⚖ mercador, 🔥 fogueira).<br>
+      2. Você começa com 4 cartas e 5 voluntários (vidas). Cada lobo que passa pela cerca custa um voluntário.<br>
+      3. Após cada vitória, escolha uma carta nova ou melhore uma do deck. O deck cresce a cada luta.<br>
+      4. No fim, a Mãe da Matilha. Se os voluntários acabarem, a Caçada termina com o que você já conquistou.</small></div></div>
       <div class="row"><div class="t"><b>Recompensas</b><br><small>Marcas de caça (Arsenal), Essência para a fazenda, e toda carta conquistada passa a defender a fazenda também.</small></div></div>
       <div class="row"><div class="t"><small>Melhor etapa: ${meta.huntBest ?? 0}/${FLOORS} · Caçadas: ${meta.hunts ?? 0} · Cartas liberadas na fazenda: ${meta.cards?.length ?? 0}</small></div></div>
       <button class="go" data-go>Começar a Caçada</button>`, { onClose: () => this.host.pause(false) });
@@ -113,10 +126,25 @@ export class Hunt {
       <div class="sub">${'♥'.repeat(r.lives)} voluntários · ${r.bones} ossos ${relics}</div>
       <div style="display:flex;gap:4px;overflow-x:auto;padding:6px 2px 10px;${nodeImg ? '' : ''}background:${this.hasBg() ? 'url(assets/hunt_map_bg.jpg) center/cover' : 'linear-gradient(90deg,#140b10,#1f1016)'};border-radius:10px">
         ${r.map.map(col).join('<div style="align-self:center;color:#4a3a38">›</div>')}</div>
-      <div class="muted" style="font-size:12px;margin:6px 0">Toque num dos nós da etapa atual (brilhando). Deck: ${deck}</div>
+      <div class="muted" style="font-size:12px;margin:6px 0">⚔ batalha · ☠ elite · ? evento · ⚖ mercador · 🔥 fogueira · ☾ chefe — toque num nó <b>brilhando</b> para ver o que é.<br>Deck: ${deck}</div>
       <button class="go" data-quit style="filter:brightness(.7)">Abandonar a Caçada</button>`, { wide: true, onClose: () => this.host.pause(false) });
-    box.querySelectorAll<HTMLButtonElement>('[data-n]').forEach(b => b.onclick = () => this.enter(Number(b.dataset.n)));
+    box.querySelectorAll<HTMLButtonElement>('[data-n]').forEach(b => b.onclick = () => this.peek(Number(b.dataset.n)));
     box.querySelector<HTMLButtonElement>('[data-quit]')!.onclick = () => { if (confirm('Abandonar? Você recebe as recompensas das etapas vencidas.')) this.over(false); };
+  }
+
+  // Explain a node before committing to it.
+  private peek(i: number) {
+    const r = this.run!, n = r.map[r.floor][i];
+    const fight = n.type === 'battle' || n.type === 'elite' || n.type === 'boss';
+    const w = WEATHER[n.weather], a = ARENAS[n.arena];
+    const box = this.modal.show(`<h2>${NODE[n.type].icon} ${NODE[n.type].name}</h2><div class="sub">Etapa ${r.floor + 1}/${FLOORS}</div>
+      <div class="row"><div class="t">${NODE_DESC[n.type]}</div></div>
+      ${fight ? `<div class="row"><div class="t"><b>${a.name}</b> · ${a.lanes} raias<br><small>${a.desc}</small></div></div>
+      <div class="row"><div class="t"><b>${w.icon} ${w.name}</b><br><small>${w.desc}</small></div></div>` : ''}
+      <div class="cards3" style="grid-template-columns:1fr 1fr"><button class="pick" data-back><b>Voltar ao mapa</b></button><button class="pick" data-go style="border-color:#e8b54a"><b>${fight ? 'Lutar' : 'Seguir'} ▸</b></button></div>`,
+      { onClose: () => this.host.pause(false) });
+    box.querySelector<HTMLButtonElement>('[data-back]')!.onclick = () => this.map();
+    box.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => this.enter(i);
   }
 
   private nodeArt() { return this.host.hasArt('hunt_nodes') ? 'hunt_nodes' : undefined; }

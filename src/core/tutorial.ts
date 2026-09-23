@@ -29,7 +29,9 @@ export class Tutorial {
   }
 
   skip() {
+    const was = state.tutorial.done;
     state.tutorial.done = true;
+    if (!was) bus.emit('TUTORIAL_DONE', {});
     this.waiting = false;
     this.ui.clearHint();
     this.ui.objective(null);
@@ -103,6 +105,7 @@ export class Tutorial {
 
   private finish() {
     state.tutorial.done = true;
+    bus.emit('TUTORIAL_DONE', {});
     this.ui.objective(null);
     this.ui.toast('Tutorial concluído. A fazenda é sua — e as dívidas também.');
   }

@@ -27,6 +27,7 @@ function compute() {
   }
   for (const id of state.relics) for (const [k, v] of RELICS[id]?.fx ?? []) add(k, v);
   add('blood', (meta.album?.length ?? 0) * 0.01);   // every lineage discovered: +1% Blood forever
+  add('blood', Object.keys(meta.domains ?? {}).length * 0.05); // every Domain of the House: +5% Blood
   return c;
 }
 

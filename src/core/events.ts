@@ -33,6 +33,9 @@ export interface GameEvents {
   ORB_TAPPED: { amount: number };
   UPGRADE_BOUGHT: { kind: string; level: number };
   ORDER_DONE: { kind: string };
+  TUTORIAL_DONE: Record<string, never>;
+  REGENT_CROWNED: { name: string };
+  REGION_CLEARED: { region: string };
 }
 
 type Handler<T> = (payload: T) => void;

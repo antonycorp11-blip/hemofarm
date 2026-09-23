@@ -26,6 +26,7 @@ export class Raids {
 
   // Full moon every 4th night is a big raid; other nights have a chance of a small one (from night 2).
   private plan(night: number) {
+    if (state.conquest.alphaDown) { state.world.raid = { night, kind: 'none', status: 'done', warnLeft: 0 }; return; } // the region's pack is gone
     const kind = night % state.mods.bigEvery === 0 ? 'big' : night >= 2 && Math.random() < state.mods.raidChance ? 'small' : 'none';
     state.world.raid = { night, kind, status: 'waiting', warnLeft: WARN_MS };
   }
