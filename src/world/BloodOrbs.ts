@@ -3,6 +3,8 @@
 import Phaser from 'phaser';
 import { state } from '../core/state';
 import { sfx } from '../core/sfx';
+import { bus } from '../core/events';
+import { more } from '../core/bonus';
 import { FarmMap, slotGeometry } from '../map/bosque';
 import type { Buildings } from './Buildings';
 
@@ -29,7 +31,7 @@ export class BloodOrbs {
     if (!lv || state.world.rebellion || !this.scene.anims.exists('orb_float')) return;
     this.next -= dt;
     if (this.next > 0 || this.live.length >= MAX_ON_SCREEN) return;
-    this.next = Phaser.Math.Between(EVERY[0], EVERY[1]);
+    this.next = Phaser.Math.Between(EVERY[0], EVERY[1]) / more('orbRate');
     this.spawn(lv);
   }
 
@@ -49,9 +51,10 @@ export class BloodOrbs {
     orb.once('pointerdown', () => {
       drift.stop();
       orb.disableInteractive();
-      const bonus = 5 + lv * 3;
+      const bonus = Math.round((5 + lv * 3) * more('orb'));
       state.resources.blood += bonus;
       sfx.drop();
+      bus.emit('ORB_TAPPED', { amount: bonus });
       this.scene.floatText(orb.x, orb.y - 10, `+${bonus} Sangue`, '#ff3348');
       orb.play('orb_pop').once('animationcomplete', () => this.remove(orb));
     });

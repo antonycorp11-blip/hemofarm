@@ -31,6 +31,13 @@ import { iso } from '../map/iso';
 import { Tithe } from '../world/Tithe';
 import { bus } from '../core/events';
 import { MapEditor, Placed, applyOverrides } from '../editor/MapEditor';
+import { Modal, icon } from '../ui/Modal';
+import { Orders } from '../world/Orders';
+import { Relics } from '../ui/Relics';
+import { openAlbum } from '../ui/Album';
+import { openArsenal } from '../ui/Arsenal';
+import { endlessWave } from '../data/battle';
+import { more } from '../core/bonus';
 
 const S = 0.5; // assets are stored at 2x world scale
 const TILE_KEYS: Record<TileKind, string[]> = {
@@ -68,6 +75,9 @@ export class FarmScene extends Phaser.Scene {
   private orbs!: BloodOrbs;
   private raids!: Raids;
   private mandate!: Mandate;
+  private modal!: Modal;
+  private orders!: Orders;
+  private relics!: Relics;
   private secTick = 0;
   private speed = 1;
   private tutorial!: Tutorial;
@@ -118,7 +128,10 @@ export class FarmScene extends Phaser.Scene {
     this.humans.spawn(startHumans, state.loaded?.humans);
     this.contracts = new Contracts(this, this.map, this.humans, this.buildings, panel, this.hud);
     this.buildings.onBoarding = () => this.contracts.openBoard();
-    this.research = new Research(panel, this.hud, () => this.buildings.level('lab') > 0);
+    this.research = new Research(this.hud, () => this.buildings.level('lab') > 0);
+    this.modal = new Modal();
+    this.orders = new Orders(this.hud, this.modal, kind => this.buildings.built(kind as never).length > 0);
+    this.relics = new Relics(this.modal, p => (p ? this.scene.pause() : this.scene.resume()));
     this.buildings.onLab = () => this.research.open();
     this.world = new LivingWorld(this.humans, this.buildings, panel, this.hud, tileCenter(21, 36));
     this.orbs = new BloodOrbs(this, this.map, this.buildings);
@@ -140,7 +153,7 @@ export class FarmScene extends Phaser.Scene {
     applySkin(); // after every UI module injected its base styles, so the art frames win
     // Title screen stays until the player taps "Jogar" (also a natural moment to unlock audio later).
     const loading = document.getElementById('loading');
-    const begin = () => this.time.delayedCall(1200, () => this.tutorial.start()); // let the farm show itself first
+    const begin = () => { this.time.delayedCall(1200, () => this.tutorial.start()); this.relics.resume(); this.showReport(); }; // let the farm show itself first
     if (loading) {
       loading.classList.add('ready');
       this.scene.pause(); // night clock and simulation wait for the player
@@ -302,6 +315,8 @@ export class FarmScene extends Phaser.Scene {
   }
 
   // "While you were away…" (GDD §13.1): coarse offline gains, capped at 2 h. The night clock doesn't run offline.
+  private report?: { min: number; blood: number; food: number; essence: number; gold: number };
+
   private offlineSummary() {
     const at = state.loaded?.savedAt;
     if (!at) return;
@@ -309,13 +324,46 @@ export class FarmScene extends Phaser.Scene {
     if (away < 60000) return;
     const min = away / 60000;
     const lvl = this.buildings.level('collect');
-    const blood = Math.round(Math.min(this.humans.population, 15) * 0.9 * lvl * min * state.mods.blood);
+    const blood = Math.round(Math.min(this.humans.population, 15) * 0.9 * lvl * min * state.mods.blood * more('blood'));
     const plots = Object.values(state.plots).length;
     const food = Math.round(Math.max(0, plots * 12 * min - this.humans.population * 0.35 * min));
-    state.resources.blood += blood;
-    state.resources.food += food;
-    this.hud.toast(`Bóris: Enquanto você esteve fora (${Math.round(min)} min): +${blood} Sangue, +${food} Comida. Ninguém fugiu. Que eu saiba.`, 'good', 9000);
+    const essence = this.buildings.level('lab') ? Math.round(blood * 0.3 * more('essence')) : 0;
+    const gold = Math.round(20 + Math.min(120, min) * 2); // Bóris' "return bonus"
+    this.report = { min, blood, food, essence, gold };
   }
+
+  // "While you were away…": Bóris' report with a chest to open (rewards land when it's opened).
+  private showReport() {
+    const r = this.report;
+    if (!r) return;
+    this.report = undefined;
+    const gains = `<div class="gains"><span>${icon('icon_blood')} +${r.blood} Sangue</span><span>● +${r.food} Comida</span>` +
+      `${r.essence ? `<span>${icon('icon_research')} +${r.essence} Essência</span>` : ''}<span>${icon('icon_gold')} +${r.gold} Ouro</span></div>`;
+    const box = this.modal.show(`<h2>Relatório do Bóris</h2><div class="sub">Você esteve fora por ${Math.round(r.min)} min. Ninguém fugiu. Que eu saiba.</div>
+      <button class="chest" aria-label="Abrir baú">🧰</button><div class="sub">Toque no baú</div>`, { closable: false });
+    box.querySelector<HTMLButtonElement>('.chest')!.onclick = () => {
+      const res = state.resources;
+      res.blood += r.blood; res.food += r.food; res.essence += r.essence; res.gold += r.gold;
+      sfx.coin();
+      const b2 = this.modal.show(`<h2>Relatório do Bóris</h2>${gains}<button class="go">Voltar à fazenda</button>`);
+      b2.querySelector<HTMLButtonElement>('.go')!.onclick = () => this.modal.close();
+    };
+  }
+
+  // Blood Moon: endless waves in the battle scene; own Blood, nobody from the farm at risk. Rewards once per night.
+  private bloodMoon() {
+    const raid = { night: state.night.night, big: false, spawns: endlessWave(1, 6000), waves: [6000], endless: true };
+    this.startBattle(raid, r => {
+      const paid = state.endlessNight !== state.night.night && r.waves > 0;
+      if (paid) {
+        state.endlessNight = state.night.night;
+        const ess = r.waves * 8;
+        state.resources.essence += ess;
+        this.hud.toast(`Aureliano: ${r.waves} ondas na Lua de Sangue. +${ess} Essência. Recompensa de novo na próxima noite.`, 'good', 7000);
+      } else if (r.waves > 0) this.hud.toast('Aureliano: Bom treino. A recompensa da Lua de Sangue já foi paga esta noite.');
+    });
+  }
+
 
   // ---------- battle ----------
   // The farm freezes (and hides) while the separate battle scene runs on top of it.
@@ -384,6 +432,9 @@ export class FarmScene extends Phaser.Scene {
     this.hud = new Hud({
       get population() { return self.humans?.population ?? 0; },
       get avgMorale() { return self.humans?.avgMorale ?? 0; },
+      get ordersReady() { return self.orders?.ready ?? 0; },
+      get treeReady() { return self.research?.affordable ?? false; },
+      get hasLab() { return (self.buildings?.level('lab') ?? 0) > 0; },
     }, {
       onNewGame: () => { resetting = true; resetSave(); location.reload(); },
       onSkipTutorial: () => this.tutorial.skip(),
@@ -395,6 +446,12 @@ export class FarmScene extends Phaser.Scene {
       onMap: () => this.mandate.map(false, state.region),
       onAscend: () => this.mandate.end(true, this.humans.population, () => undefined),
       onSound: () => setMute(!meta.mute),
+      onOrders: () => this.orders.open(),
+      onTree: () => this.research.open(),
+      onRelics: () => this.relics.list(),
+      onAlbum: () => openAlbum(this.modal),
+      onArsenal: () => openArsenal(this.modal),
+      onBloodMoon: () => this.bloodMoon(),
       info: () => ({ goal: goalFor(), region: REGIONS[state.region].name, mute: meta.mute }),
     });
   }
@@ -405,6 +462,7 @@ export class FarmScene extends Phaser.Scene {
     const c = tileCenter(i, j);
     bus.on('HEIR_ARRIVED', e => this.hud.toast(`Lia: Chegou Unidade ${e.code}, parente de ${e.parentNames.join(' e ')}. ${QUALITY_NAME[e.quality] ?? e.quality}, sangue ${BLOOD_NAME[e.blood] ?? e.blood}.`, 'good', 7000));
     bus.on('HEIR_BLOCKED', () => this.hud.toast('Bóris: Um parente quer vir, mas não há camas. Construa ou melhore habitações.', 'bad', 7000));
+    bus.on('LINEAGE_DISCOVERED', e => this.hud.toast(`Álbum: nova linhagem ${e.name} (${e.total}). +1% de Sangue para sempre.`, 'good'));
     bus.on('BOND_FORMED', e => { if (!e.arranged) this.hud.toast('Lia: Temos um casal novo na fazenda. Não conte ao Bóris, ele vai querer registrar.'); });
     bus.on('BLOOD_COLLECTED', ({ amount }) => {
       this.floatText(c.x, c.y - 40, `+${amount} Sangue`, '#ff3348');

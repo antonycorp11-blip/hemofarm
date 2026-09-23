@@ -15,9 +15,9 @@ export const UNITS: Record<UnitId, UnitDef> = {
   chalice: { name: 'Cálice', tex: 'blood_chalice', cost: 30, hp: 60, gen: 15, rate: 7000, recharge: 5000, desc: 'Gera Sangue durante a batalha.' },
   sentinel: { name: 'Sentinela', tex: 'sentinel_vampire', cost: 50, hp: 90, dmg: 18, rate: 1400, recharge: 5000, desc: 'Atira na raia inteira à frente.' },
   wall: { name: 'Muralha', tex: 'ghoul_wall', cost: 40, hp: 420, recharge: 12000, desc: 'Ghoul com escudo. Segura o avanço.' },
-  gargoyle: { name: 'Gárgula', tex: 'gargoyle', cost: 110, hp: 140, dmg: 160, rate: 20000, recharge: 18000, research: 'd1', desc: 'Abate o primeiro lobisomem que chegar perto e vira pedra por um tempo.' },
-  alchemist: { name: 'Alquimista', tex: 'alchemist_unit', cost: 90, hp: 70, dmg: 26, rate: 2600, recharge: 10000, research: 'd2', desc: 'Frascos que atingem em área e deixam lento.' },
-  bats: { name: 'Morcegos', tex: 'fx_bat_swarm', cost: 140, hp: 0, dmg: 220, recharge: 30000, research: 'd3', spell: true, desc: 'Nuvem de uso único: arrasa uma área 3×3.' },
+  gargoyle: { name: 'Gárgula', tex: 'gargoyle', cost: 110, hp: 140, dmg: 160, rate: 20000, recharge: 18000, research: 'n1', desc: 'Abate o primeiro lobisomem que chegar perto e vira pedra por um tempo.' },
+  alchemist: { name: 'Alquimista', tex: 'alchemist_unit', cost: 90, hp: 70, dmg: 26, rate: 2600, recharge: 10000, research: 'n4', desc: 'Frascos que atingem em área e deixam lento.' },
+  bats: { name: 'Morcegos', tex: 'fx_bat_swarm', cost: 140, hp: 0, dmg: 220, recharge: 30000, research: 'n6', spell: true, desc: 'Nuvem de uso único: arrasa uma área 3×3.' },
 };
 
 export interface WolfDef { name: string; tex: string; hp: number; speed: number; dmg: number; reward: number; h: number }
@@ -36,10 +36,10 @@ export const LANES = 5;
 export const COLS = 9;
 
 export interface Spawn { at: number; wolf: WolfId; lane: number }
-export interface Raid { night: number; big: boolean; spawns: Spawn[]; waves: number[] }
+export interface Raid { night: number; big: boolean; spawns: Spawn[]; waves: number[]; endless?: boolean }
 
 // Raids grow with the nights; full moons (every 4th night) are big and may bring Ulf.
-export function buildRaid(night: number, big: boolean, tutorial = false): Raid {
+export function buildRaid(night: number, big: boolean, tutorial = false, shrink = 0): Raid {
   const spawns: Spawn[] = [];
   // First fight is a lesson: four scouts then one hunter, one at a time, only in the three middle lanes.
   if (tutorial) {
@@ -50,7 +50,7 @@ export function buildRaid(night: number, big: boolean, tutorial = false): Raid {
   const pool: WolfId[] = tutorial ? ['scout', 'scout', 'hunter'] :
     ['scout', 'scout', 'hunter', 'hunter', ...(night >= 3 ? ['leaper' as WolfId] : []), ...(night >= 4 ? ['brute' as WolfId, 'howler' as WolfId] : []),
       ...(night >= 6 ? ['brute' as WolfId, 'leaper' as WolfId] : [])];
-  const count = tutorial ? 5 : Math.round((big ? 8 : 4) + night * (big ? 2 : 1.2)); // gentler early nights, same late curve
+  const count = tutorial ? 5 : Math.max(3, Math.round(((big ? 8 : 4) + night * (big ? 2 : 1.2)) * (1 - shrink))); // gentler early nights, same late curve
   const waves = tutorial ? [0] : big ? [0, 0.45, 0.8] : [0, 0.6];
   const span = tutorial ? 30000 : big ? 110000 : 75000;
   const lanes = [0, 1, 2, 3, 4];
@@ -71,3 +71,18 @@ export const BATTLE_LINES = {
   win: 'Eles recuaram. Mande a conta da cerca.',
   lose: 'Tecnicamente, a linha defensiva continua existindo. Em vários lugares.',
 };
+
+// Blood Moon (endless challenge): wave k of an ever-growing horde, starting at time `at`.
+export function endlessWave(k: number, at: number): Spawn[] {
+  const pool: WolfId[] = ['scout', 'scout', 'hunter', ...(k >= 3 ? ['leaper' as WolfId] : []), ...(k >= 4 ? ['brute' as WolfId, 'howler' as WolfId] : []),
+    ...(k >= 7 ? ['brute' as WolfId, 'leaper' as WolfId] : [])];
+  const count = 3 + k * 2;
+  const out: Spawn[] = [];
+  for (let i = 0; i < count; i++) out.push({ at: at + i * Math.max(900, 3200 - k * 180) + Math.random() * 800, wolf: pool[Math.floor(Math.random() * pool.length)], lane: Math.floor(Math.random() * LANES) });
+  if (k % 5 === 0) out.push({ at: at + count * 1500, wolf: 'alpha', lane: 2 });
+  return out.sort((a, b) => a.at - b.at);
+}
+
+// Unit levels bought with hunt marks (Arsenal): +15% damage, life and chalice output per level.
+export const UNIT_MAX_LV = 5;
+export const unitLvCost = (lv: number) => (lv + 1) * 3;

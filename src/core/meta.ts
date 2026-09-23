@@ -22,10 +22,14 @@ export interface Meta {
   bestNight: number;
   nextRegion: RegionId;
   mute: boolean;
+  album: string[];             // lineages discovered ("rubra:raro", "trait:lunar"), +1% Blood each, forever
+  marks: number;               // hunt marks from battle stars, spent on unit levels
+  unitLv: Record<string, number>;
+  bestWave: number;            // Blood Moon record
 }
 
 const KEY = 'hemo.meta';
-export const meta: Meta = { legacy: 0, levels: {}, mandates: 0, bestNight: 0, nextRegion: 'bosque', mute: false };
+export const meta: Meta = { legacy: 0, levels: {}, mandates: 0, bestNight: 0, nextRegion: 'bosque', mute: false, album: [], marks: 0, unitLv: {}, bestWave: 0 };
 
 export function loadMeta() {
   try { Object.assign(meta, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { /* fresh meta */ }

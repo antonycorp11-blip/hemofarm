@@ -29,6 +29,10 @@ export interface GameEvents {
   TITHE_FAILED: { night: number; deficit: number; taken: number; strikes: number };
   HUMAN_TAKEN: { humanId: number; by: 'tithe' | 'raid' };
   MANDATE_REVOKED: { night: number };
+  LINEAGE_DISCOVERED: { key: string; name: string; total: number };
+  ORB_TAPPED: { amount: number };
+  UPGRADE_BOUGHT: { kind: string; level: number };
+  ORDER_DONE: { kind: string };
 }
 
 type Handler<T> = (payload: T) => void;

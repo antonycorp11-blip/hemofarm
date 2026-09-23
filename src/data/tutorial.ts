@@ -192,19 +192,24 @@ export const TUTORIAL: Step[] = [
     target: { slot: 'lab' },
     satisfied: () => ['lab'].some(id => (state.buildings[id]?.level ?? 0) > 0),
     hint: { who: 'hematico', text: 'O lote a leste, perto dos tanques. Toque nele!' },
+    reward: { essence: 30 },
+    done: [
+      { who: 'hematico', text: 'O Laboratório destila Essência de cada coleta de Sangue. O Sangue continua todo seu; a Essência é minha. Nossa. Minha.' },
+    ],
   },
   {
     id: 't12_pesquisa',
     lines: [
-      { who: 'hematico', text: 'Quero pesquisar Ração Nutritiva. Humanos saudáveis recuperam sangue mais rápido.' },
+      { who: 'hematico', text: 'Minha árvore de pesquisas! Quatro ramos: Sangue, Rebanho, Defesa e Castelo. Cada nó tem níveis e é comprado na hora, com Essência.' },
+      { who: 'hematico', text: 'Comece por Ração Nutritiva, no ramo Rebanho. Humanos saudáveis recuperam sangue mais rápido.' },
       { who: 'boris', text: 'A proposta foi aprovada pelo departamento responsável.' },
       { who: 'vesper', text: 'Qual departamento?' },
       { who: 'boris', text: 'Eu.' },
     ],
-    objective: obj({ text: 'Inicie a pesquisa Ração Nutritiva', event: 'RESEARCH_STARTED', match: p => p.nodeId === 'w1' }),
-    satisfied: () => state.research.done.includes('w1') || state.research.current?.id === 'w1',
+    objective: obj({ text: 'Pesquise Ração Nutritiva na árvore', event: 'RESEARCH_STARTED', match: p => p.nodeId === 'r1' }),
+    satisfied: () => (state.research.lv.r1 ?? 0) > 0,
     target: { slot: 'lab' },
-    hint: { who: 'hematico', text: 'Toque no Laboratório e depois em Pesquisas. Bem-estar, a primeira da lista!' },
+    hint: { who: 'hematico', text: 'Toque no frasco no alto da tela (ou no Laboratório → Pesquisas). Ração Nutritiva fica logo acima do centro.' },
   },
   {
     id: 't13_lobisomens',

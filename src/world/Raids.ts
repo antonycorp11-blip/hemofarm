@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { bus } from '../core/events';
 import { state, NIGHT_MS } from '../core/state';
 import { buildRaid, Raid } from '../data/battle';
-import { has } from '../data/research';
+import { fx, more } from '../core/bonus';
 import { TUTORIAL } from '../data/tutorial';
 import type { BattleResult } from '../scenes/BattleScene';
 import type { Hud } from '../ui/Hud';
@@ -46,7 +46,7 @@ export class Raids {
     const r = state.world.raid!;
     r.status = 'warned';
     r.warnLeft = WARN_MS;
-    this.current = buildRaid(state.night.night, r.kind === 'big', tutorial);
+    this.current = buildRaid(state.night.night, r.kind === 'big', tutorial, Math.min(0.5, fx('raidSize')));
     this.hud.raidChip(r.kind === 'big' ? 'Lua cheia: ataque grande!' : 'Lobisomens na trilha!', () => this.defend());
     this.hud.toast(`Aureliano: ${r.kind === 'big' ? 'Lua cheia. Eles vêm em bando. Às raias!' : 'Uivos na trilha norte. Toque no alerta para defender.'}`, 'bad', 7000);
     bus.emit('RAID_WARNING', { big: r.kind === 'big' });
@@ -66,7 +66,7 @@ export class Raids {
     r.status = 'done';
     this.current = undefined;
     if (res.won && !lost.length) {
-      const gold = 60 + state.night.night * 25, prestige = 5 + state.night.night;
+      const gold = Math.round((60 + state.night.night * 25) * more('defense')), prestige = Math.round((5 + state.night.night) * more('defense'));
       state.resources.gold += gold;
       state.resources.prestige += prestige;
       this.hud.toast(`Aureliano: Eles recuaram. +${gold} Ouro · +${prestige} Prestígio pela defesa.`, 'good', 7000);
@@ -84,8 +84,8 @@ export class Raids {
     this.current = undefined;
     this.hud.raidChip(null);
     const threat = raid.spawns.reduce((a, s) => a + (s.wolf === 'alpha' ? 12 : s.wolf === 'brute' ? 4 : 1), 0);
-    const defense = 3 + (this.buildings.level('watch') ? 4 : 0) + ['d1', 'd2', 'd3', 'c1'].filter(has).length * 2;
-    const losses = Phaser.Math.Clamp(Math.round((threat - defense) / 4), 0, 3);
+    const defense = 3 + (this.buildings.level('watch') ? 4 : 0) + ['n1', 'n2', 'n4', 'n5', 'n6'].filter(id => (state.research.lv[id] ?? 0) > 0).length * 2;
+    const losses = fx('vigil') ? 0 : Phaser.Math.Clamp(Math.round((threat - defense) / 4), 0, 3);
     const lost = this.humans.takeByRaid(losses);
     const blood = Math.round(state.resources.blood * 0.15);
     state.resources.blood -= blood;

@@ -14,6 +14,8 @@ import { HumanTraits, NAMED_TRAITS, QUALITY, randomTraits } from '../data/humans
 import { state } from '../core/state';
 import { heirOf } from '../sim/genetics';
 import { has } from '../data/research';
+import { fx, more, less } from '../core/bonus';
+import { discover } from '../ui/Album';
 import { QUALITY as Q } from '../data/humans';
 import { FOOD_PER_MEAL } from '../data/crops';
 
@@ -122,6 +124,7 @@ export class Humans {
     h.look = look;
     h.name = o.name;
     h.traits = o.traits;
+    discover(o.traits, !!o.save);
     h.contract = sv?.contract;
     h.partner = sv?.partner;
     h.kin = sv?.kin ?? 0;
@@ -150,8 +153,8 @@ export class Humans {
     for (const h of this.list) {
       if (h.state !== 'eating') h.hunger = Math.min(100, h.hunger + HUNGER_RATE * state.mods.hunger * s);
       if (h.state !== 'inside') h.energy = Math.max(0, h.energy - ENERGY_RATE * s);
-      if (h.state !== 'collecting') h.vitality = Math.min(100, h.vitality + (h.hunger < 50 ? 0.6 : 0.25) * (has('w1') ? 1.5 : 1) * state.mods.regen * s);
-      if (has('w3') && h.hunger < 70) h.morale = Math.min(100, h.morale + 0.04 * s);
+      if (h.state !== 'collecting') h.vitality = Math.min(100, h.vitality + (h.hunger < 50 ? 0.6 : 0.25) * more('regen') * state.mods.regen * s);
+      if (has('r5') && h.hunger < 70) h.morale = Math.min(100, h.morale + 0.04 * s);
       if (h.hunger > 85) h.morale = Math.max(0, h.morale - 0.2 * s);
       h.sprite.setDepth(h.sprite.y);
       // Safety net: anyone outside a building must be visible and tappable.
@@ -203,9 +206,9 @@ export class Humans {
     if (!h.home || this.buildings.level(h.home) === 0) h.home = this.findHome();
     if (!h.home) return this.sleepOutside(h);
     this.walkTo(h, this.map.entries[h.home], () => {
-      this.enter(h, Phaser.Math.Between(9000, 14000) * (has('w2') ? 0.7 : 1), () => {
+      this.enter(h, Phaser.Math.Between(9000, 14000) * less('sleep', 0.4), () => {
         h.energy = 100;
-        if (has('w2')) h.morale = Math.min(100, h.morale + 2);
+        if (fx('moraleUp')) h.morale = Math.min(100, h.morale + 1 + fx('moraleUp'));
         this.decide(h);
       });
     });
@@ -304,10 +307,10 @@ export class Humans {
     if (q.busy || !h || h.state !== 'queued') return;
     q.busy = true;
     const def = this.buildings.levelDef('collect');
-    const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult * (has('c1') ? 1.2 : 1) * state.mods.blood);
-    this.enter(h, (def?.collectMs ?? 4000) * (has('c3') ? 0.7 : 1) * ((state.world.overtime ?? 0) > 0 ? 0.5 : 1) * state.mods.collectTime, () => {
-      h.vitality = Math.max(0, h.vitality - (has('c2') ? 20 : 30));
-      h.morale = Math.max(0, h.morale - 4);
+    const amount = Math.round((def?.blood ?? 10) * QUALITY[h.traits.quality].mult * more('blood') * (h.morale > 60 ? more('moraleBlood') : 1) * state.mods.blood);
+    this.enter(h, (def?.collectMs ?? 4000) / more('collectSpeed') * ((state.world.overtime ?? 0) > 0 ? 0.5 : 1) * state.mods.collectTime, () => {
+      h.vitality = Math.max(0, h.vitality - Math.max(6, 30 - fx('vitCost')));
+      h.morale = Math.max(0, Math.min(100, h.morale - 4 + fx('collectMorale') * 3));
       h.recoveringUntil = this.scene.time.now + 25000;
       bus.emit('BLOOD_COLLECTED', { humanId: h.id, amount, vitalityAfter: h.vitality });
       q.members.shift();
@@ -438,12 +441,12 @@ export class Humans {
       const a = social[i], b = social[j];
       if (Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, b.sprite.x, b.sprite.y) > 120) continue;
       const k = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
-      const v = (this.affinity.get(k) ?? 0) + 16 * s * (a.morale + b.morale > 100 ? 1.3 : 0.8) * (has('g3') ? 2 : 1);
+      const v = (this.affinity.get(k) ?? 0) + 16 * s * (a.morale + b.morale > 100 ? 1.3 : 0.8) * more('bond');
       this.affinity.set(k, v);
       if (v >= 100) { this.affinity.delete(k); this.bond(a, b); return; }
     }
     // Heirs: only with a Family House, and only if there's a free bed.
-    const rate = Math.max(0, ...this.buildings.built('family').map(id => this.buildings.levelDef(id)?.kinRate ?? 0)) * (has('g1') ? 1.3 : 1);
+    const rate = Math.max(0, ...this.buildings.built('family').map(id => this.buildings.levelDef(id)?.kinRate ?? 0)) * more('kin');
     if (!rate) return;
     for (const h of this.list) {
       const p = this.partnerOf(h);
@@ -462,7 +465,7 @@ export class Humans {
 
   private heir(a: Human, b: Human) {
     const gate: P = [21, 33];
-    const c = this.create({ tile: gate, traits: heirOf(a.traits, b.traits, has('g2') ? 0.1 : 0), source: 'bond' });
+    const c = this.create({ tile: gate, traits: heirOf(a.traits, b.traits, fx('heirQ')), source: 'bond' });
     c.sprite.setAlpha(0);
     this.scene.tweens.add({ targets: c.sprite, alpha: 1, duration: 800 });
     this.scene.time.delayedCall(900, () => this.bubbles.say(c, 'heir', true));
@@ -474,10 +477,14 @@ export class Humans {
   takeByRaid(n: number) {
     const out: string[] = [];
     for (let k = 0; k < n; k++) {
-      const pool = this.list.filter(h => !h.taken && !h.name && !h.contract);
+      const pool = this.list.filter(h => !h.taken && !h.name && !h.contract && h.state !== 'collecting');
       const h = Phaser.Utils.Array.GetRandom(pool);
       if (!h) break;
       h.taken = true;
+      // Detach from everything still pointing at them (queue, tweens), or a later step touches a destroyed sprite and stops the game.
+      this.leaveQueue(h);
+      h.move?.remove(); h.fade?.remove();
+      this.scene.tweens.killTweensOf(h.sprite);
       h.sprite.destroy(); h.marker?.destroy();
       this.drop(h);
       out.push(`Unidade ${h.traits.code}`);
@@ -602,6 +609,7 @@ export class Humans {
   }
 
   private step(h: Human) {
+    if (!h.sprite.active) return;
     const next = h.path.shift();
     if (!next) { h.onArrive?.(); return; }
     const di = next[0] - h.tile[0], dj = next[1] - h.tile[1];
@@ -717,6 +725,7 @@ export class Humans {
   }
 
   private anim(h: Human, a: Action) {
+    if (!h.sprite.anims) return h.sprite; // destroyed (taken while a step was pending)
     const key = h.look === 'base'
       ? { front: 'h_walk_front', back: 'h_walk_back', idle: 'h_idle', talk: 'h_talk', eat: 'h_eat', work: 'h_eat' }[a]
       : `${h.look}_${a}`;

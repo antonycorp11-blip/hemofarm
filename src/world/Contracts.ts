@@ -6,10 +6,10 @@ import { state } from '../core/state';
 import { CONTRACTS, ContractDef, Requirement, BUYER_NAMES, MAX_OFFERS } from '../data/contracts';
 import { BLOOD, QUALITY, TEMPER, TRAIT } from '../data/humans';
 import { heirOdds } from '../sim/genetics';
-import { has } from '../data/research';
+import { fx, more } from '../core/bonus';
 
 // Research can raise what buyers pay.
-const goldOf = (d: ContractDef) => Math.round(d.reward.gold * (has('l2') ? 1.2 : 1) * state.mods.contractGold);
+const goldOf = (d: ContractDef) => Math.round(d.reward.gold * more('contractGold') * state.mods.contractGold);
 import { slotGeometry, FarmMap } from '../map/bosque';
 import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';
@@ -114,7 +114,7 @@ export class Contracts {
     }
     const family = this.buildings.built('family').length > 0;
     const kin = Math.round(this.humans.kinOf(h));
-    const odds = heirOdds(h.traits, p.traits, has('g2') ? 0.1 : 0);
+    const odds = heirOdds(h.traits, p.traits, fx('heirQ'));
     return `<div class="card"><div>❤ Par: <b>${this.label(p)}</b> · ${BLOOD[p.traits.blood].name} · ${QUALITY[p.traits.quality].name}</div>` +
       (family ? `<div class="row"><span style="width:74px">Parente</span><div class="meter"><i style="width:${kin}%;background:#ff8a8a"></i></div><span style="width:28px;text-align:right">${kin}</span></div>`
         : `<div class="muted">Construa a Casa das Famílias para o casal mandar buscar parentes.</div>`) +
@@ -127,7 +127,7 @@ export class Contracts {
     const cands = this.humans.singles().filter(x => x !== h && !x.contract)
       .sort((a, b) => QUALITY[b.traits.quality].rank - QUALITY[a.traits.quality].rank);
     const row = (c: Human) => {
-      const o = heirOdds(h.traits, c.traits, has('g2') ? 0.1 : 0);
+      const o = heirOdds(h.traits, c.traits, fx('heirQ'));
       return `<div class="card"><h4>${this.label(c)}</h4><div class="muted">${BLOOD[c.traits.blood].name} · ${QUALITY[c.traits.quality].name} · ${TEMPER[c.traits.temper].name}` +
         `${c.traits.trait ? ` · ${TRAIT[c.traits.trait].name}` : ''}</div><div class="muted">Qualidade do parente sobe: ${o.upgrade}%` +
         `${o.combo ? ` · ${o.combo.pct}% ${BLOOD[o.combo.out].name}` : ''}</div><button class="go" data-pair="${c.id}">Formar par</button></div>`;
@@ -240,6 +240,6 @@ export class Contracts {
   private refreshOffers() {
     const keep = state.contracts.offers.filter(id => def(id).tutorialOnly);
     const pool = Phaser.Utils.Array.Shuffle(CONTRACTS.filter(c => !c.tutorialOnly && c.id !== state.contracts.active?.id).map(c => c.id));
-    state.contracts.offers = [...keep, ...pool].slice(0, MAX_OFFERS + (has('l3') ? 1 : 0));
+    state.contracts.offers = [...keep, ...pool].slice(0, MAX_OFFERS + fx('offers'));
   }
 }

@@ -19,6 +19,16 @@ const game = new Phaser.Game({
   scene: [FarmScene, BattleScene],
 });
 
+// An exception inside a frame would stop Phaser's loop for good (the game "freezes"). Log it and keep running instead.
+const seen = new Set<string>();
+const step = game.step.bind(game);
+game.step = (time: number, delta: number) => {
+  try { step(time, delta); } catch (e) {
+    const msg = String((e as Error)?.stack ?? e);
+    if (!seen.has(msg)) { seen.add(msg); console.error(e); }
+  }
+};
+
 // iOS (especially the installed app) reports a stale size after rotating: re-sync the canvas to the real viewport a few times.
 const syncSize = () => {
   const w = Math.round(window.visualViewport?.width ?? window.innerWidth), h = Math.round(window.visualViewport?.height ?? window.innerHeight);

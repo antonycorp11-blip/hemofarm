@@ -11,6 +11,7 @@ const CSS = `
 .hud .res{display:flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px}
 .hud .res img{height:18px;width:auto}
 .hud .res .v{font-variant-numeric:tabular-nums;min-width:14px}
+.hud .res .rate{font:600 10px system-ui;color:#ff8a98;margin-left:1px}
 .hud .res.low{background:#5a0f1a;animation:pulse 1s infinite alternate}@keyframes pulse{to{background:#8a1424}}
 .hud .res.food .dot{width:12px;height:12px;border-radius:40% 40% 50% 50%;background:#9fd86b}
 .hud .deals{pointer-events:auto;position:relative;background:none;border:0;padding:0 4px 0 6px;cursor:pointer}.hud .deals img{height:22px;display:block}
@@ -36,14 +37,17 @@ const CSS = `
 .quest img{width:22px;height:22px;flex:none}
 .quest .qt{flex:1;line-height:1.25}.quest .qp{color:#e8b54a;margin-left:4px}
 .quest button{flex:none;background:#8a1424;border:1px solid #2a0a10;color:#fff3e0;border-radius:6px;font:600 12px Georgia,serif;padding:6px 9px;cursor:pointer}
-.toasts{position:fixed;left:50%;transform:translateX(-50%);top:var(--hud-bottom,90px);z-index:6;display:flex;flex-direction:column;gap:6px;
-  align-items:center;pointer-events:none;width:calc(100vw - 24px);max-width:440px}
-.quest.on ~ .toasts{top:calc(var(--hud-bottom,90px) + 52px)}
-.toast{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#140a10f2;border:1px solid #5a1a24;border-radius:8px;color:#f3e2c8;
-  font:600 13px Georgia,serif;box-shadow:0 3px 10px #000a;animation:tin .25s ease-out}
-.toast img{width:34px;height:34px;border-radius:5px;border:1px solid #6b1d2a;flex:none}
-.toast.bad{border-color:#d8122a}.toast.good{border-color:#e8b54a}
-@keyframes tin{from{opacity:0;transform:translateY(-6px)}}
+.toasts{position:fixed;left:max(8px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:4;display:flex;flex-direction:column;
+  gap:4px;align-items:flex-start;pointer-events:none;width:min(330px,calc(100vw - 16px))}
+.toast{display:flex;align-items:center;gap:7px;padding:4px 9px 4px 5px;background:#0d070acc;border-left:3px solid #8a6a60;border-radius:0 8px 8px 0;color:#eadbc4;
+  font:600 12px/1.25 Georgia,serif;box-shadow:0 2px 6px #0008;animation:tin .25s ease-out;transition:opacity .5s}
+.toast.out{opacity:0}
+.toast img{width:24px;height:24px;border-radius:4px;flex:none}
+.toast.bad{border-left-color:#e0283c}.toast.good{border-left-color:#e8b54a}
+body.dlg-open .toasts{display:none}
+.hlog{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:4px;font-size:12px;text-align:left}
+.hlog div{padding:4px 8px;border-left:3px solid #5a4a48;background:#1a0f14;border-radius:0 6px 6px 0}.hlog .good{border-left-color:#e8b54a}.hlog .bad{border-left-color:#e0283c}
+@keyframes tin{from{opacity:0;transform:translateX(-10px)}}
 .evt{position:fixed;right:max(10px,env(safe-area-inset-right,0px));top:var(--hud-bottom,90px);z-index:6;display:none;align-items:center;gap:6px;
   max-width:min(220px,45vw);padding:8px 10px;border:8px solid transparent;border-image:url(assets/frame_tooltip.webp) 18 fill / 8px stretch;background:none;
   color:#f6d9a0;font:600 13px Georgia,serif;text-align:left;cursor:pointer;animation:evtp 1.2s ease-in-out infinite alternate}
@@ -60,6 +64,9 @@ body.in-battle .hud,body.in-battle .toasts,body.in-battle .quest,body.in-battle 
 }
 .hmenu{position:fixed;inset:0;z-index:30;display:none;background:#000a;align-items:flex-start;justify-content:center}
 .hmenu.on{display:flex}
+.hmenu .box{max-height:calc(100dvh - 80px);overflow:auto}
+@media (orientation:landscape) and (max-height:520px){.hmenu .box{margin-top:calc(env(safe-area-inset-top,0px) + 10px);width:min(520px,calc(100vw - 32px));
+  display:grid!important;grid-template-columns:1fr 1fr;max-height:calc(100dvh - 20px)}.hmenu .box>div,.hmenu .box>b,.hmenu .hlog{grid-column:1/-1}.hmenu button{min-height:36px}}
 .hmenu .box{margin-top:calc(env(safe-area-inset-top,0px) + 60px);width:min(300px,calc(100vw - 32px));background:#140a10;border:1px solid #6b1d2a;
   border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;font:15px Georgia,serif;color:#f3e2c8}
 .hmenu button{min-height:44px;border-radius:7px;border:1px solid #4a1620;background:#241218;color:#f3e2c8;font:inherit;cursor:pointer}
@@ -70,9 +77,10 @@ body.in-battle .hud,body.in-battle .toasts,body.in-battle .quest,body.in-battle 
 }
 `;
 
-export interface HudSource { population: number; avgMorale: number }
+export interface HudSource { population: number; avgMorale: number; ordersReady: number; treeReady: boolean; hasLab: boolean }
 export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
   onSpeed(): void; onPayTithe(): void; onMap(): void; onAscend(): void; onSound(): void;
+  onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void;
   info(): { goal: number; region: string; mute: boolean } }
 
 export class Hud {
@@ -84,6 +92,10 @@ export class Hud {
   private toasts: HTMLDivElement;
   private menu: HTMLDivElement;
   private deals!: HTMLButtonElement;
+  private ordersBtn!: HTMLButtonElement;
+  private treeBtn!: HTMLButtonElement;
+  private samples: number[] = [];
+  private sampleAt = 0;
   private evt!: HTMLButtonElement;
   private speedBtn!: HTMLButtonElement;
   private crown!: HTMLButtonElement;
@@ -107,13 +119,14 @@ export class Hud {
     menuBtn.onclick = () => this.openMenu();
     bar.appendChild(menuBtn);
     // [key, label, icon] — no icon means a CSS shape
-    const items: [string, string, string?][] = [['blood', 'Sangue', 'icon_blood'], ['gold', 'Ouro', 'icon_gold'], ['food', 'Comida'],
+    const items: [string, string, string?][] = [['blood', 'Sangue', 'icon_blood'], ['gold', 'Ouro', 'icon_gold'], ['essence', 'Essência', 'icon_research'], ['food', 'Comida'],
       ['pop', 'População', 'icon_population'], ['morale', 'Moral', 'icon_morale'], ['tension', 'Tensão', 'icon_tension'], ['prestige', 'Prestígio', 'icon_prestige']];
     for (const [k, label, icon] of items) {
       const r = document.createElement('div');
       r.className = `res ${k}`;
       r.title = label;
       r.innerHTML = `${icon ? `<img src="assets/${icon}.webp" alt="${label}">` : '<span class="dot"></span>'}<span class="v">0</span>`;
+      if (k === 'blood') r.insertAdjacentHTML('beforeend', '<small class="rate"></small>');
       this.vals[k] = r.querySelector('.v')!;
       this.res[k] = r;
       bar.appendChild(r);
@@ -132,6 +145,18 @@ export class Hud {
     this.crown = crown;
     this.deals = deals;
     bar.appendChild(deals);
+    const mk = (cls: string, icon: string, label: string, fn: () => void) => {
+      const b = document.createElement('button');
+      b.className = `deals ${cls}`;
+      b.setAttribute('aria-label', label);
+      b.title = label;
+      b.innerHTML = `<img src="assets/${icon}.webp" alt=""><span class="badge"></span>`;
+      b.onclick = fn;
+      bar.appendChild(b);
+      return b;
+    };
+    this.ordersBtn = mk('orders', 'icon_quest', 'Encomendas do Castelo', () => actions.onOrders());
+    this.treeBtn = mk('tree', 'icon_research', 'Árvore de pesquisas', () => actions.onTree());
     bar.appendChild(crown);
     this.root.appendChild(bar);
 
@@ -190,6 +215,27 @@ export class Hud {
     this.vals.gold.textContent = String(Math.floor(r.gold));
     this.vals.prestige.textContent = String(Math.floor(r.prestige));
     this.vals.food.textContent = String(Math.floor(r.food));
+    this.vals.essence.textContent = String(Math.floor(r.essence));
+    this.res.essence.style.display = this.src.hasLab || r.essence > 0 ? 'flex' : 'none';
+    // Blood per minute: positive changes over the last minute (spending doesn't count against it).
+    const now = performance.now();
+    if (now - this.sampleAt >= 1000) {
+      this.sampleAt = now;
+      this.samples.push(r.blood);
+      if (this.samples.length > 61) this.samples.shift();
+    }
+    let gain = 0;
+    for (let i = 1; i < this.samples.length; i++) gain += Math.max(0, this.samples[i] - this.samples[i - 1]);
+    const perMin = this.samples.length > 5 ? Math.round(gain * 60 / (this.samples.length - 1)) : 0;
+    this.res.blood.querySelector<HTMLElement>('.rate')!.textContent = perMin ? `+${perMin}/min` : '';
+    const ob = this.ordersBtn.querySelector<HTMLElement>('.badge')!;
+    ob.textContent = this.src.ordersReady ? String(this.src.ordersReady) : '';
+    ob.style.display = ob.textContent ? 'block' : 'none';
+    this.ordersBtn.classList.toggle('crown', this.src.ordersReady > 0);
+    this.treeBtn.style.display = this.src.hasLab ? 'block' : 'none';
+    const tb = this.treeBtn.querySelector<HTMLElement>('.badge')!;
+    tb.textContent = this.src.treeReady ? '!' : '';
+    tb.style.display = tb.textContent ? 'block' : 'none';
     this.vals.pop.textContent = String(this.src.population);
     this.vals.morale.textContent = String(Math.round(this.src.avgMorale));
     this.res.food.classList.toggle('low', r.food < 10);
@@ -265,6 +311,13 @@ export class Hud {
       box.appendChild(b);
     };
     add('Continuar', () => undefined);
+    add('Mensagens recentes', () => this.openLog());
+    add('Árvore de pesquisas', () => this.actions.onTree());
+    add('Encomendas do Castelo', () => this.actions.onOrders());
+    add('Relíquias do mandato', () => this.actions.onRelics());
+    add('Álbum de Linhagens', () => this.actions.onAlbum());
+    add('Arsenal de Aureliano', () => this.actions.onArsenal());
+    if (!this.actions.tutorialActive()) add('Lua de Sangue (desafio)', () => this.actions.onBloodMoon());
     add('Mapa regional', () => this.actions.onMap());
     add(info.mute ? 'Som: desligado' : 'Som: ligado', () => this.actions.onSound());
     if (this.actions.tutorialActive()) add('Pular tutorial', () => { if (confirm('Pular o tutorial?')) this.actions.onSkipTutorial(); });
@@ -272,8 +325,13 @@ export class Hud {
     this.menu.classList.add('on');
   }
 
+  private log: { msg: string; kind: string }[] = [];
+
+  // Messages: a quiet feed in the bottom-left corner (never over the middle of the farm), 2 at a time, full history in the menu.
   toast(msg: string, kind: 'good' | 'bad' | '' = '', ms = 5000) {
-    while (this.toasts.children.length >= 3) this.toasts.firstElementChild!.remove(); // never bury the map in messages
+    this.log.push({ msg, kind });
+    if (this.log.length > 40) this.log.shift();
+    while (this.toasts.children.length >= 2) this.toasts.firstElementChild!.remove();
     const t = document.createElement('div');
     t.className = `toast ${kind}`;
     // A character speaking ("Bóris: ...") gets their portrait next to the line.
@@ -287,6 +345,19 @@ export class Hud {
     }
     t.appendChild(document.createTextNode(msg));
     this.toasts.appendChild(t);
-    setTimeout(() => t.remove(), ms);
+    const life = Math.min(ms, 4500) + Math.min(2500, msg.length * 20);
+    setTimeout(() => t.classList.add('out'), life);
+    setTimeout(() => t.remove(), life + 500);
+  }
+
+  private openLog() {
+    const esc = (x: string) => x.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
+    this.menu.innerHTML = `<div class="box"><b style="text-align:center;color:#f6d9a0">Mensagens recentes</b><div class="hlog">${
+      [...this.log].reverse().map(l => `<div class="${l.kind}">${esc(l.msg)}</div>`).join('') || '<div>Nada por enquanto.</div>'}</div></div>`;
+    const b = document.createElement('button');
+    b.textContent = 'Fechar';
+    b.onclick = () => this.menu.classList.remove('on');
+    this.menu.querySelector('.box')!.appendChild(b);
+    this.menu.classList.add('on');
   }
 }

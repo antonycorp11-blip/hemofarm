@@ -2,12 +2,14 @@
 // Lanes run along the isometric j axis: wolves come from the forest (bottom-left) up towards the palisade (top-right).
 import Phaser from 'phaser';
 import { state } from '../core/state';
-import { BATTLE_LINES, COLS, LANES, Raid, UNITS, UnitDef, UnitId, WOLVES, WolfDef, WolfId } from '../data/battle';
+import { BATTLE_LINES, COLS, LANES, Raid, UNITS, UnitDef, UnitId, WOLVES, WolfDef, WolfId, endlessWave } from '../data/battle';
 import { has } from '../data/research';
+import { fx, less } from '../core/bonus';
+import { meta, saveMeta } from '../core/meta';
 
 const S = 0.5;
 const US = S * 1.35; // units and wolves read bigger than farm props: they're the focus here
-export interface BattleResult { won: boolean; grabbed: number; bloodSpent: number; kills: number; retreated: boolean }
+export interface BattleResult { won: boolean; grabbed: number; bloodSpent: number; kills: number; retreated: boolean; stars: number; waves: number }
 export interface BattleData { raid: Raid; collectLevel: number; looks: string[]; onEnd: (r: BattleResult) => void }
 
 interface Unit { def: UnitDef; id: UnitId; lane: number; col: number; spr: Phaser.GameObjects.Sprite; hp: number; cd: number; stunUntil: number; stoneUntil: number }
@@ -19,6 +21,14 @@ const CW = 96, CH = 72;                       // cell size in world units
 const cellPos = (lane: number, j: number) => ({ x: (j + 0.5) * CW, y: (lane + 0.72) * CH });
 const PREP_MS = 20000;                        // preparation time before the first wolf
 
+// Vampire spells: always available, paid in Blood, long cooldowns. Tap the spell, then the field.
+type SpellId = 'rain' | 'mist' | 'drain';
+const SPELLS: Record<SpellId, { name: string; cost: number; cd: number; desc: string; icon: string; color: number; css: string }> = {
+  rain: { name: 'Chuva Rubra', cost: 60, cd: 25000, icon: 'icon_blood', color: 0xd8122a, css: '#e0283c', desc: 'toque numa raia: 120 de dano em todos os lobos dela' },
+  mist: { name: 'Névoa Hipnótica', cost: 40, cd: 30000, icon: 'mk_sleep', color: 0x9a6aff, css: '#9a6aff', desc: 'toque no campo: todos os lobos ficam lentos por 6 s' },
+  drain: { name: 'Beijo Sombrio', cost: 30, cd: 18000, icon: 'icon_vitality', color: 0xff3a7a, css: '#ff4a8a', desc: 'toque numa área 3×3: 80 de dano e +10 Sangue por lobo atingido' },
+};
+
 export class BattleScene extends Phaser.Scene {
   private cfg!: BattleData;
   private units: Unit[] = [];
@@ -27,6 +37,11 @@ export class BattleScene extends Phaser.Scene {
   private spawnIdx = 0;
   private selected?: UnitId;
   private grabbed = 0;
+  private spell?: SpellId;
+  private spellReady: Partial<Record<SpellId, number>> = {};
+  private bank = 0;        // Blood Moon: its own Blood pool, the farm's is untouched
+  private wave = 0;
+  private lives = 3;
   private spent = 0;
   private kills = 0;
   private trickle = 0;
@@ -47,8 +62,8 @@ export class BattleScene extends Phaser.Scene {
 
   init(data: BattleData) {
     this.cfg = data;
-    Object.assign(this, { units: [], wolves: [], t: 0, spawnIdx: 0, selected: undefined, grabbed: 0, spent: 0, kills: 0, trickle: 0, ended: false, folk: [], wolvesGone: 0, ready: {}, uiTick: 0, touches: new Map(), pinch: 0 });
-    this.t = -(data.raid.spawns.length <= 5 ? PREP_MS + 5000 : PREP_MS);
+    Object.assign(this, { spell: undefined, spellReady: {}, bank: 150, wave: 1, lives: 3, units: [], wolves: [], t: 0, spawnIdx: 0, selected: undefined, grabbed: 0, spent: 0, kills: 0, trickle: 0, ended: false, folk: [], wolvesGone: 0, ready: {}, uiTick: 0, touches: new Map(), pinch: 0 });
+    this.t = -(data.raid.endless ? 12000 : data.raid.spawns.length <= 5 ? PREP_MS + 5000 : PREP_MS);
   }
 
   preload() {
@@ -63,6 +78,12 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0a1410');
+    if (!this.textures.exists('bt_dot')) {
+      const g = this.make.graphics({ x: 0, y: 0 }, false);
+      for (let r = 8; r > 0; r--) g.fillStyle(0xffffff, 0.14 + (8 - r) * 0.11).fillCircle(8, 8, r); // soft glow dot for particles
+      g.generateTexture('bt_dot', 16, 16);
+      g.destroy();
+    }
     this.buildField();
     this.bars = this.add.graphics().setDepth(1e6);
     this.ring = this.add.graphics().setDepth(1e6);
@@ -74,7 +95,7 @@ export class BattleScene extends Phaser.Scene {
     this.setupGestures();
     this.buildUi();
     this.fitCamera();
-    this.toast(`Aureliano: ${BATTLE_LINES.start} Você tem alguns segundos para se preparar.`);
+    this.toast(this.endless ? 'Aureliano: Lua de Sangue. Ondas sem fim, Sangue próprio. Ninguém da fazenda corre perigo, só o seu orgulho.' : `Aureliano: ${BATTLE_LINES.start} Você tem alguns segundos para se preparar.`);
   }
 
   // ---------- field ----------
@@ -231,8 +252,8 @@ export class BattleScene extends Phaser.Scene {
       .bt .res.on{display:flex}.bt .res .box{width:min(340px,calc(100vw - 32px));padding:14px;text-align:center;border:12px solid transparent;
         border-image:url(assets/frame_panel.webp) 22 fill / 12px stretch}.bt .res h3{margin:0 0 6px;color:#f6d9a0;font-size:20px}
       .bt .res button{margin-top:10px;width:100%;min-height:44px;border:6px solid transparent;border-image:url(assets/button_normal.webp) 18 fill / 6px stretch;background:none;color:#fff;font:700 15px Georgia,serif}
-      .bt .btoast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 110px);transform:translateX(-50%);z-index:9;max-width:min(420px,90vw);padding:8px 12px;
-        border:8px solid transparent;border-image:url(assets/frame_tooltip.webp) 18 fill / 8px stretch;display:none}
+      .bt .btoast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 170px);transform:translateX(-50%);z-index:9;max-width:min(460px,70vw);padding:4px 10px;
+        background:#0d070acc;border-left:3px solid #a07818;border-radius:0 8px 8px 0;font-size:12px;line-height:1.25;display:none;pointer-events:none}
       .bt .btoast.on{display:block}
       .bt .go-now{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 66px);transform:translateX(-50%);z-index:9;padding:8px 14px;
         border:6px solid transparent;border-image:url(assets/button_normal.webp) 18 fill / 6px stretch;background:none;color:#fff;font:700 14px Georgia,serif;cursor:pointer;
@@ -253,12 +274,19 @@ export class BattleScene extends Phaser.Scene {
       .bt.land .bc.sel{transform:translateX(4px)}
       .bt.land .horde{left:calc(50% + 44px);width:min(440px,calc(100vw - 110px));padding:2px 10px 5px;border-width:6px}
       .bt.land .horde .lbl{margin-bottom:2px}
+      .bt .spells{position:fixed;right:max(8px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:9;display:flex;flex-direction:column;gap:8px}
+      .bt.land .spells{bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
+      .bt .sp{position:relative;width:54px;height:54px;border-radius:50%;padding:0;cursor:pointer;background:radial-gradient(circle,#2a1420,#0b0709);
+        border:3px solid var(--c);box-shadow:0 0 10px var(--c);overflow:hidden}
+      .bt .sp img{height:28px;margin-top:4px}.bt .sp .sc{position:absolute;left:0;right:0;bottom:3px;font:700 10px system-ui;color:#ffd0d4}
+      .bt .sp .scd{position:absolute;left:0;right:0;bottom:0;height:0;background:#000b;pointer-events:none}
+      .bt .sp.off{filter:grayscale(1) brightness(.6);box-shadow:none}.bt .sp.sel{transform:scale(1.15);box-shadow:0 0 18px var(--c),0 0 4px #fff}
       .bt .turn{display:none;position:fixed;inset:0;z-index:11;background:#070b14f2;align-items:center;justify-content:center;text-align:center;padding:24px}
       .bt .turn .ic{font-size:44px;margin-bottom:8px;animation:tilt 1.4s ease-in-out infinite}@keyframes tilt{50%{transform:rotate(-90deg)}}
       .bt .turn b{font-size:20px;color:#f6d9a0}.bt .turn p{color:#c9b8a8}.bt .turn button{margin-top:8px;background:none;border:1px solid #4a2a30;border-radius:6px;
         color:#c9a98a;font:inherit;padding:8px 14px}
       .bt.portrait:not(.stay) .turn{display:flex}
-      .bt.land .go-now,.bt.land .btoast{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 50px)}
+      .bt.land .go-now{left:calc(50% + 44px);top:calc(env(safe-area-inset-top,0px) + 50px)}.bt.land .btoast{left:calc(50% + 44px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}
     </style>
     <div class="horde"><div class="lbl"><span class="wl">Horda</span><span class="wk"></span></div>
       <div class="track"><div class="fill"></div>${this.cfg.raid.waves.map(w => `<i class="flag" style="left:${(w / this.lastSpawn) * 100}%"></i>`).join('')}<i class="head"></i></div></div>
@@ -267,6 +295,8 @@ export class BattleScene extends Phaser.Scene {
     <div class="bottom"><div class="top"><div class="blood"><img src="assets/icon_blood.webp" alt=""><b class="bv">0</b></div><button class="retreat">Recuar</button></div>
       <div class="hint"></div>
       <div class="cards">${this.unlocked().map(card).join('')}</div></div>
+    <div class="spells">${(Object.keys(SPELLS) as SpellId[]).map(id => `<button class="sp" data-s="${id}" style="--c:${SPELLS[id].css}" title="${SPELLS[id].name}: ${SPELLS[id].desc}">` +
+      `<img src="assets/${SPELLS[id].icon}.webp" alt=""><span class="sc">${SPELLS[id].cost}</span><span class="scd"></span></button>`).join('')}</div>
     <div class="res"><div class="box"><h3></h3><p class="rt"></p><button>Voltar à fazenda</button></div></div>`;
     document.body.appendChild(el);
     document.body.classList.add('in-battle');
@@ -275,12 +305,20 @@ export class BattleScene extends Phaser.Scene {
       e.stopPropagation();
       const id = b.dataset.u as UnitId;
       this.selected = this.selected === id ? undefined : id;
+      this.spell = undefined;
+      this.refreshUi();
+    }));
+    el.querySelectorAll<HTMLButtonElement>('.sp').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = b.dataset.s as SpellId;
+      this.spell = this.spell === id ? undefined : id;
+      this.selected = undefined;
       this.refreshUi();
     }));
     el.querySelector<HTMLButtonElement>('.go-now')!.onclick = () => { if (this.t < 0) this.t = 0; };
     el.querySelector<HTMLButtonElement>('.turn button')!.onclick = () => { el.classList.add('stay'); this.fitCamera(); };
     el.querySelector<HTMLButtonElement>('.retreat')!.onclick = () => {
-      if (confirm('Recuar? Os lobisomens que restarem levam humanos.')) this.finish(false, true);
+      if (confirm(this.endless ? 'Encerrar a Lua de Sangue?' : 'Recuar? Os lobisomens que restarem levam humanos.')) this.finish(false, true);
     };
     this.refreshUi();
   }
@@ -288,7 +326,7 @@ export class BattleScene extends Phaser.Scene {
   private get lastSpawn() { const sp = this.cfg.raid.spawns; return Math.max(1, sp[sp.length - 1]?.at ?? 1); }
 
   private refreshUi() {
-    const blood = Math.floor(state.resources.blood);
+    const blood = Math.floor(this.blood);
     this.ui.querySelector('.bv')!.textContent = String(blood);
     this.ui.querySelectorAll<HTMLButtonElement>('.bc').forEach(b => {
       const id = b.dataset.u as UnitId, u = UNITS[id];
@@ -297,17 +335,25 @@ export class BattleScene extends Phaser.Scene {
       b.classList.toggle('sel', id === this.selected);
       b.querySelector<HTMLElement>('.cd')!.style.height = `${(left / u.recharge) * 100}%`;
     });
+    this.ui.querySelectorAll<HTMLButtonElement>('.sp').forEach(b => {
+      const id = b.dataset.s as SpellId, sp = SPELLS[id];
+      const left = Math.max(0, (this.spellReady[id] ?? -Infinity) - this.t);
+      b.classList.toggle('off', blood < sp.cost || left > 0);
+      b.classList.toggle('sel', id === this.spell);
+      b.querySelector<HTMLElement>('.scd')!.style.height = `${(left / sp.cd) * 100}%`;
+    });
     const total = this.cfg.raid.spawns.length;
-    const prog = Phaser.Math.Clamp(this.t / this.lastSpawn, 0, 1);
+    const prog = this.endless ? Phaser.Math.Clamp((this.spawnIdx) / Math.max(1, total), 0, 1) : Phaser.Math.Clamp(this.t / this.lastSpawn, 0, 1);
     const prep = this.t < 0;
     this.ui.querySelector<HTMLElement>('.go-now')!.style.display = prep ? 'block' : 'none';
     if (prep) this.ui.querySelector('.go-now')!.textContent = `Preparação · ${Math.ceil(-this.t / 1000)} s · Começar já ▸`;
     this.ui.querySelector<HTMLElement>('.horde .fill')!.style.width = `${prog * 100}%`;
     this.ui.querySelector<HTMLElement>('.horde .head')!.style.left = `${prog * 100}%`;
     const wave = this.cfg.raid.waves.filter(w => this.t >= w).length;
-    this.ui.querySelector('.wl')!.textContent = `${this.cfg.raid.big ? 'Lua cheia' : 'Horda'} · onda ${Math.max(1, wave)}/${this.cfg.raid.waves.length}`;
-    this.ui.querySelector('.wk')!.textContent = `${this.kills}/${total} abatidos`;
-    this.ui.querySelector('.hint')!.textContent = this.selected
+    this.ui.querySelector('.wl')!.textContent = this.endless ? `Lua de Sangue · onda ${this.wave} · ${'♥'.repeat(this.lives)}${'♡'.repeat(3 - this.lives)}`
+      : `${this.cfg.raid.big ? 'Lua cheia' : 'Horda'} · onda ${Math.max(1, wave)}/${this.cfg.raid.waves.length}`;
+    this.ui.querySelector('.wk')!.textContent = this.endless ? `${this.kills} abatidos · recorde ${meta.bestWave ?? 0}` : `${this.kills}/${total} abatidos`;
+    this.ui.querySelector('.hint')!.textContent = this.spell ? `${SPELLS[this.spell].name}: ${SPELLS[this.spell].desc}` : this.selected
       ? `${UNITS[this.selected].name}: toque numa casa da grade · ${UNITS[this.selected].desc}` : 'Escolha uma carta e toque na grade. Arraste para mover, pinça para zoom.';
   }
 
@@ -329,11 +375,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onTap(p: Phaser.Input.Pointer) {
-    if (this.ended || !this.selected) return;
+    if (this.ended || (!this.selected && !this.spell)) return;
     const { lane, col } = this.cellAt(p);
-    if (lane < 0 || lane >= LANES || col < 0 || col >= COLS) return;
+    if (lane < 0 || lane >= LANES || col < 0 || col > COLS) return;
+    if (this.spell) { this.cast(this.spell, lane, Math.min(col, COLS - 1)); return; }
+    if (col >= COLS || !this.selected) return;
     const def = { ...UNITS[this.selected], cost: this.costOf(this.selected) };
-    if (state.resources.blood < def.cost) { this.toast('Sangue insuficiente. A fazenda continua coletando.'); return; }
+    if (this.blood < def.cost) { this.toast('Sangue insuficiente. A fazenda continua coletando.'); return; }
     if ((this.ready[this.selected] ?? -Infinity) > this.t) { this.toast('Carta recarregando.'); return; }
     if (def.spell) { this.pay(def.cost); this.castBats(lane, col); this.ready.bats = this.t + def.recharge; this.selected = undefined; this.refreshUi(); return; }
     if (this.units.some(u => u.lane === lane && u.col === col)) return;
@@ -342,9 +390,19 @@ export class BattleScene extends Phaser.Scene {
     this.refreshUi();
   }
 
-  private costOf(id: UnitId) { return Math.round(UNITS[id].cost * state.mods.unitCost); }
+  private costOf(id: UnitId) { return Math.round(UNITS[id].cost * state.mods.unitCost * less('unitCost', 0.5)); }
 
-  private pay(n: number) { state.resources.blood -= n; this.spent += n; }
+  private get endless() { return !!this.cfg.raid.endless; }
+  private get blood() { return this.endless ? this.bank : state.resources.blood; }
+  private set blood(v: number) { if (this.endless) this.bank = v; else state.resources.blood = v; }
+  private pay(n: number) { this.blood -= n; this.spent += n; }
+
+  // Unit strength: Arsenal level (hunt marks) + research + relics.
+  private scaled(id: UnitId): UnitDef {
+    const d = UNITS[id], lv = 1 + 0.15 * (meta.unitLv?.[id] ?? 0);
+    return { ...d, hp: Math.round(d.hp * lv * (1 + fx('unitHp'))), dmg: d.dmg && Math.round(d.dmg * lv * (1 + fx('unitDmg'))),
+      gen: d.gen && Math.round(d.gen * lv * (1 + fx('chalice'))) };
+  }
 
   // ---------- units ----------
   private anim(key: string, tex: string, frames: number[], rate: number, repeat = -1) {
@@ -353,7 +411,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private place(id: UnitId, lane: number, col: number) {
-    const def = UNITS[id];
+    const def = this.scaled(id);
     const c = cellPos(lane, col);
     const spr = this.add.sprite(c.x, c.y, def.tex, 0).setOrigin(0.5, 1).setScale(US).setDepth(c.y);
     const idle = id === 'chalice' ? this.anim('chalice_idle', def.tex, [0, 1, 2, 3], 5)
@@ -363,6 +421,7 @@ export class BattleScene extends Phaser.Scene {
       : this.anim('sent_idle', def.tex, [8, 9], 2);
     spr.play(idle);
     spr.setScale(US * 0.2);
+    this.burst(c.x, c.y - 20, 0xe8b54a, 12, 120, 450);
     this.tweens.add({ targets: spr, scale: US, duration: 250, ease: 'Back.easeOut' });
     // Chalices pour quickly the first time so their value is obvious.
     this.units.push({ def, id, lane, col, spr, hp: def.hp, cd: id === 'chalice' ? 2500 : def.rate ? def.rate * 0.4 : 0, stunUntil: 0, stoneUntil: 0 });
@@ -374,7 +433,7 @@ export class BattleScene extends Phaser.Scene {
     const fx = this.add.sprite(c.x, c.y - 30, 'fx_bat_swarm', 0).setScale(S * 1.6).setDepth(9e5);
     fx.play(this.anim('bats_fx', 'fx_bat_swarm', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 12, 0)).once('animationcomplete', () => fx.destroy());
     this.time.delayedCall(450, () => {
-      for (const w of this.wolves) if (!w.dead && Math.abs(w.lane - lane) <= 1 && Math.abs(w.j - (col + 0.5)) <= 1.6) this.hurt(w, UNITS.bats.dmg!);
+      for (const w of this.wolves) if (!w.dead && Math.abs(w.lane - lane) <= 1 && Math.abs(w.j - (col + 0.5)) <= 1.6) this.hurt(w, this.scaled('bats').dmg!);
     });
   }
 
@@ -472,7 +531,7 @@ export class BattleScene extends Phaser.Scene {
     const take = () => {
       if (done) return;
       done = true;
-      state.resources.blood += u.def.gen!;
+      this.blood += u.def.gen!;
       this.floatText(orb.x, orb.y, `+${u.def.gen} Sangue`);
       orb.destroy();
       this.refreshUi();
@@ -498,16 +557,90 @@ export class BattleScene extends Phaser.Scene {
     if (id === 'alpha') this.toast('Ulf: Boa noite, vizinho. Vim buscar o que é meu. E o que é seu.');
   }
 
+  // ---------- vampire spells ----------
+  private cast(id: SpellId, lane: number, col: number) {
+    const sp = SPELLS[id];
+    if (this.blood < sp.cost) { this.toast('Sangue insuficiente para a magia.'); return; }
+    if ((this.spellReady[id] ?? -Infinity) > this.t) { this.toast('A magia ainda está recarregando.'); return; }
+    this.pay(sp.cost);
+    this.spellReady[id] = this.t + sp.cd;
+    this.spell = undefined;
+    const power = 1 + fx('unitDmg');
+    const cam = this.cameras.main;
+    if (id === 'rain') {
+      // Blood rain falling along the whole lane, then the hit.
+      const y0 = lane * CH;
+      const band = this.add.rectangle(COLS * CW / 2, y0 + CH / 2, COLS * CW, CH, sp.color, 0).setDepth(-1.4e5);
+      this.tweens.add({ targets: band, fillAlpha: 0.35, duration: 250, yoyo: true, hold: 500, onComplete: () => band.destroy() });
+      const rain = this.add.particles(0, 0, 'bt_dot', { x: { min: 0, max: COLS * CW }, y: y0 - 160, speedY: { min: 700, max: 1000 }, scaleX: 0.35, scaleY: { start: 1.6, end: 0.8 },
+        lifespan: 260, tint: [0xd8122a, 0xff3348, 0x8a0a1a], quantity: 5, frequency: 12, blendMode: 'ADD' }).setDepth(9.6e5);
+      this.time.delayedCall(800, () => rain.stop());
+      this.time.delayedCall(1400, () => rain.destroy());
+      this.time.delayedCall(450, () => {
+        cam.flash(180, 120, 0, 10);
+        cam.shake(220, 0.005);
+        for (const w of this.wolves) if (!w.dead && w.lane === lane && w.j < COLS + 0.8) { this.burst(w.spr.x, w.spr.y - 30, sp.color, 10); this.hurt(w, 120 * power); }
+      });
+    } else if (id === 'mist') {
+      const fog = this.add.rectangle(COLS * CW / 2, LANES * CH / 2, COLS * CW + 200, LANES * CH + 100, sp.color, 0).setDepth(9.4e5);
+      this.tweens.add({ targets: fog, fillAlpha: 0.22, duration: 500, yoyo: true, hold: 5000, onComplete: () => fog.destroy() });
+      const wisps = this.add.particles(0, 0, 'bt_dot', { x: { min: 0, max: COLS * CW }, y: { min: 0, max: LANES * CH }, speedX: { min: -20, max: 20 }, speedY: { min: -12, max: 4 },
+        scale: { start: 2.5, end: 5 }, alpha: { start: 0.25, end: 0 }, lifespan: 2200, tint: [0x9a6aff, 0xc8b0ff], quantity: 2, frequency: 60, blendMode: 'ADD' }).setDepth(9.45e5);
+      this.time.delayedCall(5200, () => wisps.stop());
+      this.time.delayedCall(7600, () => wisps.destroy());
+      for (const w of this.wolves) if (!w.dead) { w.slowUntil = this.t + 6000; this.burst(w.spr.x, w.spr.y - 30, sp.color, 6, 60); }
+      this.mistUntil = this.t + 6000;
+    } else {
+      const c = cellPos(lane, col);
+      const ring = this.add.circle(c.x, c.y - 20, 10, sp.color, 0.5).setDepth(9.5e5).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: ring, radius: CW * 1.6, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
+      this.burst(c.x, c.y - 20, sp.color, 24, 220, 700);
+      let got = 0;
+      for (const w of this.wolves) {
+        if (w.dead || Math.abs(w.lane - lane) > 1 || Math.abs(w.j - (col + 0.5)) > 1.6) continue;
+        got++;
+        this.hurt(w, 80 * power);
+        this.stream(w.spr.x, w.spr.y - 30, -40, w.spr.y - 30, sp.color);
+      }
+      if (got) {
+        this.blood += got * 10;
+        this.floatText(c.x, c.y - 60, `+${got * 10} Sangue`);
+      }
+    }
+    this.refreshUi();
+  }
+
+  private mistUntil = 0;
+
+  // ---------- visual effects ----------
+  private burst(x: number, y: number, tint: number, n = 12, speed = 160, life = 550) {
+    const e = this.add.particles(x, y, 'bt_dot', { speed: { min: speed * 0.3, max: speed }, angle: { min: 0, max: 360 }, scale: { start: 0.7, end: 0 },
+      alpha: { start: 1, end: 0 }, lifespan: life, tint, emitting: false, blendMode: 'ADD', gravityY: 120 }).setDepth(9.6e5);
+    e.explode(n);
+    this.time.delayedCall(life + 100, () => e.destroy());
+  }
+
+  // Blood flowing from a point back to the fence (the vampires drink it).
+  private stream(x: number, y: number, tx: number, ty: number, tint: number) {
+    for (let k = 0; k < 8; k++) {
+      const d = this.add.image(x, y, 'bt_dot').setTint(tint).setScale(0.6).setDepth(9.6e5).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: d, x: tx, y: ty + Phaser.Math.Between(-20, 20), scale: 0.2, delay: k * 50, duration: 600, ease: 'Sine.easeIn', onComplete: () => d.destroy() });
+    }
+  }
+
   private hurt(w: Wolf, dmg: number) {
     if (w.dead) return;
     w.hp -= dmg;
     w.spr.setTintFill(0xffffff);
     this.time.delayedCall(60, () => { if (!w.dead) w.spr.clearTint(); });
-    if (w.hp > 0) return;
+    if (w.hp > 0) { if (dmg >= 15) this.burst(w.spr.x, w.spr.y - 34, 0xff6a4a, 4, 90, 300); return; }
     w.dead = true;
     this.kills++;
-    const fx = this.add.sprite(w.spr.x, w.spr.y - 20, 'fx_hit', 0).setScale(S).setDepth(9e5);
-    fx.play(this.anim('hit', 'fx_hit', [0, 1, 2, 3], 14, 0)).once('animationcomplete', () => fx.destroy());
+    const hit = this.add.sprite(w.spr.x, w.spr.y - 20, 'fx_hit', 0).setScale(S).setDepth(9e5);
+    hit.play(this.anim('hit', 'fx_hit', [0, 1, 2, 3], 14, 0)).once('animationcomplete', () => hit.destroy());
+    this.burst(w.spr.x, w.spr.y - 30, 0xd8122a, w.id === 'alpha' ? 40 : w.id === 'brute' ? 24 : 14, w.id === 'alpha' ? 260 : 170);
+    if (w.id === 'brute' || w.id === 'alpha') this.cameras.main.shake(w.id === 'alpha' ? 450 : 200, w.id === 'alpha' ? 0.012 : 0.005);
+    if (fx('defense') && !this.endless) state.resources.essence += 2;
     this.tweens.add({ targets: w.spr, alpha: 0, y: w.spr.y + 6, duration: 450, onComplete: () => w.spr.destroy() });
     this.refreshUi();
   }
@@ -560,7 +693,8 @@ export class BattleScene extends Phaser.Scene {
   // A wolf reached the fence: it takes one of the farm's humans and runs back to the forest.
   private grab(w: Wolf) {
     w.dead = true;
-    this.grabbed++;
+    if (this.endless) { this.lives--; if (this.lives <= 0) this.time.delayedCall(600, () => this.finish(false)); }
+    else this.grabbed++;
     this.wolvesGone++;
     const victim = this.folk.shift();
     if (victim) {
@@ -568,6 +702,7 @@ export class BattleScene extends Phaser.Scene {
       fx.play(this.anim('fear', 'fx_fear', [0, 1, 2, 3], 8, 0)).once('animationcomplete', () => fx.destroy());
       this.tweens.add({ targets: victim, alpha: 0, duration: 500, onComplete: () => victim.destroy() });
     }
+    this.cameras.main.flash(250, 90, 0, 0);
     this.toast(`Humano: ${Phaser.Utils.Array.GetRandom(BATTLE_LINES.grab)}`);
     w.spr.setFlipX(false);
     this.tweens.add({ targets: w.spr, alpha: 0, x: w.spr.x + 140, duration: 900, onComplete: () => w.spr.destroy() });
@@ -589,14 +724,23 @@ export class BattleScene extends Phaser.Scene {
     // The farm keeps collecting while you defend: a slow Blood trickle.
     this.trickle += dt;
     const every = 2500 / Math.max(1, this.cfg.collectLevel);
-    if (this.trickle >= every) { this.trickle -= every; state.resources.blood += 2; this.refreshUi(); }
+    if (this.trickle >= every) { this.trickle -= every; this.blood += 2; this.refreshUi(); }
     this.updateUnits(dt);
     this.updateWolves(dt);
     this.drawBars();
     this.drawHover();
     this.uiTick -= dt;
     if (this.uiTick <= 0) { this.uiTick = 150; this.refreshUi(); }
-    if (this.spawnIdx >= raid.spawns.length && this.wolves.every(w => w.dead)) this.finish(true);
+    if (this.spawnIdx >= raid.spawns.length && this.wolves.every(w => w.dead)) {
+      if (!this.endless) this.finish(true);
+      else {
+        // Blood Moon: the next, bigger wave; a Blood bonus for surviving.
+        this.wave++;
+        this.bank += 40 + this.wave * 10;
+        raid.spawns.push(...endlessWave(this.wave, this.t + 5000));
+        this.toast(`Aureliano: Onda ${this.wave}! +${40 + this.wave * 10} Sangue de reforço.`);
+      }
+    }
   }
 
   private drawBars() {
@@ -636,19 +780,29 @@ export class BattleScene extends Phaser.Scene {
   private finish(won: boolean, retreated = false) {
     if (this.ended) return;
     this.ended = true;
-    // Retreating: every wolf still in the field takes someone (capped).
-    if (retreated) this.grabbed += Math.min(3, this.wolves.filter(w => !w.dead).length + (this.cfg.raid.spawns.length - this.spawnIdx > 0 ? 1 : 0));
+    // Retreating: every wolf still in the field takes someone (capped). The Blood Moon is only a challenge: nobody is taken.
+    if (retreated && !this.endless) this.grabbed += Math.min(3, this.wolves.filter(w => !w.dead).length + (this.cfg.raid.spawns.length - this.spawnIdx > 0 ? 1 : 0));
+    const waves = this.endless ? this.wave - 1 : 0;
+    // Stars (3 = nobody taken) become hunt marks for the Arsenal.
+    const stars = this.endless ? Math.min(3, Math.floor(waves / 3)) : won ? (this.grabbed === 0 ? 3 : this.grabbed <= 1 ? 2 : 1) : 0;
+    meta.marks = (meta.marks ?? 0) + stars;
+    if (this.endless && waves > (meta.bestWave ?? 0)) meta.bestWave = waves;
+    saveMeta();
     const res = this.ui.querySelector('.res')!;
-    res.querySelector('h3')!.textContent = won && this.grabbed === 0 ? 'Vitória!' : won ? 'Ataque repelido' : 'Recuada';
-    res.querySelector('.rt')!.textContent = `${this.kills} lobisomens derrotados · ${this.grabbed} humano${this.grabbed === 1 ? '' : 's'} levado${this.grabbed === 1 ? '' : 's'} · ` +
-      `${this.spent} de Sangue gasto. ${won && this.grabbed === 0 ? `Aureliano: ${BATTLE_LINES.win}` : `Aureliano: ${BATTLE_LINES.lose}`}`;
+    const starRow = `<div style="font-size:30px;letter-spacing:6px;color:#f6d9a0;text-shadow:0 0 10px #a07818">${'★'.repeat(stars)}<span style="color:#4a3a38">${'★'.repeat(3 - stars)}</span></div>`;
+    res.querySelector('h3')!.innerHTML = (this.endless ? `Lua de Sangue: ${waves} onda${waves === 1 ? '' : 's'}` : won && this.grabbed === 0 ? 'Vitória!' : won ? 'Ataque repelido' : 'Recuada') + starRow;
+    res.querySelector('.rt')!.textContent = this.endless
+      ? `${this.kills} lobisomens derrotados · recorde: ${meta.bestWave} ondas · +${stars} marca${stars === 1 ? '' : 's'} de caça. Aureliano: ${waves >= 5 ? 'Isso foi quase elegante.' : 'Voltem amanhã. Eles voltam.'}`
+      : `${this.kills} lobisomens derrotados · ${this.grabbed} humano${this.grabbed === 1 ? '' : 's'} levado${this.grabbed === 1 ? '' : 's'} · ` +
+        `${this.spent} de Sangue gasto · +${stars} marca${stars === 1 ? '' : 's'} de caça (Arsenal no menu). ${won && this.grabbed === 0 ? `Aureliano: ${BATTLE_LINES.win}` : `Aureliano: ${BATTLE_LINES.lose}`}`;
     res.classList.add('on');
     res.querySelector('button')!.onclick = () => {
       this.ui.remove();
       document.body.classList.remove('in-battle');
       this.scale.off('resize', this.fitCamera, this);
       this.scale.off('resize', this.refitLater, this);
-      this.cfg.onEnd({ won, grabbed: this.grabbed, bloodSpent: this.spent, kills: this.kills, retreated });
+      this.cfg.onEnd({ won, grabbed: this.grabbed, bloodSpent: this.spent, kills: this.kills, retreated, stars, waves });
     };
   }
+
 }

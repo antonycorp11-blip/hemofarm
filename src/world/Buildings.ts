@@ -3,7 +3,9 @@
 import Phaser from 'phaser';
 import { bus } from '../core/events';
 import { state } from '../core/state';
-import { BUILDINGS, BORIS_LINES, BuildingKind, Level } from '../data/buildings';
+import { BUILDINGS, BORIS_LINES, BuildingKind, Level, TRACKS, trackCost } from '../data/buildings';
+import { invalidate } from '../core/bonus';
+import { sfx } from '../core/sfx';
 import { FarmMap, Slot, slotGeometry } from '../map/bosque';
 import { iso } from '../map/iso';
 import type { BuildPanel } from '../ui/BuildPanel';
@@ -181,13 +183,20 @@ export class Buildings {
     const next = def.levels[lv];
     const building = st?.buildLeft !== undefined;
     const extras = lv > 0 && !building ? this.extras?.(slot.kind) ?? [] : [];
+    const track = lv > 0 && !building ? this.trackHtml(slot.kind) : '';
     this.panel.open({
-      html: extras.map((x, i) => `<div class="card"><button class="go" data-x="${i}"${x.disabled ? ' disabled' : ''}>${x.label}</button>` +
+      html: track + extras.map((x, i) => `<div class="card"><button class="go" data-x="${i}"${x.disabled ? ' disabled' : ''}>${x.label}</button>` +
         `<div class="muted" style="margin-top:4px">${x.cost}</div></div>`).join(''),
-      bind: root => root.querySelectorAll<HTMLButtonElement>('[data-x]').forEach(b => b.addEventListener('click', () => {
-        extras[Number(b.dataset.x)].run();
-        this.panel.close();
-      })),
+      bind: root => {
+        root.querySelectorAll<HTMLButtonElement>('[data-x]').forEach(b => b.addEventListener('click', () => {
+          extras[Number(b.dataset.x)].run();
+          this.panel.close();
+        }));
+        root.querySelectorAll<HTMLButtonElement>('[data-up]').forEach(b => b.addEventListener('click', () => {
+          this.buyTrack(slot.kind, Number(b.dataset.up));
+          this.openPanel(slot);
+        }));
+      },
       title: def.name,
       subtitle: lv === 0 ? 'Lote vazio' : `Nível ${lv}${next ? ` de ${def.levels.length}` : ' (máximo)'}`,
       desc: (building ? next : cur ?? next)?.desc ?? '',
@@ -198,6 +207,49 @@ export class Buildings {
         : slot.kind === 'lab' && this.onLab ? { label: 'Pesquisas', onClick: () => this.onLab!() }
         : undefined,
     });
+  }
+
+  // ---------- upgrade tracks (incremental layer) ----------
+  // How many levels `want` can buy right now, and what they cost.
+  private trackQuote(kind: BuildingKind, want: number) {
+    const t = TRACKS[kind]!, lv = state.upg[kind] ?? 0;
+    let n = 0, cost = 0;
+    while (n < want && lv + n < t.max) {
+      const c = trackCost(t, lv + n);
+      if (cost + c > state.resources.gold && n > 0) break;
+      cost += c; n++;
+      if (want === 1) break;
+    }
+    return { n, cost };
+  }
+
+  private trackHtml(kind: BuildingKind) {
+    const t = TRACKS[kind];
+    if (!t) return '';
+    const lv = state.upg[kind] ?? 0, max = lv >= t.max;
+    const [k, per] = t.fx;
+    const total = k === 'unitCost' || k === 'sleep' ? `−${Math.round(per * lv * 100)}%` : `+${Math.round(per * lv * 100)}%`;
+    const btn = (want: number, label: string) => {
+      const q = this.trackQuote(kind, want);
+      const ok = q.n > 0 && state.resources.gold >= q.cost;
+      return `<button class="go" data-up="${want}" style="flex:1;min-height:36px;font-size:12px;margin:0"${ok ? '' : ' disabled'}>${label}${q.n ? `<br>${q.cost} Ouro` : ''}</button>`;
+    };
+    return `<div class="card" style="border-color:#a07818"><h4>${t.name} · nível ${lv}/${t.max}</h4>` +
+      `<div class="muted">Cada nível: ${t.desc}. Vale para todas as construções deste tipo. Agora: <b style="color:#f6d9a0">${total}</b></div>` +
+      `<div class="meter" style="margin:6px 0"><i style="width:${(lv / t.max) * 100}%;background:linear-gradient(90deg,#8a1424,#e8b54a)"></i></div>` +
+      (max ? '<div class="muted">Nível máximo.</div>' : `<div style="display:flex;gap:6px">${btn(1, '+1')}${btn(5, '+5')}${btn(99, 'Máx')}</div>`) + '</div>';
+  }
+
+  private buyTrack(kind: BuildingKind, want: number) {
+    const q = this.trackQuote(kind, want);
+    if (!q.n || state.resources.gold < q.cost) return;
+    state.resources.gold -= q.cost;
+    state.upg[kind] = (state.upg[kind] ?? 0) + q.n;
+    invalidate();
+    sfx.coin();
+    for (let i = 0; i < q.n; i++) bus.emit('UPGRADE_BOUGHT', { kind, level: state.upg[kind] });
+    const site = [...this.sites.values()].find(x => x.slot.kind === kind && this.level(x.slot.id) > 0);
+    if (site) { const { center } = slotGeometry(site.slot); this.scene.fx('fx_sparkle', center.x, center.y - 50, 1.2); }
   }
 
   private stats(kind: BuildingKind, cur?: Level, next?: Level): string[] {

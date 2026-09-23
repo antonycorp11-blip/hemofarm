@@ -4,10 +4,9 @@ const A = (n: string) => `url(assets/${n}.webp)`;
 
 const CSS = `
 .hud .bar,.hmenu .box,.bpanel{border:10px solid transparent;border-image:${A('frame_panel')} 22 fill / 10px stretch;background:none}
-.hud .tithe,.toast,.bpanel .ch button{border:8px solid transparent;border-image:${A('frame_tooltip')} 18 fill / 8px stretch;background:none}
+.hud .tithe,.bpanel .ch button{border:8px solid transparent;border-image:${A('frame_tooltip')} 18 fill / 8px stretch;background:none}
 .hud .tithe .fill{inset:2px auto 2px 2px;border-radius:3px}
 .hud .tithe.behind{border-image-source:${A('frame_tooltip')};filter:drop-shadow(0 0 4px #d8122a)}
-.toast.good{filter:drop-shadow(0 0 4px #a07818)}.toast.bad{filter:drop-shadow(0 0 4px #d8122a)}
 .quest{border:12px solid transparent;border-image:${A('frame_card')} 34 fill / 12px stretch;background:none;color:#3a1a10;
   padding:2px 4px 2px 6px}
 .quest .qp{color:#8a1424}

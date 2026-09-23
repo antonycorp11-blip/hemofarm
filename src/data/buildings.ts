@@ -76,6 +76,20 @@ export const BUILDINGS: Record<BuildingKind, BuildingDef> = {
   },
 };
 
+// Upgrade tracks (incremental layer): once a building exists, Gold buys levels of one clear bonus, shared by every
+// building of that kind. Cost grows ×1.18 per level, so there's always a next purchase in sight.
+export interface Track { name: string; desc: string; max: number; base: number; fx: [import('./research').Fx, number] }
+export const TRACKS: Partial<Record<BuildingKind, Track>> = {
+  collect: { name: 'Tanques de Coleta', desc: '+6% de Sangue por coleta', max: 25, base: 60, fx: ['blood', 0.06] },
+  housing: { name: 'Camas Macias', desc: 'sono 4% mais curto', max: 10, base: 50, fx: ['sleep', 0.04] },
+  food: { name: 'Cozinha Farta', desc: '+6% de recuperação de vitalidade', max: 15, base: 50, fx: ['regen', 0.06] },
+  family: { name: 'Correio Familiar', desc: 'parentes 8% mais rápidos', max: 15, base: 80, fx: ['kin', 0.08] },
+  lab: { name: 'Alambiques', desc: '+8% de Essência', max: 25, base: 80, fx: ['essence', 0.08] },
+  watch: { name: 'Arsenal da Torre', desc: 'defensores 3% mais baratos', max: 10, base: 100, fx: ['unitCost', 0.03] },
+  boarding: { name: 'Vitrine do Pátio', desc: '+5% de Ouro em contratos', max: 10, base: 90, fx: ['contractGold', 0.05] },
+};
+export const trackCost = (t: Track, lv: number) => Math.round(t.base * Math.pow(1.18, lv));
+
 // Ghoul foreman commentary (GDD §7, §18.1)
 export const BORIS_LINES = {
   started: ['Obra iniciada. Prazo estimado: otimista.', 'Os ghouls agradecem a oportunidade de trabalhar sem pulso.'],
