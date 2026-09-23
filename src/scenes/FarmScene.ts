@@ -582,9 +582,18 @@ export class FarmScene extends Phaser.Scene {
     cam.scrollY += before.y - after.y;
   }
 
+  // Rotation / iOS viewport changes: rebuild the night overlay at the new size. Resizing it in place left a band of
+  // the old size on some phones (half the screen darker than the other — the "two filters" bug).
   private onResize() {
-    this.dark?.resize(this.scale.width, this.scale.height); // resize the texture, not just the object's bounds
+    if (this.dark) {
+      const w = Math.ceil(this.scale.width), h = Math.ceil(this.scale.height);
+      if (this.dark.width !== w || this.dark.height !== h) {
+        this.dark.destroy();
+        this.dark = this.add.renderTexture(0, 0, w, h).setScrollFactor(0).setDepth(DEPTH.dark);
+      }
+    }
     this.clampZoom(this.cameras.main.zoom);
+    this.pinScreenLayers();
   }
 
   // Camera zoom also scales scrollFactor(0) objects around the screen center: counter-scale them.
@@ -595,6 +604,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    if (this.dark && (this.dark.width !== Math.ceil(this.scale.width) || this.dark.height !== Math.ceil(this.scale.height))) this.onResize(); // missed resize event
     this.pinScreenLayers();
     this.updateInertia(delta);
     const sim = delta * this.speed; // ⏩ game speed: the simulation runs faster, the camera doesn't

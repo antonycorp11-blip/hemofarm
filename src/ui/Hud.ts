@@ -23,12 +23,13 @@ const CSS = `
 .hud .tithe .fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#5a0f1a,#8a1424);transition:width .3s;z-index:0}
 .hud .tithe.done .fill{background:linear-gradient(90deg,#6a5010,#a07818)}
 .hud .tithe.behind{border-color:#d8122a}
-.hud .tithe span{position:relative;z-index:1;white-space:nowrap}
+.hud .tithe span{position:relative;z-index:1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hud .tithe .q{min-width:8.6em}.hud .tithe .t{min-width:2.6em}.hud .tithe .x{min-width:5.4em}
 .hud .tithe .t{font-variant-numeric:tabular-nums;color:#f6d9a0}
 .hud .row2{display:flex;gap:6px;align-items:center;pointer-events:none}
 .hud .speed{pointer-events:auto;min-width:40px;height:30px;border-radius:8px;border:1px solid #4a1620;background:#120a10e8;color:#f3e2c8;font:700 13px Georgia,serif;cursor:pointer}
 .hud .speed.fast{color:#f6d9a0;box-shadow:0 0 8px #a07818}
-.hud .tithe .pay{position:relative;z-index:1;display:none;margin-left:4px;padding:2px 8px;border-radius:5px;border:1px solid #2a0a10;background:#a07818;color:#1a0a0e;font:700 11px Georgia,serif;cursor:pointer;animation:qnew 1s ease-in-out infinite alternate}
+.hud .tithe .pay{position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:2;visibility:hidden;white-space:nowrap;padding:2px 8px;border-radius:5px;border:1px solid #2a0a10;background:#a07818;color:#1a0a0e;font:700 11px Georgia,serif;cursor:pointer;animation:qnew 1s ease-in-out infinite alternate}
 .hud .tithe .x{color:#ff6a78;letter-spacing:2px}
 .quest{position:fixed;left:max(10px,env(safe-area-inset-left,0px));top:var(--hud-bottom,90px);z-index:5;display:none;align-items:center;gap:8px;
   max-width:min(300px,calc(100vw - 20px));padding:7px 8px 7px 10px;background:#140c0ef0;border:1px solid #a07818;border-radius:10px;
@@ -58,7 +59,8 @@ body.in-battle .hud,body.in-battle .toasts,body.in-battle .quest,body.in-battle 
 @media (orientation:landscape) and (max-height:520px){
   .hud{flex-direction:row;justify-content:center;gap:6px;padding-top:calc(env(safe-area-inset-top,0px) + 4px);font-size:13px}
   .hud .bar{padding:2px 4px}.hud .res{padding:1px 5px}.hud .res img{height:16px}
-  .hud .tithe{padding:2px 10px}.hud .speed{height:28px}
+  .hud .tithe{padding:2px 8px;gap:6px;font-size:11px}.hud .speed{height:28px;min-width:34px}
+  .hud .res{padding:1px 3px;gap:2px}.hud .res.prestige{display:none}.hud .deals{padding:0 2px}.hud .deals img{height:19px}.hud .menu{padding:2px 4px}
   .quest{max-width:260px;padding:4px 6px 4px 8px;font-size:12px}
   .evt{max-width:200px;font-size:12px;padding:6px 8px}
 }
@@ -162,7 +164,7 @@ export class Hud {
 
     this.tithe = document.createElement('div');
     this.tithe.className = 'tithe';
-    this.tithe.title = 'Dízimo: Sangue que o castelo cobra ao fim de cada noite';
+    this.tithe.title = 'Sangria: Sangue que o castelo cobra ao fim de cada noite';
     this.tithe.innerHTML = '<div class="fill"></div><span class="n"></span><span class="q"></span><span class="t"></span><span class="x"></span><button class="pay">Pagar agora ▸</button>';
     this.tithe.onclick = e => {
       if ((e.target as HTMLElement).classList.contains('pay')) { actions.onPayTithe(); return; }
@@ -254,12 +256,12 @@ export class Hud {
     const left = Math.max(0, NIGHT_MS - n.elapsed), mm = Math.floor(left / 60000), ss = Math.floor(left / 1000) % 60;
     const q = (sel: string) => this.tithe.querySelector<HTMLElement>(sel)!;
     q('.n').textContent = `Noite ${n.night}`;
-    q('.q').textContent = `Dízimo ${Math.floor(Math.min(r.blood, quota))}/${quota}`;
+    q('.q').textContent = `Sangria ${Math.floor(Math.min(r.blood, quota))}/${quota}`;
     q('.t').textContent = `${mm}:${String(ss).padStart(2, '0')}`;
     q('.x').textContent = '✕'.repeat(n.strikes) + '·'.repeat(MAX_STRIKES - n.strikes);
     q('.fill').style.width = `${Math.min(100, (r.blood / quota) * 100)}%`;
     this.tithe.classList.toggle('done', r.blood >= quota);
-    q('.pay').style.display = r.blood >= quota ? 'block' : 'none';
+    q('.pay').style.visibility = r.blood >= quota ? 'visible' : 'hidden'; // space is always reserved: the strip never changes size
     this.tithe.classList.toggle('behind', r.blood < quota && r.blood / quota < n.elapsed / NIGHT_MS - 0.15);
     // Floating elements sit just below the HUD, however tall it is on this screen.
     // (Skip while hidden, e.g. during a battle: a hidden HUD measures 0 and would pull everything to the top edge.)

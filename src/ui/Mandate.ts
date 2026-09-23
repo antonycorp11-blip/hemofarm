@@ -51,7 +51,7 @@ export class Mandate {
     const gain = legacyFor(ascended);
     const n = state.night.night, r = state.resources;
     const root = this.show(`<h2>${ascended ? 'Ascensão da Casa' : 'Propriedade confiscada'}</h2>
-      <div class="sub">${ascended ? 'Vesper: A casa superior está impressionada. Isso quase nunca acontece.' : 'Vesper: Três noites sem Dízimo. A propriedade volta para mim. Você, por enquanto, não.'}</div>
+      <div class="sub">${ascended ? 'Vesper: A casa superior está impressionada. Isso quase nunca acontece.' : 'Vesper: Três noites sem Sangria. A propriedade volta para mim. Você, por enquanto, não.'}</div>
       <div class="stats"><div>Noites: <b>${n}</b></div><div>Prestígio: <b>${Math.floor(r.prestige)}</b></div>
       <div>Humanos: <b>${population}</b></div><div>Contratos: <b>${state.contracts.done.length}</b></div></div>
       <div class="legacy">+${gain} Legado de Sangue</div>

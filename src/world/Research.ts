@@ -236,7 +236,7 @@ const FX_TEXT: Record<string, (v: number) => string> = {
 };
 const FX_NAME: Record<string, string> = {
   blood: 'Sangue', collectSpeed: 'velocidade de coleta', regen: 'recuperação', sleep: 'sono mais curto', grow: 'crescimento', harvest: 'Comida',
-  kin: 'parentes', heirQ: 'qualidade de parentes', bond: 'vínculos', titheGold: 'Ouro do Dízimo', contractGold: 'Ouro de contratos', quota: 'cota menor',
+  kin: 'parentes', heirQ: 'qualidade de parentes', bond: 'vínculos', titheGold: 'Ouro da Sangria', contractGold: 'Ouro de contratos', quota: 'cota menor',
   unitDmg: 'dano', unitHp: 'vida', chalice: 'Cálices', unitCost: 'custo menor', essence: 'Essência', orb: 'valor dos orbes', orbRate: 'orbes',
   defense: 'recompensa de defesa', raidSize: 'lobos a menos', researchCost: 'custo de pesquisa', moraleBlood: 'Sangue com moral alta', vigil: '',
 };

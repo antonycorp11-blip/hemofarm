@@ -96,7 +96,7 @@ export const EVENTS: GameEventDef[] = [
     choices: [
       { label: 'Vender 50 Sangue', cost: '+150 Ouro', can: w => w.resources().blood >= 50, apply: w => { w.blood(-50); w.gold(150); } },
       { label: 'Vender 100 Sangue', cost: '+320 Ouro', can: w => w.resources().blood >= 100, apply: w => { w.blood(-100); w.gold(320); } },
-      { label: 'Recusar', cost: 'guardar para o Dízimo', apply: () => undefined },
+      { label: 'Recusar', cost: 'guardar para a Sangria', apply: () => undefined },
     ],
     ignore: () => undefined,
   },

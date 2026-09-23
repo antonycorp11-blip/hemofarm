@@ -38,6 +38,8 @@ export function describe(r: Requirement) {
 export class Contracts {
   private ring?: Phaser.GameObjects.Graphics;
   private selected?: Human;
+  // Active contract helpers on the map: a golden aura under every human who fits, and a "Send" tag over their head.
+  private auras = new Map<number, { aura: Phaser.GameObjects.Ellipse; tag: Phaser.GameObjects.Text }>();
 
   constructor(private scene: Phaser.Scene & { fx(k: string, x: number, y: number, s?: number): void }, private map: FarmMap, private humans: Humans, private buildings: Buildings,
     private panel: BuildPanel, private hud: Hud) {
@@ -52,11 +54,49 @@ export class Contracts {
   update() {
     // Selection ring follows the chosen human while their sheet is open.
     if (this.ring && this.selected) this.ring.setPosition(this.selected.sprite.x, this.selected.sprite.y - 2).setVisible(this.selected.sprite.visible);
+    this.updateAuras();
     // Delivery happens once every requested human is standing at the yard.
     const c = this.active;
     if (!c) return;
     const a = this.assigned();
     if (a.length >= c.count && a.every(h => h.state === 'boarding')) this.deliver(c, a.slice(0, c.count));
+  }
+
+  // ---------- contract auras ----------
+  private updateAuras() {
+    const c = this.active;
+    const yard = this.buildings.level('boarding') > 0;
+    const room = c ? this.assigned().length < c.count : false;
+    const z = this.scene.cameras.main.zoom, now = this.scene.time.now;
+    const seen = new Set<number>();
+    if (c) for (const h of this.humans.all) {
+      if (h.taken || !h.sprite.active) continue;
+      const going = h.contract === c.id;
+      const fits = !h.contract && meets(h, c.req);
+      if (!going && !(fits && room)) continue;
+      seen.add(h.id);
+      let a = this.auras.get(h.id);
+      if (!a) {
+        const aura = this.scene.add.ellipse(0, 0, 64, 26, 0xe8b54a, 0.35).setStrokeStyle(3, 0xf6d9a0, 0.9).setBlendMode(Phaser.BlendModes.ADD);
+        const tag = this.scene.add.text(0, 0, 'Enviar ao Pátio ▸', { fontFamily: 'Georgia, serif', fontSize: '26px', fontStyle: 'bold', color: '#1a0a0e',
+          backgroundColor: '#e8b54a', padding: { x: 12, y: 6 } }).setOrigin(0.5, 1).setInteractive({ useHandCursor: true });
+        tag.on('pointerup', (p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+          e.stopPropagation();
+          if (p.getDistance() > 12) return; // it was a drag of the map
+          if (!yard) { this.hud.toast('Bóris: Falta construir o Pátio de Embarque.'); return; }
+          this.assign(h);
+        });
+        a = { aura, tag };
+        this.auras.set(h.id, a);
+      }
+      const vis = h.sprite.visible && h.sprite.alpha > 0.3;
+      const pulse = 1 + Math.sin(now / 250 + h.id) * 0.08;
+      a.aura.setPosition(h.sprite.x, h.sprite.y - 3).setDepth(h.sprite.depth - 1).setVisible(vis).setScale(pulse)
+        .setFillStyle(going ? 0x6fe07a : 0xe8b54a, 0.3).setStrokeStyle(3, going ? 0xa8ffb0 : 0xf6d9a0, 0.9);
+      // Tag only for those who can still be sent (the ones already going just keep a green aura).
+      a.tag.setVisible(vis && !going && yard).setScale(0.5 / z).setPosition(h.sprite.x, h.sprite.y - h.sprite.displayHeight - 10 / z).setDepth(2.2e6);
+    }
+    for (const [id, a] of this.auras) if (!seen.has(id)) { a.aura.destroy(); a.tag.destroy(); this.auras.delete(id); }
   }
 
   // ---------- human sheet ----------

@@ -53,7 +53,7 @@ export class Tithe {
     this.carriage = c;
     this.scene.tweens.add({ targets: c, x: STOP.x, y: STOP.y, alpha: 1, duration: 2500, ease: 'Sine.easeOut', onComplete: () => this.clerkOut() });
     bus.emit('CARRIAGE_ARRIVED', { night: state.night.night });
-    this.hud.toast(`A carruagem do castelo chegou. Dízimo: ${quotaFor(state.night.night)} de Sangue.`);
+    this.hud.toast(`A carruagem do castelo chegou. Sangria: ${quotaFor(state.night.night)} de Sangue.`);
     this.humans.react('carriage', 2);
   }
 
@@ -67,7 +67,7 @@ export class Tithe {
       const gold = titheGold(quota);
       r.gold += gold;
       bus.emit('TITHE_PAID', { night: n.night, amount: quota, prestige });
-      this.hud.toast(`Dízimo pago: ${quota} de Sangue. O castelo pagou ${gold} Ouro. +${prestige} Prestígio.`, 'good');
+      this.hud.toast(`Sangria paga: ${quota} de Sangue. O castelo pagou ${gold} Ouro. +${prestige} Prestígio.`, 'good');
       this.scene.fx('fx_coins', COLLECTOR_SPOT.x, COLLECTOR_SPOT.y - 60, 1.6);
       this.humans.react('tithe_paid', 2);
       this.scene.time.delayedCall(2500, () => this.depart());

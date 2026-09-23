@@ -19,7 +19,7 @@ export const REGIONS: Record<RegionId, Region> = {
   vale: { name: 'Vale do Sol Fraco', tag: 'Qualidade', x: 78, y: 45, unlock: 2, tint: 0xfff0c8,
     desc: 'Humanos melhores desde o início (+30% de chance de qualidade), mas a coleta é 25% mais lenta.', mods: { qualityBoost: 0.3, collectTime: 1.25 } },
   costa: { name: 'Costa do Nevoeiro', tag: 'Comércio', x: 76, y: 80, unlock: 2, tint: 0xd8e8ff,
-    desc: 'Contratos pagam 35% a mais. O castelo cobra 10% a mais de Dízimo.', mods: { contractGold: 1.35, quota: 1.1 } },
+    desc: 'Contratos pagam 35% a mais. O castelo cobra 10% a mais na Sangria.', mods: { contractGold: 1.35, quota: 1.1 } },
   cripta: { name: 'Cripta de Vesper', tag: 'Processamento', x: 80, y: 16, unlock: 3, tint: 0xe0d0f0,
     desc: 'Pesquisas 40% mais rápidas, mas começa com 2 humanos a menos.', mods: { researchTime: 0.6, startHumans: -2 } },
 };

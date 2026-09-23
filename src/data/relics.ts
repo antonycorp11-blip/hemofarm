@@ -10,7 +10,7 @@ export const RELICS: Record<string, Relic> = {
   pergaminho: { name: 'Pergaminho Selado', icon: 'icon_contracts', desc: 'Contratos pagam +40% de Ouro.', fx: [['contractGold', 0.4]] },
   colheita: { name: 'Foice Antiga', icon: 'icon_build', desc: '+40% de Comida e plantas 20% mais rápidas.', fx: [['harvest', 0.4], ['grow', 0.2]] },
   corvo: { name: 'Pena de Corvo', icon: 'icon_blood', desc: 'Orbes aparecem com o dobro da frequência.', fx: [['orbRate', 1]] },
-  selo: { name: 'Selo de Vesper', icon: 'icon_prestige', desc: 'Cota do Dízimo 15% menor.', fx: [['quota', 0.15]] },
+  selo: { name: 'Selo de Vesper', icon: 'icon_prestige', desc: 'Cota da Sangria 15% menor.', fx: [['quota', 0.15]] },
   coracao: { name: 'Coração Pulsante', icon: 'icon_vitality', desc: 'Vitalidade recupera 40% mais rápido.', fx: [['regen', 0.4]] },
   anel: { name: 'Anel de Noivado', icon: 'icon_morale', desc: 'Casais se formam e chamam parentes 50% mais rápido.', fx: [['bond', 0.5], ['kin', 0.5]] },
   frasco: { name: 'Frasco Etéreo', icon: 'icon_research', desc: '+40% de Essência.', fx: [['essence', 0.4]] },

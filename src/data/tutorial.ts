@@ -152,12 +152,12 @@ export const TUTORIAL: Step[] = [
   {
     id: 't5_dizimo',
     lines: [
-      { who: 'vesper', text: 'Agora a parte que me interessa. Ao fim de cada noite, a carruagem do castelo vem buscar o Dízimo.' },
+      { who: 'vesper', text: 'Agora a parte que me interessa. Ao fim de cada noite, a carruagem do castelo vem buscar a Sangria.' },
       { who: 'vesper', text: 'Se o Sangue bastar, o castelo paga em Ouro. Se não bastar, leva humanos. Aleatoriamente. Somos justos assim.' },
       { who: 'davi', text: 'Aprecio a consistência.' },
       { who: 'vesper', text: 'Três noites sem pagar e a propriedade volta para mim. Com você dentro, se possível.' },
     ],
-    objective: obj({ text: 'Pague o Dízimo desta noite', event: 'TITHE_PAID' }),
+    objective: obj({ text: 'Pague a Sangria desta noite', event: 'TITHE_PAID' }),
     reward: { prestige: 5 },
     done: [
       { who: 'vesper', text: 'A propriedade continua de pé. Isso já nos coloca acima do gerente anterior.' },
