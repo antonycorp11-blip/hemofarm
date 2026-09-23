@@ -12,6 +12,7 @@ export interface WorldState {
   rebellion: boolean;
   overtime?: number;      // ms of 'hora extra' left at the collection station
   cooldown?: Record<string, number>; // ms until a manual action can be used again
+  raid?: { night: number; kind: 'none' | 'small' | 'big'; status: 'waiting' | 'warned' | 'done'; warnLeft: number };
 }
 export interface TutorialState { step: number; count: number; done: boolean }
 export interface PlotState { crop: string; growth: number; phase: 'plant' | 'growing' | 'harvest' }

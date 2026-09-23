@@ -463,6 +463,24 @@ export class Humans {
       code: c.traits.code, parentNames: [a.name ?? `Unidade ${a.traits.code}`, b.name ?? `Unidade ${b.traits.code}`] });
   }
 
+  // Werewolves carried someone off (GDD §12.1): story characters are spared, rare losses hurt.
+  takeByRaid(n: number) {
+    const out: string[] = [];
+    for (let k = 0; k < n; k++) {
+      const pool = this.list.filter(h => !h.taken && !h.name && !h.contract);
+      const h = Phaser.Utils.Array.GetRandom(pool);
+      if (!h) break;
+      h.taken = true;
+      h.sprite.destroy(); h.marker?.destroy();
+      this.drop(h);
+      out.push(`Unidade ${h.traits.code}`);
+      bus.emit('HUMAN_TAKEN', { humanId: h.id, by: 'raid' });
+    }
+    return out;
+  }
+
+  get looks() { return this.list.filter(h => !h.taken).map(h => h.look); }
+
   // ---------- manual actions from the human sheet ----------
   canQueue(h: Human) {
     return this.buildings.level('collect') > 0 && !h.taken && !h.contract && !this.queue.members.includes(h)

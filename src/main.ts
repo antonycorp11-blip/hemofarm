@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FarmScene } from './scenes/FarmScene';
+import { BattleScene } from './scenes/BattleScene';
 import { state } from './core/state';
 
 // Some embedded browsers report WebGL support but fail to create a context: probe first.
@@ -15,7 +16,7 @@ const game = new Phaser.Game({
   render: { antialias: true, roundPixels: false },
   input: { mouse: { preventDefaultWheel: true } },
   disableContextMenu: true, // long-press on phones shouldn't open the browser menu
-  scene: [FarmScene],
+  scene: [FarmScene, BattleScene],
 });
 
 // Dev-only handle for inspecting state from the browser console.

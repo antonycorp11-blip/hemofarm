@@ -195,4 +195,21 @@ export const TUTORIAL: Step[] = [
     target: { slot: 'lab' },
     hint: { who: 'hematico', text: 'Toque no Laboratório e depois em Pesquisas. Bem-estar, a primeira da lista!' },
   },
+  {
+    id: 't13_lobisomens',
+    lines: [
+      { who: 'aureliano', text: 'Lobisomens.' },
+      { who: 'vesper', text: 'Eles chamam de caça.' },
+      { who: 'aureliano', text: 'Nós chamamos de invasão.' },
+      { who: 'boris', text: 'O jurídico chama de "fora do horário comercial".' },
+      { who: 'davi', text: 'Talvez eles tenham um plano de saúde melhor.' },
+      { who: 'aureliano', text: 'Toque no alerta vermelho. Coloque Cálices para gerar Sangue, Sentinelas para atirar e Muralhas para segurar. Proteja a cerca!' },
+    ],
+    objective: obj({ text: 'Defenda a fazenda do ataque', event: 'RAID_ENDED' }),
+    hint: { who: 'aureliano', text: 'O alerta vermelho à direita, abaixo do HUD. Toque em "Defender".' },
+    done: [
+      { who: 'aureliano', text: 'A cerca continua de pé. Na próxima lua cheia eles voltam, e em maior número.' },
+      { who: 'hematico', text: 'Pesquisas de Defesa liberam Gárgulas, Alquimistas e uma nuvem de morcegos muito, muito entusiasmada.' },
+    ],
+  },
 ];

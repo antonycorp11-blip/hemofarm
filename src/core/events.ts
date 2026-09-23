@@ -21,6 +21,8 @@ export interface GameEvents {
   EVENT_RESOLVED: { eventId: string };
   REBELLION_STARTED: Record<string, never>;
   REBELLION_ENDED: Record<string, never>;
+  RAID_WARNING: { big: boolean };
+  RAID_ENDED: { result: 'won' | 'lost' | 'auto'; losses: number };
   NIGHT_STARTED: { night: number; quota: number };
   CARRIAGE_ARRIVED: { night: number };
   TITHE_PAID: { night: number; amount: number; prestige: number };

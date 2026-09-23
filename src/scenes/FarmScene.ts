@@ -12,6 +12,9 @@ import { Contracts } from '../world/Contracts';
 import { Research } from '../world/Research';
 import { LivingWorld } from '../world/LivingWorld';
 import { BloodOrbs } from '../world/BloodOrbs';
+import { Raids } from '../world/Raids';
+import type { Raid } from '../data/battle';
+import type { BattleResult } from './BattleScene';
 import { BLOOD, QUALITY } from '../data/humans';
 const BLOOD_NAME = Object.fromEntries(Object.entries(BLOOD).map(([k, v]) => [k, v.name]));
 const QUALITY_NAME = Object.fromEntries(Object.entries(QUALITY).map(([k, v]) => [k, v.name]));
@@ -59,6 +62,7 @@ export class FarmScene extends Phaser.Scene {
   private research!: Research;
   private world!: LivingWorld;
   private orbs!: BloodOrbs;
+  private raids!: Raids;
   private speed = 1;
   private tutorial!: Tutorial;
   private hintObjs: Phaser.GameObjects.GameObject[] = [];
@@ -109,6 +113,7 @@ export class FarmScene extends Phaser.Scene {
     this.world = new LivingWorld(this.humans, this.buildings, panel, this.hud, tileCenter(21, 36));
     this.orbs = new BloodOrbs(this, this.map, this.buildings);
     this.buildings.extras = kind => this.world.extras(kind);
+    this.raids = new Raids(this.humans, this.buildings, this.hud, (raid, done) => this.startBattle(raid, done));
     this.tithe = new Tithe(this, this.humans, this.hud);
     if (import.meta.env.DEV) {
       // Dev shortcut: jump to just before the carriage arrives.
@@ -249,6 +254,23 @@ export class FarmScene extends Phaser.Scene {
     this.tweens.timeScale = v;
     this.anims.globalTimeScale = v;
     this.hud.setSpeed(v);
+  }
+
+  // ---------- battle ----------
+  // The farm freezes (and hides) while the separate battle scene runs on top of it.
+  private startBattle(raid: Raid, done: (r: BattleResult) => void) {
+    this.buildings.closePanel?.();
+    this.scene.pause();
+    this.scene.setVisible(false);
+    this.scene.launch('Battle', {
+      raid, collectLevel: this.buildings.level('collect'), looks: this.humans.looks,
+      onEnd: (r: BattleResult) => {
+        this.scene.stop('Battle');
+        this.scene.setVisible(true);
+        this.scene.resume();
+        done(r);
+      },
+    });
   }
 
   // ---------- tutorial ----------
@@ -445,6 +467,7 @@ export class FarmScene extends Phaser.Scene {
     this.research.update(sim);
     this.world.update(sim);
     this.orbs.update(sim);
+    this.raids.update(sim);
     this.tutorial.update(delta);
     this.bubbles.update();
     this.updateLighting(time);

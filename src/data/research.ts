@@ -36,9 +36,9 @@ export const NODES: Node[] = [
   { id: 'l1', branch: 'logistica', tier: 1, name: 'Carruagens Pontuais', desc: 'O castelo paga +25% de Ouro pelo Dízimo.' },
   { id: 'l2', branch: 'logistica', tier: 2, name: 'Contratos Premium', desc: '+20% de Ouro em todos os contratos.' },
   { id: 'l3', branch: 'logistica', tier: 3, name: 'Rotas Noturnas', desc: 'Uma oferta de contrato a mais por noite.' },
-  { id: 'd1', branch: 'defesa', tier: 1, name: 'Sentinelas Vampíricas', desc: 'Libera a primeira unidade de defesa.', locked: 'Chega com a batalha' },
-  { id: 'd2', branch: 'defesa', tier: 2, name: 'Gárgulas', desc: 'Libera gárgulas para a batalha.', locked: 'Chega com a batalha' },
-  { id: 'd3', branch: 'defesa', tier: 3, name: 'Alquimia de Guerra', desc: 'Libera o alquimista e os frascos.', locked: 'Chega com a batalha' },
+  { id: 'd1', branch: 'defesa', tier: 1, name: 'Gárgulas', desc: 'Libera a Gárgula na batalha: abate o primeiro lobisomem que se aproxima.' },
+  { id: 'd2', branch: 'defesa', tier: 2, name: 'Alquimia de Guerra', desc: 'Libera o Alquimista: frascos em área que deixam lento.' },
+  { id: 'd3', branch: 'defesa', tier: 3, name: 'Nuvem de Morcegos', desc: 'Libera a Nuvem de Morcegos: arrasa uma área 3×3.' },
 ];
 
 // Systems ask `has('c1')` instead of knowing about the research UI.

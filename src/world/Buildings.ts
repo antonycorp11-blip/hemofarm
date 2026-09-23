@@ -171,6 +171,8 @@ export class Buildings {
     return !this.downAt || Phaser.Math.Distance.Between(this.downAt.x, this.downAt.y, p.x, p.y) <= TAP_SLOP;
   }
 
+  closePanel() { this.panel.close(); }
+
   openPanel(slot: Slot) {
     const def = BUILDINGS[slot.kind];
     const st = state.buildings[slot.id];
