@@ -19,6 +19,17 @@ const game = new Phaser.Game({
   scene: [FarmScene, BattleScene],
 });
 
+// iOS (especially the installed app) reports a stale size after rotating: re-sync the canvas to the real viewport a few times.
+const syncSize = () => {
+  const w = Math.round(window.visualViewport?.width ?? window.innerWidth), h = Math.round(window.visualViewport?.height ?? window.innerHeight);
+  if (Math.abs(game.scale.width - w) > 1 || Math.abs(game.scale.height - h) > 1) game.scale.resize(w, h);
+};
+const syncSoon = () => [50, 300, 700, 1500].forEach(ms => setTimeout(syncSize, ms));
+window.addEventListener('resize', syncSoon);
+window.addEventListener('orientationchange', syncSoon);
+window.visualViewport?.addEventListener('resize', syncSoon);
+game.events.once('ready', syncSoon);
+
 // Dev-only handle for inspecting state from the browser console.
 if (import.meta.env.DEV) Object.assign(window as any, { game, hemo: { state } });
 

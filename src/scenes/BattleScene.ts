@@ -292,7 +292,7 @@ export class BattleScene extends Phaser.Scene {
     this.ui.querySelector('.bv')!.textContent = String(blood);
     this.ui.querySelectorAll<HTMLButtonElement>('.bc').forEach(b => {
       const id = b.dataset.u as UnitId, u = UNITS[id];
-      const left = Math.max(0, (this.ready[id] ?? 0) - this.t);
+      const left = Math.max(0, (this.ready[id] ?? -Infinity) - this.t);
       b.classList.toggle('off', blood < this.costOf(id) || left > 0);
       b.classList.toggle('sel', id === this.selected);
       b.querySelector<HTMLElement>('.cd')!.style.height = `${(left / u.recharge) * 100}%`;
@@ -334,7 +334,7 @@ export class BattleScene extends Phaser.Scene {
     if (lane < 0 || lane >= LANES || col < 0 || col >= COLS) return;
     const def = { ...UNITS[this.selected], cost: this.costOf(this.selected) };
     if (state.resources.blood < def.cost) { this.toast('Sangue insuficiente. A fazenda continua coletando.'); return; }
-    if ((this.ready[this.selected] ?? 0) > this.t) { this.toast('Carta recarregando.'); return; }
+    if ((this.ready[this.selected] ?? -Infinity) > this.t) { this.toast('Carta recarregando.'); return; }
     if (def.spell) { this.pay(def.cost); this.castBats(lane, col); this.ready.bats = this.t + def.recharge; this.selected = undefined; this.refreshUi(); return; }
     if (this.units.some(u => u.lane === lane && u.col === col)) return;
     this.pay(def.cost);
