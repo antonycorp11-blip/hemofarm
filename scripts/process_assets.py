@@ -15,6 +15,10 @@ def load(n):
     return Image.open(f'{RAW}/{n}.png').convert('RGBA')
 
 
+def exists(n):
+    return os.path.exists(f'{RAW}/{n}.png')
+
+
 def trim(im, thr=24):
     a = im.getchannel('A').point(lambda v: 255 if v > thr else 0)
     return im.crop(a.getbbox())
@@ -141,8 +145,6 @@ def slice_sheet(im, gap=6, min_size=12):
             piece = trim(im.crop((x0, y0, x1, y1)))
             if piece.width >= min_size and piece.height >= min_size: out.append(piece)
     return out
-
-def exists(n): return os.path.exists(f'{RAW}/{n}.png')
 
 # ---- 4x4 character sheets (16 frames: walk front, walk back, 2 action rows). Scale from the walk frames.
 CHARS = {'human_b': 44, 'human_c': 44, 'davi': 44, 'lia': 44, 'boris': 50, 'ghoul_worker': 46, 'ghoul_guard': 48,

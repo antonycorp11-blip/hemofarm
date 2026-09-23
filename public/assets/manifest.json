@@ -476,6 +476,111 @@
   "frameH": 74,
   "frames": 16
  },
+ "unit_maid": {
+  "w": 736.0,
+  "h": 47.0,
+  "frameW": 92,
+  "frameH": 94,
+  "frames": 16
+ },
+ "unit_crossbow": {
+  "w": 840.0,
+  "h": 49.0,
+  "frameW": 105,
+  "frameH": 98,
+  "frames": 16
+ },
+ "unit_lancer": {
+  "w": 800.0,
+  "h": 50.0,
+  "frameW": 100,
+  "frameH": 100,
+  "frames": 16
+ },
+ "unit_witch": {
+  "w": 768.0,
+  "h": 47.5,
+  "frameW": 96,
+  "frameH": 95,
+  "frames": 16
+ },
+ "unit_coffin_trap": {
+  "w": 552.0,
+  "h": 35.0,
+  "frameW": 69,
+  "frameH": 70,
+  "frames": 16
+ },
+ "unit_lantern": {
+  "w": 832.0,
+  "h": 60.5,
+  "frameW": 104,
+  "frameH": 121,
+  "frames": 16
+ },
+ "unit_bat_watch": {
+  "w": 936.0,
+  "h": 55.0,
+  "frameW": 117,
+  "frameH": 110,
+  "frames": 16
+ },
+ "unit_count": {
+  "w": 896.0,
+  "h": 56.0,
+  "frameW": 112,
+  "frameH": 112,
+  "frames": 16
+ },
+ "wolf_digger": {
+  "w": 1240.0,
+  "h": 68.5,
+  "frameW": 155,
+  "frameH": 137,
+  "frames": 16
+ },
+ "wolf_shaman": {
+  "w": 1008.0,
+  "h": 62.5,
+  "frameW": 126,
+  "frameH": 125,
+  "frames": 16
+ },
+ "wolf_armored": {
+  "w": 1456.0,
+  "h": 81.0,
+  "frameW": 182,
+  "frameH": 162,
+  "frames": 16
+ },
+ "wolf_pups": {
+  "w": 1208.0,
+  "h": 57.0,
+  "frameW": 151,
+  "frameH": 114,
+  "frames": 16
+ },
+ "wolf_raven": {
+  "w": 816.0,
+  "h": 51.0,
+  "frameW": 102,
+  "frameH": 102,
+  "frames": 16
+ },
+ "wolf_storm": {
+  "w": 1160.0,
+  "h": 70.5,
+  "frameW": 145,
+  "frameH": 141,
+  "frames": 16
+ },
+ "wolf_mother": {
+  "w": 1776.0,
+  "h": 102.5,
+  "frameW": 222,
+  "frameH": 205,
+  "frames": 16
+ },
  "fx_dust": {
   "w": 156.0,
   "h": 23.0,
@@ -559,6 +664,13 @@
   "frameW": 128,
   "frameH": 128,
   "frames": 4
+ },
+ "hunt_nodes": {
+  "w": 423.0,
+  "h": 96.0,
+  "frameW": 141,
+  "frameH": 192,
+  "frames": 6
  },
  "portrait_vesper": {
   "w": 128.0,
@@ -1069,6 +1181,11 @@
   "jpg": true
  },
  "regional_map": {
+  "w": 1536,
+  "h": 1024,
+  "jpg": true
+ },
+ "hunt_map_bg": {
   "w": 1536,
   "h": 1024,
   "jpg": true
