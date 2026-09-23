@@ -85,7 +85,7 @@ export class Tithe {
     this.hud.toast(`Cota falhou (faltaram ${deficit}). O castelo levou ${pending} humano${pending === 1 ? '' : 's'}. Advertência ${n.strikes}/${MAX_STRIKES}.`, 'bad', 7000);
     if (n.strikes >= MAX_STRIKES) {
       bus.emit('MANDATE_REVOKED', { night: n.night });
-      this.hud.toast('O Conde Vesper confiscaria a propriedade agora. (Fim de mandato chega na Fase 12.)', 'bad', 9000);
+      this.hud.toast('Vesper: Três faltas. A propriedade é minha.', 'bad', 9000);
     }
     this.scene.time.delayedCall(1500, () => this.humans.react('tithe_failed', 2));
     if (pending === 0) this.scene.time.delayedCall(2500, () => this.depart());

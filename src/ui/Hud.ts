@@ -15,6 +15,7 @@ const CSS = `
 .hud .res.food .dot{width:12px;height:12px;border-radius:40% 40% 50% 50%;background:#9fd86b}
 .hud .deals{pointer-events:auto;position:relative;background:none;border:0;padding:0 4px 0 6px;cursor:pointer}.hud .deals img{height:22px;display:block}
 .hud .deals .badge{position:absolute;top:-6px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:#d8122a;color:#fff;font:700 10px/15px system-ui;text-align:center;padding:0 3px}
+.hud .crown img{filter:drop-shadow(0 0 6px #e8b54a);animation:qnew 1s ease-in-out infinite alternate}
 .hud .menu{pointer-events:auto;background:none;border:0;color:#e0c8a8;font-size:20px;line-height:1;padding:2px 8px;cursor:pointer}
 .hud .tithe{pointer-events:auto;position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:3px 12px;
   background:#120a10e8;border:1px solid #4a1620;border-radius:8px;font-size:12px;box-shadow:0 3px 10px #000a}
@@ -64,7 +65,8 @@ body.in-battle .quest,body.in-battle .evt,body.in-battle .dlg,body.in-battle .bp
 
 export interface HudSource { population: number; avgMorale: number }
 export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
-  onSpeed(): void; onPayTithe(): void }
+  onSpeed(): void; onPayTithe(): void; onMap(): void; onAscend(): void; onSound(): void;
+  info(): { goal: number; region: string; mute: boolean } }
 
 export class Hud {
   private root: HTMLDivElement;
@@ -77,6 +79,7 @@ export class Hud {
   private deals!: HTMLButtonElement;
   private evt!: HTMLButtonElement;
   private speedBtn!: HTMLButtonElement;
+  private crown!: HTMLButtonElement;
   private evtClick?: () => void;
   private raid!: HTMLButtonElement;
   private raidClick?: () => void;
@@ -113,8 +116,16 @@ export class Hud {
     deals.setAttribute('aria-label', 'Contratos');
     deals.innerHTML = '<img src="assets/icon_contracts.webp" alt=""><span class="badge"></span>';
     deals.onclick = () => actions.onContracts();
+    const crown = document.createElement('button');
+    crown.className = 'deals crown';
+    crown.setAttribute('aria-label', 'Encerrar mandato');
+    crown.innerHTML = '<img src="assets/icon_prestige.webp" alt="">';
+    crown.onclick = () => actions.onAscend();
+    crown.style.display = 'none';
+    this.crown = crown;
     this.deals = deals;
     bar.appendChild(deals);
+    bar.appendChild(crown);
     this.root.appendChild(bar);
 
     this.tithe = document.createElement('div');
@@ -209,6 +220,9 @@ export class Hud {
     this.quest.classList.remove('new'); void this.quest.offsetWidth; this.quest.classList.add('new');
   }
 
+  // Ascension available: a glowing crown in the resource bar.
+  setAscend(on: boolean) { this.crown.style.display = on ? 'block' : 'none'; }
+
   setSpeed(v: number) {
     this.speedBtn.textContent = `${v}×`;
     this.speedBtn.classList.toggle('fast', v > 1);
@@ -231,7 +245,9 @@ export class Hud {
 
   private openMenu() {
     const r = state.resources;
-    this.menu.innerHTML = `<div class="box"><div style="text-align:center;color:#c9a98a;font-size:13px">Prestígio ${Math.floor(r.prestige)} · Noite ${state.night.night}</div></div>`;
+    const info = this.actions.info();
+    this.menu.innerHTML = `<div class="box"><div style="text-align:center;color:#c9a98a;font-size:13px">${info.region} · Noite ${state.night.night}<br>` +
+      `Meta do mandato: ${Math.floor(r.prestige)}/${info.goal} Prestígio</div></div>`;
     const box = this.menu.querySelector('.box')!;
     const add = (label: string, fn: () => void, cls = '') => {
       const b = document.createElement('button');
@@ -240,6 +256,8 @@ export class Hud {
       box.appendChild(b);
     };
     add('Continuar', () => undefined);
+    add('Mapa regional', () => this.actions.onMap());
+    add(info.mute ? 'Som: desligado' : 'Som: ligado', () => this.actions.onSound());
     if (this.actions.tutorialActive()) add('Pular tutorial', () => { if (confirm('Pular o tutorial?')) this.actions.onSkipTutorial(); });
     add('Novo jogo', () => { if (confirm('Apagar o progresso e começar de novo?')) this.actions.onNewGame(); }, 'danger');
     this.menu.classList.add('on');

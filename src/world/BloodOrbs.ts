@@ -2,6 +2,7 @@
 // Tapping it before it flies away gives bonus Blood — something to do between the big decisions.
 import Phaser from 'phaser';
 import { state } from '../core/state';
+import { sfx } from '../core/sfx';
 import { FarmMap, slotGeometry } from '../map/bosque';
 import type { Buildings } from './Buildings';
 
@@ -50,6 +51,7 @@ export class BloodOrbs {
       orb.disableInteractive();
       const bonus = 5 + lv * 3;
       state.resources.blood += bonus;
+      sfx.drop();
       this.scene.floatText(orb.x, orb.y - 10, `+${bonus} Sangue`, '#ff3348');
       orb.play('orb_pop').once('animationcomplete', () => this.remove(orb));
     });

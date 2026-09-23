@@ -4,7 +4,11 @@ import { tileCenter } from '../map/iso';
 import { Humans } from '../world/Humans';
 import { Bubbles } from '../world/Bubbles';
 import { Hud } from '../ui/Hud';
-import { state, load, save, resetSave, NIGHT_MS, CARRIAGE_LEAD_MS, START_HUMANS } from '../core/state';
+import { state, load, save, resetSave, NIGHT_MS, CARRIAGE_LEAD_MS } from '../core/state';
+import { loadMeta, applyNewGame, applyMods, goalFor, meta } from '../core/meta';
+import { REGIONS } from '../data/regions';
+import { Mandate } from '../ui/Mandate';
+import { sfx, unlockAudio, setMute } from '../core/sfx';
 import { Buildings } from '../world/Buildings';
 import { BuildPanel } from '../ui/BuildPanel';
 import { Farms } from '../world/Farms';
@@ -63,6 +67,8 @@ export class FarmScene extends Phaser.Scene {
   private world!: LivingWorld;
   private orbs!: BloodOrbs;
   private raids!: Raids;
+  private mandate!: Mandate;
+  private secTick = 0;
   private speed = 1;
   private tutorial!: Tutorial;
   private hintObjs: Phaser.GameObjects.GameObject[] = [];
@@ -91,13 +97,17 @@ export class FarmScene extends Phaser.Scene {
   create() {
     const manifest = this.cache.json.get('manifest') as Manifest;
     this.map = applyOverrides(buildBosque());
+    // Run save + meta first: the region tints the ground and the Vampire House changes the starting farm.
+    load();
+    loadMeta();
+    const startHumans = state.loaded ? 0 : applyNewGame();
+    applyMods();
     this.glowTexture();
     this.buildBackdrop();
     this.buildGround(manifest._decals);
     this.buildObjects();
     this.buildLighting();
     this.buildAmbience();
-    load();
     this.setupHud();
     this.editor = new MapEditor(this, this.placed, this.glows);
     const panel = new BuildPanel();
@@ -105,7 +115,7 @@ export class FarmScene extends Phaser.Scene {
     this.bubbles = new Bubbles(this);
     this.farms = new Farms(this, this.map, this.hud, panel, () => this.editor.isActive);
     this.humans = new Humans(this, this.map, this.bubbles, this.buildings, this.farms);
-    this.humans.spawn(state.loaded ? 0 : START_HUMANS, state.loaded?.humans);
+    this.humans.spawn(startHumans, state.loaded?.humans);
     this.contracts = new Contracts(this, this.map, this.humans, this.buildings, panel, this.hud);
     this.buildings.onBoarding = () => this.contracts.openBoard();
     this.research = new Research(panel, this.hud, () => this.buildings.level('lab') > 0);
@@ -114,6 +124,10 @@ export class FarmScene extends Phaser.Scene {
     this.orbs = new BloodOrbs(this, this.map, this.buildings);
     this.buildings.extras = kind => this.world.extras(kind);
     this.raids = new Raids(this.humans, this.buildings, this.hud, (raid, done) => this.startBattle(raid, done));
+    this.mandate = new Mandate();
+    this.setupMandate();
+    this.setupSounds();
+    this.offlineSummary();
     this.tithe = new Tithe(this, this.humans, this.hud);
     if (import.meta.env.DEV) {
       // Dev shortcut: jump to just before the carriage arrives.
@@ -131,6 +145,7 @@ export class FarmScene extends Phaser.Scene {
       loading.classList.add('ready');
       this.scene.pause(); // night clock and simulation wait for the player
       loading.querySelector<HTMLButtonElement>('.play')!.onclick = () => {
+        unlockAudio();
         loading.style.opacity = '0';
         setTimeout(() => loading.remove(), 500);
         this.scene.resume();
@@ -150,7 +165,7 @@ export class FarmScene extends Phaser.Scene {
     for (const t of this.map.tiles) {
       const c = tileCenter(t.i, t.j);
       this.add.image(c.x, c.y, rnd.pick(TILE_KEYS[t.kind]))
-        .setScale(S * 1.03).setFlipX(rnd.frac() < 0.5).setDepth(DEPTH.ground + c.y * 0.001);
+        .setScale(S * 1.03).setFlipX(rnd.frac() < 0.5).setDepth(DEPTH.ground + c.y * 0.001).setTint(REGIONS[state.region]?.tint ?? 0xffffff);
     }
     for (const d of this.map.decals) {
       this.add.image(d.x, d.y, rnd.pick(decalKeys)).setScale(S).setFlipX(!!d.flipX).setDepth(DEPTH.decal);
@@ -256,6 +271,52 @@ export class FarmScene extends Phaser.Scene {
     this.hud.setSpeed(v);
   }
 
+  // ---------- mandates (GDD_ADENDO A5) ----------
+  private setupMandate() {
+    bus.on('MANDATE_REVOKED', () => this.time.delayedCall(3500, () => this.mandate.end(false, this.humans.population)));
+  }
+
+  // Reaching the region's Prestige goal unlocks Ascension (the run can go on if the player prefers).
+  private checkAscension() {
+    const ok = state.resources.prestige >= goalFor();
+    this.hud.setAscend(ok);
+    if (ok && !state.ascendOffered) {
+      state.ascendOffered = true;
+      this.hud.toast(`Vesper: ${goalFor()} de Prestígio. A casa superior quer conversar. Toque na coroa quando quiser encerrar o mandato.`, 'good', 9000);
+      sfx.bell();
+    }
+  }
+
+  private setupSounds() {
+    bus.on('BLOOD_COLLECTED', () => sfx.drop());
+    bus.on('TITHE_PAID', () => { sfx.bell(); sfx.coin(); });
+    bus.on('TITHE_FAILED', () => sfx.bad());
+    bus.on('CARRIAGE_ARRIVED', () => sfx.bell());
+    bus.on('BUILDING_BUILT', () => sfx.build());
+    bus.on('BUILDING_UPGRADED', () => sfx.build());
+    bus.on('RAID_WARNING', () => sfx.howl());
+    bus.on('CONTRACT_COMPLETED', () => sfx.coin());
+    bus.on('HEIR_ARRIVED', () => sfx.chime());
+    bus.on('RESEARCH_DONE', () => sfx.chime());
+    bus.on('CROP_HARVESTED', () => sfx.click());
+  }
+
+  // "While you were away…" (GDD §13.1): coarse offline gains, capped at 2 h. The night clock doesn't run offline.
+  private offlineSummary() {
+    const at = state.loaded?.savedAt;
+    if (!at) return;
+    const away = Math.min(Date.now() - at, 2 * 3600 * 1000);
+    if (away < 60000) return;
+    const min = away / 60000;
+    const lvl = this.buildings.level('collect');
+    const blood = Math.round(Math.min(this.humans.population, 15) * 0.9 * lvl * min * state.mods.blood);
+    const plots = Object.values(state.plots).length;
+    const food = Math.round(Math.max(0, plots * 12 * min - this.humans.population * 0.35 * min));
+    state.resources.blood += blood;
+    state.resources.food += food;
+    this.hud.toast(`Bóris: Enquanto você esteve fora (${Math.round(min)} min): +${blood} Sangue, +${food} Comida. Ninguém fugiu. Que eu saiba.`, 'good', 9000);
+  }
+
   // ---------- battle ----------
   // The farm freezes (and hides) while the separate battle scene runs on top of it.
   private startBattle(raid: Raid, done: (r: BattleResult) => void) {
@@ -316,7 +377,7 @@ export class FarmScene extends Phaser.Scene {
   // ---------- persistence & feedback ----------
   private setupHud() {
     let resetting = false;
-    const persist = () => { if (!resetting && this.humans) save(this.humans.export()); };
+    const persist = () => { if (!resetting && !(window as unknown as { __hemoResetting?: boolean }).__hemoResetting && this.humans) save(this.humans.export()); };
     this.time.addEvent({ delay: 10000, loop: true, callback: persist });
     window.addEventListener('beforeunload', persist);
     const self = this;
@@ -331,6 +392,10 @@ export class FarmScene extends Phaser.Scene {
       onContracts: () => this.contracts.openBoard(),
       onSpeed: () => this.setSpeed(this.speed >= 3 ? 1 : this.speed + 1),
       onPayTithe: () => this.tithe.payNow(),
+      onMap: () => this.mandate.map(false, state.region),
+      onAscend: () => this.mandate.end(true, this.humans.population, () => undefined),
+      onSound: () => setMute(!meta.mute),
+      info: () => ({ goal: goalFor(), region: REGIONS[state.region].name, mute: meta.mute }),
     });
   }
 
@@ -468,6 +533,8 @@ export class FarmScene extends Phaser.Scene {
     this.world.update(sim);
     this.orbs.update(sim);
     this.raids.update(sim);
+    this.secTick -= delta;
+    if (this.secTick <= 0) { this.secTick = 1000; this.checkAscension(); }
     this.tutorial.update(delta);
     this.bubbles.update();
     this.updateLighting(time);
