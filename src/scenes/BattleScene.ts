@@ -23,6 +23,7 @@ export interface BattleData {
   title?: string;
   bossHp?: number;                                       // story consequences: region boss health multiplier
   notes?: string[];                                      // lines shown in the battle after the intro (boss taunt, consequences)
+  alphaName?: string;                                    // region boss fight: the alpha is that chapter's named boss
 }
 
 interface Unit { def: UnitDef; id: UnitId; tex: string; lane: number; col: number; spr: Phaser.GameObjects.Sprite; hp: number; cd: number; stunUntil: number; stoneUntil: number;
@@ -601,7 +602,7 @@ export class BattleScene extends Phaser.Scene {
   private preview() {
     const n = new Map<WolfId, number>();
     for (const s of this.cfg.raid.spawns) n.set(s.wolf, (n.get(s.wolf) ?? 0) + 1);
-    const list = [...n].map(([id, c]) => `${c}× ${WOLVES[id].name}`).join(' · ');
+    const list = [...n].map(([id, c]) => `${c}× ${id === 'alpha' && this.cfg.alphaName ? this.cfg.alphaName : WOLVES[id].name}`).join(' · ');
     const warn = [...n.keys()].filter(id => BYPASS[id]).map(id => `⚠ ${WOLVES[id].name} ${BYPASS[id]}`).join('<br>');
     const tip = L('Dica: Cálices primeiro (Sangue), Sentinelas atrás, Muralhas na frente. Cada raia tem uma tocha de emergência na cerca.', 'Tip: Chalices first (Blood), Sentinels behind, Walls in front. Each lane has an emergency torch at the fence.')
       + (matchMedia('(hover: hover) and (pointer: fine)').matches ? L(' Teclado: 1–9 cartas · Q W E magias · Espaço começa · botão direito ou Esc cancela.', ' Keyboard: 1–9 cards · Q W E spells · Space starts · right click or Esc cancels.') : '');
@@ -1004,7 +1005,11 @@ export class BattleScene extends Phaser.Scene {
       hidden: false, phase: 0, bob: Math.random() * 6 };
     this.wolves.push(w);
     this.placeWolf(w);
-    if (id === 'alpha') { this.toast(L('Ulf: Boa noite, vizinho. Vim buscar o que é meu. E o que é seu.', 'Ulf: Evening, neighbor. I came for what\'s mine. And what\'s yours.')); sfx.howl(); voice('ulf'); }
+    if (id === 'alpha') {
+      this.toast(this.cfg.alphaName ? L(`${this.cfg.alphaName} entrou na trilha. Os outros lobos abrem caminho.`, `${this.cfg.alphaName} is on the trail. The other wolves make way.`)
+        : L('Um alfa da matilha entrou na trilha. Ele atordoa os defensores perto dele.', 'A pack alpha is on the trail. It stuns the defenders near it.'));
+      sfx.howl(); voice('ulf');
+    }
     if (id === 'mother') { this.toast(L('A Mãe da Matilha chegou. A floresta inteira uivou junto. Ela tem olhos âmbar… e parece conhecer você.', 'The Pack Mother has arrived. The whole forest howled with her. She has amber eyes… and seems to know you.'), 6000); this.cameras.main.shake(500, 0.01); sfx.howl(); voice('mother'); }
   }
 
@@ -1153,7 +1158,10 @@ export class BattleScene extends Phaser.Scene {
     }
     this.cameras.main.flash(250, 90, 0, 0);
     sfx.bad(); voice('human_f');
-    this.toast(`Humano: ${Phaser.Utils.Array.GetRandom(BATTLE_LINES.grab)}`);
+    // Only farm raids take farm humans; the Hunt loses volunteers and the Blood Moon is practice.
+    this.toast(this.mode === 'raid' ? `${L('Humano', 'Human')}: ${Phaser.Utils.Array.GetRandom(BATTLE_LINES.grab)}`
+      : this.mode === 'hunt' ? L('Aureliano: Perdemos um voluntário. Segurem a linha!', 'Aureliano: We lost a volunteer. Hold the line!')
+      : L('Aureliano: A cerca cedeu. Mais algumas dessas e o treino acaba.', 'Aureliano: The fence gave way. A few more of those and practice is over.'));
     w.spr.setFlipX(false);
     this.tweens.add({ targets: w.spr, alpha: 0, x: w.spr.x + 140, duration: 900, onComplete: () => w.spr.destroy() });
     this.refreshUi();
@@ -1258,16 +1266,18 @@ export class BattleScene extends Phaser.Scene {
     if (retreated && this.mode === 'raid') this.grabbed += Math.min(3, this.wolves.filter(w => !w.dead).length + (this.cfg.raid.spawns.length - this.spawnIdx > 0 ? 1 : 0));
     const waves = this.endless ? this.wave - 1 : 0;
     // Stars (3 = nobody taken) become hunt marks for the Arsenal. Full moon pays double.
-    let stars = this.endless ? Math.min(3, Math.floor(waves / 3)) : this.mode === 'hunt' ? 0 : won ? (this.grabbed === 0 ? 3 : this.grabbed <= 1 ? 2 : 1) : 0;
-    if (this.weather === 'fullmoon' && this.mode === 'raid') stars *= 2;
+    // The row shows how well you did (3 = nobody taken); the full moon doubles the marks paid, not the rating.
+    const rating = this.endless ? Math.min(3, Math.floor(waves / 3)) : this.mode === 'hunt' ? 0 : won ? (this.grabbed === 0 ? 3 : this.grabbed <= 1 ? 2 : 1) : 0;
+    const stars = this.weather === 'fullmoon' && this.mode === 'raid' ? rating * 2 : rating;
     meta.marks = (meta.marks ?? 0) + stars;
     if (this.endless && waves > (meta.bestWave ?? 0)) meta.bestWave = waves;
     saveMeta();
     const res = this.ui.querySelector('.res')!;
-    const shown = Math.min(3, stars);
+    const shown = rating;
     const starRow = this.mode === 'hunt' ? '' : `<div style="font-size:30px;letter-spacing:6px;color:#f6d9a0;text-shadow:0 0 10px #a07818">${'★'.repeat(shown)}<span style="color:#4a3a38">${'★'.repeat(3 - shown)}</span></div>`;
     res.querySelector('h3')!.innerHTML = (this.endless ? L(`Lua de Sangue: ${waves} onda${waves === 1 ? '' : 's'}`, `Blood Moon: ${waves} wave${waves === 1 ? '' : 's'}`)
       : this.mode === 'hunt' ? (won ? L('Vitória na Caçada!', 'Hunt victory!') : L('A Caçada termina aqui', 'The Hunt ends here'))
+      : this.bossKilled && this.cfg.alphaName ? L(`${this.cfg.alphaName} caiu!`, `${this.cfg.alphaName} has fallen!`)
       : won && this.grabbed === 0 ? L('Vitória!', 'Victory!') : won ? L('Ataque repelido', 'Attack repelled') : L('Recuada', 'Retreat')) + starRow;
     res.querySelector('.rt')!.textContent = this.endless
       ? L(`${this.kills} lobisomens derrotados · recorde: ${meta.bestWave} ondas · +${stars} marca${stars === 1 ? '' : 's'} de caça. Aureliano: ${waves >= 5 ? 'Isso foi quase elegante.' : 'Voltem amanhã. Eles voltam.'}`,

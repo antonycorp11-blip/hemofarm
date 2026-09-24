@@ -71,7 +71,7 @@ export class Farms {
     const stage = this.stageOf(v.pen.id), crop = state.plots[v.pen.id]?.crop ?? '';
     if (stage === v.stage && crop === v.crop) return;
     v.stage = stage; v.crop = crop;
-    for (const s of v.sprites) s.destroy();
+    for (const s of v.sprites) { this.scene.tweens.killTweensOf(s); s.destroy(); } // the ripe-crop sway loops forever otherwise
     v.sprites = [];
     if (!stage) return;
     const real = `crop_${crop}_${stage}`;

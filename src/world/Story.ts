@@ -9,6 +9,7 @@ import { sfx } from '../core/sfx';
 import { L } from '../core/i18n';
 import { CREDITS, DIARY, ELDER_FANG, ENDINGS, EndingId, LETTER, PACT_PAGES, REACTIONS, REVEAL, REVOLT_HEART, TRAGIC_PAGES, fates } from '../data/lore';
 import { CLEAN_WINS } from '../data/story';
+import { CONTRACTS } from '../data/contracts';
 import { SHORT, type Line } from '../data/tutorial';
 import type { Hud } from '../ui/Hud';
 import type { Modal } from '../ui/Modal';
@@ -49,13 +50,14 @@ export class Story {
     const find = (id: string) => this.find(id);
     bus.on('BLOOD_COLLECTED', () => find('first_blood'));
     bus.on('TITHE_PAID', () => find('first_tithe'));
-    bus.on('CONTRACT_COMPLETED', e => { find('first_sale'); addSoul(-e.delivered); });
+    // Selling costs Fang, except the tutorial's first order, which every player has to deliver.
+    bus.on('CONTRACT_COMPLETED', e => { find('first_sale'); if (!CONTRACTS.find(c => c.id === e.contractId)?.tutorialOnly) addSoul(-e.delivered); });
     bus.on('BOND_FORMED', () => find('first_bond'));
     bus.on('HEIR_ARRIVED', () => find('first_bond'));
     bus.on('RAID_ENDED', e => { if (e.result === 'won') find('first_raid'); });
     bus.on('RESEARCH_DONE', () => find('first_research'));
     bus.on('TITHE_FAILED', () => find('first_taken'));
-    bus.on('HUMAN_TAKEN', () => find('first_taken'));
+    bus.on('HUMAN_TAKEN', e => { if (e.by === 'tithe') find('first_taken'); }); // the page is about the carriage's road, not the wolves
     bus.on('REBELLION_STARTED', () => find('rebellion'));
     bus.on('REGENT_CROWNED', () => find('regent'));
     bus.on('REGION_CLEARED', e => { const id = FIRST[e.region]; if (id) find(id); });
@@ -72,6 +74,8 @@ export class Story {
   }
 
   get pages() { return (meta.diary ?? []).filter(id => !meta.diaryBurned?.includes(id)).length; }
+  // Pages the player actually opened in the diary: the Pact and the tragic ending are about what you READ.
+  get pagesRead() { return (meta.diaryRead ?? []).filter(id => meta.diary?.includes(id) && !meta.diaryBurned?.includes(id)).length; }
   get unread() { return meta.diaryNew ?? 0; }
 
   update(dt: number) {
@@ -159,6 +163,7 @@ export class Story {
     const order = (meta.diary ?? []);
     const recent = new Set(order.slice(order.length - fresh));
     meta.diaryNew = 0;
+    meta.diaryRead = [...found].filter(id => !burnt.has(id));
     saveMeta();
     const pages = DIARY.map((p, i) => burnt.has(p.id)
       ? `<div class="pg burnt">${i + 1}. ${L('Página queimada por ordem do Conde. Só sobrou a borda.', 'Page burned on the Count\'s orders. Only the edge remains.')}</div>`
@@ -176,12 +181,12 @@ export class Story {
   // ---------- the finale (Chapter VI) ----------
   finale() {
     // Too few pages and you never learn who she is (GDD_ADENDO A10): the tragic ending, no choice.
-    if (this.pages < TRAGIC_PAGES) { this.host.say(ENDINGS.tragic.lines, () => this.epilogue('tragic')); return; }
+    if (this.pagesRead < TRAGIC_PAGES) { this.host.say(ENDINGS.tragic.lines, () => this.epilogue('tragic')); return; }
     this.host.say(REVEAL, () => this.chooseEnding());
   }
 
   private chooseEnding() {
-    const soul = meta.soul ?? 0, pages = this.pages, gone = !!flag('daviGone');
+    const soul = meta.soul ?? 0, pages = this.pagesRead, gone = !!flag('daviGone');
     const ids: EndingId[] = ['house', 'revolt', 'pact', ...(soul <= -ELDER_FANG ? ['elder' as EndingId] : [])]; // the secret one only shows when earned
     const ok: Partial<Record<EndingId, boolean>> = { house: true, revolt: soul >= REVOLT_HEART && !gone, pact: pages >= PACT_PAGES, elder: true };
     const why: Partial<Record<EndingId, string>> = {

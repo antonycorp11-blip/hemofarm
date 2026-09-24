@@ -90,6 +90,9 @@ export class FarmScene extends Phaser.Scene {
   private story!: Story;
   private paused = false;
   private held = new Set<string>();
+  // Ground tiles, decals and wild props: thousands of static images. Only the ones on screen are drawn (see cullGround).
+  private ground: Phaser.GameObjects.Image[] = [];
+  private lastCull = '';
   private dialogue!: Dialogue;
   private secTick = 0;
   private speed = 1;
@@ -225,16 +228,27 @@ export class FarmScene extends Phaser.Scene {
     for (const t of this.map.tiles) {
       const c = tileCenter(t.i, t.j);
       const swap = w && t.kind === 'forest' && prnd.frac() < w.p && this.textures.exists(w.tile);
-      this.add.image(c.x, c.y, swap ? w!.tile : rnd.pick(TILE_KEYS[t.kind]))
-        .setScale(S * 1.03).setFlipX(rnd.frac() < 0.5).setDepth(DEPTH.ground + c.y * 0.001).setTint(REGIONS[state.region]?.tint ?? 0xffffff);
+      this.ground.push(this.add.image(c.x, c.y, swap ? w!.tile : rnd.pick(TILE_KEYS[t.kind]))
+        .setScale(S * 1.03).setFlipX(rnd.frac() < 0.5).setDepth(DEPTH.ground + c.y * 0.001).setTint(REGIONS[state.region]?.tint ?? 0xffffff));
       if (w && t.kind === 'forest' && !swap && prnd.frac() < w.pp) {
         const k = prnd.pick(w.props);
         if (this.textures.exists(k)) this.add.image(c.x, c.y + 6, k).setOrigin(0.5, 1).setScale(S * prnd.realInRange(0.8, 1.1)).setDepth(c.y).setTint(REGIONS[state.region]?.tint ?? 0xffffff);
       }
     }
     for (const d of this.map.decals) {
-      this.add.image(d.x, d.y, rnd.pick(decalKeys)).setScale(S).setFlipX(!!d.flipX).setDepth(DEPTH.decal);
+      this.ground.push(this.add.image(d.x, d.y, rnd.pick(decalKeys)).setScale(S).setFlipX(!!d.flipX).setDepth(DEPTH.decal));
     }
+  }
+
+  // Phaser draws every visible image each frame, on screen or not. The ground is static, so hide what's off camera
+  // (with a margin), and only recompute when the camera actually moved or zoomed.
+  private cullGround() {
+    const v = this.cameras.main.worldView;
+    const key = `${Math.round(v.x / 32)},${Math.round(v.y / 32)},${Math.round(v.width / 32)},${Math.round(v.height / 32)}`;
+    if (key === this.lastCull) return;
+    this.lastCull = key;
+    const m = 160, x0 = v.x - m, x1 = v.right + m, y0 = v.y - m, y1 = v.bottom + m;
+    for (const g of this.ground) g.setVisible(g.x > x0 && g.x < x1 && g.y > y0 && g.y < y1);
   }
 
   private buildObjects() {
@@ -363,7 +377,8 @@ export class FarmScene extends Phaser.Scene {
         else if (!overlay()) this.hud.toggleMenu();
         return; // panels and the research tree close themselves on Escape
       }
-      if (blocking() || this.dialogue.open && k === ' ') return; // Space advances dialogue lines
+      // Space advances dialogue lines; shortcuts wait while any window (letter, chest, Hunt, ending…) is open.
+      if (blocking() || document.querySelector('.mdl.on') || this.dialogue.open && k === ' ') return;
       const cam = this.cameras.main;
       const act: Record<string, () => void> = {
         ' ': () => { this.setSpeed(this.speed, !this.paused); this.hud.toast(this.paused ? L('⏸ Pausado. Espaço continua.', '⏸ Paused. Space resumes.') : L('▶ Continuando.', '▶ Resuming.'), '', 1500); },
@@ -426,7 +441,7 @@ export class FarmScene extends Phaser.Scene {
       const lost = this.humans.takeByRaid(res.grabbed);
       if (lost.length) this.hud.toast(L(`Os lobisomens levaram ${lost.join(', ')}.`, `The werewolves took ${lost.join(', ')}.`), 'bad', 7000);
       this.conquest.bossResult(!!res.bossKilled);
-    }, { arena, weather: 'fullmoon', title: ch.boss.name, bossHp, notes: [ch.boss.taunt, ...(why ? [why] : [])] });
+    }, { arena, weather: 'fullmoon', title: ch.boss.name, bossHp, alphaName: ch.boss.wolf === 'alpha' ? ch.boss.name : undefined, notes: [ch.boss.taunt, ...(why ? [why] : [])] });
   }
 
 
@@ -550,7 +565,7 @@ export class FarmScene extends Phaser.Scene {
         if (level === 1 && step.hint) this.hud.toast(`${SHORT[step.hint.who]}: ${step.hint.text}`, '', 7000);
         if (level >= 2) this.pointAt(step, level === 3);
       },
-      clearHint: () => { for (const o of this.hintObjs) o.destroy(); this.hintObjs = []; },
+      clearHint: () => { for (const o of this.hintObjs) { this.tweens.killTweensOf(o); o.destroy(); }; this.hintObjs = []; },
       toast: msg => this.hud.toast(msg, 'good', 7000),
     });
   }
@@ -558,14 +573,14 @@ export class FarmScene extends Phaser.Scene {
   // Adaptive hint in the world: a pulsing ring, then an arrow and a camera pan. Never takes control (GDD §9.1).
   private pointAt(step: Step, arrow: boolean) {
     const t = step.target;
-    if (!t) return;
+    if (!t) { if (arrow) this.pointAtHud(step); return; }
     let pos: { x: number; y: number } | undefined;
     const slot = t.slot && this.map.slots.find(s => s.id === t.slot);
     const pen = t.pen && this.map.pens.find(p => p.id === t.pen);
     if (slot) pos = slotGeometry(slot).center;
     else if (pen) pos = iso((pen.i0 + pen.i1 + 1) / 2, (pen.j0 + pen.j1 + 1) / 2);
     if (!pos) return;
-    for (const o of this.hintObjs) o.destroy();
+    for (const o of this.hintObjs) { this.tweens.killTweensOf(o); o.destroy(); };
     this.hintObjs = [];
     const ring = this.add.graphics().setDepth(2.05e6).setPosition(pos.x, pos.y);
     ring.lineStyle(4, 0xe8b54a, 0.9).strokeEllipse(0, 0, 200, 100);
@@ -578,6 +593,19 @@ export class FarmScene extends Phaser.Scene {
     this.tweens.add({ targets: a, y: pos.y - 110, duration: 450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.hintObjs.push(a);
     this.cameras.main.pan(pos.x, pos.y, 900, 'Sine.easeInOut');
+  }
+
+  // Steps whose answer isn't a place on the map: the "Where?" button still always answers — it says the hint again and
+  // lights up the HUD button to press, or glides the camera to someone to tap.
+  private pointAtHud(step: Step) {
+    if (step.hint) this.hud.toast(`${SHORT[step.hint.who]}: ${step.hint.text}`, '', 7000);
+    const sel: Record<string, string> = { t6_pedido: '.hud .deals:not(.orders):not(.tree):not(.diary):not(.crown)', t12_pesquisa: '.hud .tree', t5_dizimo: '.hud .tithe', t13_lobisomens: '.evt.raid' };
+    const el = sel[step.id] ? document.querySelector<HTMLElement>(sel[step.id]) : null;
+    if (el) { el.classList.remove('hl'); void el.offsetWidth; el.classList.add('hl'); setTimeout(() => el.classList.remove('hl'), 4000); return; }
+    if (step.id === 't5_ficha') {
+      const h = this.humans.all.find(x => !x.taken && x.sprite.visible);
+      if (h) this.cameras.main.pan(h.sprite.x, h.sprite.y, 900, 'Sine.easeInOut');
+    }
   }
 
   // ---------- persistence & feedback ----------
@@ -765,6 +793,7 @@ export class FarmScene extends Phaser.Scene {
     this.pinScreenLayers();
     this.updateInertia(delta);
     this.updateKeys(delta);
+    this.cullGround();
     const sim = this.paused ? 0 : delta * this.speed; // ⏩ game speed: the simulation runs faster, the camera doesn't
     this.humans.update(sim);
     this.tithe.update(sim);

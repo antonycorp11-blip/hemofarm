@@ -20,6 +20,7 @@ const CSS = `
 .hud .deals{pointer-events:auto;position:relative;background:none;border:0;padding:0 4px 0 6px;cursor:pointer}.hud .deals img{height:22px;display:block}
 .hud .deals .badge{position:absolute;top:-6px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:#d8122a;color:#fff;font:700 10px/15px system-ui;text-align:center;padding:0 3px}
 .hud .crown.glow img{filter:drop-shadow(0 0 6px #e8b54a);animation:qnew 1s ease-in-out infinite alternate}
+.hl{animation:hlp .5s ease-in-out 8 alternate!important;outline:2px solid #e8b54a;outline-offset:2px;border-radius:8px}@keyframes hlp{to{box-shadow:0 0 18px 4px #e8b54a}}
 .hud .menu{pointer-events:auto;background:none;border:0;color:#e0c8a8;font-size:20px;line-height:1;padding:2px 8px;cursor:pointer}
 .hud .tithe{pointer-events:auto;position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:3px 12px;
   background:#120a10e8;border:1px solid #4a1620;border-radius:8px;font-size:12px;box-shadow:0 3px 10px #000a}

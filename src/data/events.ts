@@ -180,7 +180,7 @@ export const EVENTS: GameEventDef[] = [
       'A howl called the name of one of our people. He says he knows the voice. He wants to go to the fence. Now.'),
     choices: [
       { label: L('Deixar ir', 'Let him go'), cost: L(`um humano comum parte · −10 tensão · ${HEART}`, `a common human leaves · −10 tension · ${HEART}`),
-        apply: w => { const who = w.release(); w.tension(-10); w.soul(4); w.flag('wolfFreed'); if (who) w.toast(L(`${who} atravessou o portão e não olhou para trás.`, `${who} walked through the gate and didn't look back.`), 'good'); },
+        apply: w => { const who = w.release(); w.tension(-10); w.soul(4); if (who) w.flag('wolfFreed'); if (who) w.toast(L(`${who} atravessou o portão e não olhou para trás.`, `${who} walked through the gate and didn't look back.`), 'good'); },
         reply: { who: 'davi', text: L('Ele sorriu. Faz tempo que não vejo alguém sorrir aqui.', 'He smiled. It\'s been a while since I saw anyone smile here.') } },
       { label: L('Trancar todos nas casas', 'Lock everyone indoors'), cost: L(`sem coleta por 60 s · +6 tensão · ${FANG}`, `no collection for 60 s · +6 tension · ${FANG}`),
         apply: w => { w.pause('collect', 60000); w.tension(6); w.soul(-3); w.flag('howlLocked'); }, reply: { who: 'aureliano', text: L('Portas trancadas. O uivo durou até o amanhecer. Parecia… ofendido.', 'Doors locked. The howl lasted until dawn. It sounded… offended.') } },

@@ -96,3 +96,26 @@ Arquivos em `assets_raw/`. Fundo transparente ou magenta #FF00FF.
 - **Correções:**
   - Clicar num botão de janela não "clica" mais no lote do mapa embaixo.
   - `npm run assets` voltou a funcionar: `exists()` era usada antes de ser definida.
+
+## Auditoria (24/09/2026)
+Robôs no Playwright:
+- 16 noites aceleradas em PT e EN, com tudo construído e com o mínimo;
+- batalhas de todos os modos jogadas até o fim;
+- início de mandato nas 6 regiões.
+
+Nenhum erro de código em nenhum cenário. Correções feitas:
+- **Vazamentos de animação:** plantas maduras, anel de seleção e dica do tutorial deixavam animações rodando sobre objetos destruídos (+100 por noite). Agora ficam estáveis em ~70.
+- **Chão desenhado:** só o que está na tela (~1.100 em vez de ~5.000 objetos).
+- **Tensão proporcional ao tamanho da fazenda:** acima de 12 humanos, fome e coletas pesam proporcionalmente. Fazendas grandes tinham rebelião quase toda noite.
+- **Alfa dos ataques comuns:** virou "Alfa da Matilha"; o nome do chefe (Ulf, Grenda…) só aparece na luta do chefe. Antes, "Ulf" aparecia em todas as regiões, mesmo depois de derrotado.
+- **Estrelas:** mostram a nota real; a Lua Cheia dobra as marcas, não as estrelas. A luta do chefe termina com "X caiu!".
+- **Falas por modo:** "Humano: …" só em ataques à fazenda; Caçada e Lua de Sangue têm falas próprias. "Humano:" agora é traduzido.
+- **Caçada:** a Mãe da Matilha recua em vez de "cair" (ela só cai na história).
+- **História:**
+  - a página "estrada sul" só abre pela Sangria;
+  - o contrato do tutorial não conta Presa;
+  - o texto da Lia foi corrigido;
+  - o Pacto e o final trágico contam páginas lidas;
+  - libertar alguém no uivo só vale se alguém saiu.
+- **"Onde?" do tutorial:** sempre responde; em passos sem lugar no mapa, destaca o botão do HUD.
+- **Atalhos de teclado:** não disparam com janelas abertas.
