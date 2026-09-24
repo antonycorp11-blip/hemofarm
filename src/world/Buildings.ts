@@ -1,6 +1,7 @@
 // Buildings on the map: empty plots, construction in progress and finished levels.
 // Tap a plot/building to open the build panel; every level change is visible within a second.
 import Phaser from 'phaser';
+import { onCanvas } from '../core/tap';
 import { bus } from '../core/events';
 import { state } from '../core/state';
 import { BUILDINGS, BORIS_LINES, BuildingKind, Level, TRACKS, trackCost } from '../data/buildings';
@@ -11,6 +12,7 @@ import { iso } from '../map/iso';
 import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';
 import type { Light } from '../map/bosque';
+import { L } from '../core/i18n';
 
 const S = 0.5;
 const TAP_SLOP = 8; // px a pointer may move and still count as a tap
@@ -82,7 +84,7 @@ export class Buildings {
     // Tap area: the footprint plus the space above it where the building stands.
     const w = slot.size * 128, h = slot.size * 64 + 140;
     const hit = this.scene.add.zone(center.x, center.y - 70 + slot.size * 16, w * 0.8, h).setInteractive();
-    hit.on('pointerup', (p: Phaser.Input.Pointer) => this.onTap(p, slot));
+    hit.on('pointerup', (p: Phaser.Input.Pointer) => { if (onCanvas(p)) this.onTap(p, slot); });
 
     const site: Site = { slot, plot, hit, lit: false };
     this.sites.set(slot.id, site);
@@ -198,13 +200,13 @@ export class Buildings {
         }));
       },
       title: def.name,
-      subtitle: lv === 0 ? 'Lote vazio' : `Nível ${lv}${next ? ` de ${def.levels.length}` : ' (máximo)'}`,
+      subtitle: lv === 0 ? L('Lote vazio', 'Empty lot') : `${L('Nível', 'Level')} ${lv}${next ? ` ${L('de', 'of')} ${def.levels.length}` : L(' (máximo)', ' (max)')}`,
       desc: (building ? next : cur ?? next)?.desc ?? '',
       stats: this.stats(slot.kind, cur, next),
-      action: building ? { label: 'Em obras…', disabled: true }
-        : next ? { label: `${lv === 0 ? 'Construir' : 'Melhorar'} · ${next.cost} Ouro`, disabled: state.resources.gold < next.cost, onClick: () => this.start(slot) }
-        : slot.kind === 'boarding' && this.onBoarding ? { label: 'Ver contratos', onClick: () => this.onBoarding!() }
-        : slot.kind === 'lab' && this.onLab ? { label: 'Pesquisas', onClick: () => this.onLab!() }
+      action: building ? { label: L('Em obras…', 'Under construction…'), disabled: true }
+        : next ? { label: `${lv === 0 ? L('Construir', 'Build') : L('Melhorar', 'Upgrade')} · ${next.cost} ${L('Ouro', 'Gold')}`, disabled: state.resources.gold < next.cost, onClick: () => this.start(slot) }
+        : slot.kind === 'boarding' && this.onBoarding ? { label: L('Ver contratos', 'View contracts'), onClick: () => this.onBoarding!() }
+        : slot.kind === 'lab' && this.onLab ? { label: L('Pesquisas', 'Research'), onClick: () => this.onLab!() }
         : undefined,
     });
   }
@@ -232,13 +234,13 @@ export class Buildings {
     const btn = (want: number, label: string) => {
       const q = this.trackQuote(kind, want);
       const ok = q.n > 0 && state.resources.gold >= q.cost;
-      return `<button class="go" data-up="${want}" style="flex:1;min-height:36px;font-size:12px;margin:0"${ok ? '' : ' disabled'}>${label}${q.n ? `<br>${q.cost} Ouro` : ''}</button>`;
+      return `<button class="go" data-up="${want}" style="flex:1;min-height:36px;font-size:12px;margin:0"${ok ? '' : ' disabled'}>${label}${q.n ? `<br>${q.cost} ${L('Ouro', 'Gold')}` : ''}</button>`;
     };
-    return `<div class="card" style="border-color:#a07818"><h4>${t.name} · nível ${lv}/${t.max}</h4>` +
-      `<div class="muted">Cada nível: ${t.desc}. Vale para todas as construções deste tipo. Agora: <b style="color:#f6d9a0">${total}</b></div>` +
+    return `<div class="card" style="border-color:#a07818"><h4>${t.name} · ${L('nível', 'level')} ${lv}/${t.max}</h4>` +
+      `<div class="muted">${L(`Cada nível: ${t.desc}. Vale para todas as construções deste tipo. Agora:`, `Each level: ${t.desc}. Applies to every building of this type. Now:`)} <b style="color:#f6d9a0">${total}</b></div>` +
       `<div class="meter" style="margin:6px 0"><i style="width:${(lv / t.max) * 100}%;background:linear-gradient(90deg,#8a1424,#e8b54a)"></i></div>` +
-      (k === 'blood' && !max && ratePreview(per) ? `<div class="muted" style="color:#ff8a98">Próximo nível: ${ratePreview(per)}</div>` : '') +
-      (max ? '<div class="muted">Nível máximo.</div>' : `<div style="display:flex;gap:6px">${btn(1, '+1')}${btn(5, '+5')}${btn(99, 'Máx')}</div>`) + '</div>';
+      (k === 'blood' && !max && ratePreview(per) ? `<div class="muted" style="color:#ff8a98">${L('Próximo nível', 'Next level')}: ${ratePreview(per)}</div>` : '') +
+      (max ? `<div class="muted">${L('Nível máximo.', 'Max level.')}</div>` : `<div style="display:flex;gap:6px">${btn(1, '+1')}${btn(5, '+5')}${btn(99, L('Máx', 'Max'))}</div>`) + '</div>';
   }
 
   private buyTrack(kind: BuildingKind, want: number) {
@@ -256,26 +258,26 @@ export class Buildings {
   private stats(kind: BuildingKind, cur?: Level, next?: Level): string[] {
     const fmt = (l?: Level) => {
       if (!l) return '—';
-      if (kind === 'housing') return `${l.capacity} moradores`;
-      if (kind === 'collect') return `${l.blood} Sangue por coleta · ${(l.collectMs! / 1000).toFixed(1)} s`;
-      if (kind === 'food') return `refeição de ${(l.eatMs! / 1000).toFixed(1)} s`;
-      if (kind === 'family') return `um parente a cada ~${Math.round(100 / l.kinRate!)} s por casal`;
+      if (kind === 'housing') return L(`${l.capacity} moradores`, `${l.capacity} residents`);
+      if (kind === 'collect') return L(`${l.blood} Sangue por coleta · ${(l.collectMs! / 1000).toFixed(1)} s`, `${l.blood} Blood per collection · ${(l.collectMs! / 1000).toFixed(1)} s`);
+      if (kind === 'food') return L(`refeição de ${(l.eatMs! / 1000).toFixed(1)} s`, `${(l.eatMs! / 1000).toFixed(1)} s meals`);
+      if (kind === 'family') return L(`um parente a cada ~${Math.round(100 / l.kinRate!)} s por casal`, `one relative every ~${Math.round(100 / l.kinRate!)} s per couple`);
       return '';
     };
     const out: string[] = [];
-    if (cur && fmt(cur)) out.push(`Atual: ${fmt(cur)}`);
-    if (next && fmt(next)) out.push(`${cur ? 'Próximo' : 'Ao construir'}: ${fmt(next)}`);
+    if (cur && fmt(cur)) out.push(`${L('Atual', 'Now')}: ${fmt(cur)}`);
+    if (next && fmt(next)) out.push(`${cur ? L('Próximo', 'Next') : L('Ao construir', 'When built')}: ${fmt(next)}`);
     return out;
   }
 
   private start(slot: Slot) {
     const lv = this.level(slot.id);
     const next = BUILDINGS[slot.kind].levels[lv];
-    if (!next || state.resources.gold < next.cost) { this.hud.toast(`Bóris: ${Phaser.Utils.Array.GetRandom(BORIS_LINES.poor)}`, 'bad'); return; }
+    if (!next || state.resources.gold < next.cost) { this.hud.toast(`${L('Bóris', 'Boris')}: ${Phaser.Utils.Array.GetRandom(BORIS_LINES.poor)}`, 'bad'); return; }
     state.resources.gold -= next.cost;
     state.buildings[slot.id] = { level: lv, buildLeft: next.buildMs };
     this.panel.close();
-    this.hud.toast(`Bóris: ${Phaser.Utils.Array.GetRandom(BORIS_LINES.started)}`);
+    this.hud.toast(`${L('Bóris', 'Boris')}: ${Phaser.Utils.Array.GetRandom(BORIS_LINES.started)}`);
     this.refresh(this.sites.get(slot.id)!);
   }
 
@@ -293,6 +295,6 @@ export class Buildings {
     const def = BUILDINGS[site.slot.kind];
     if (oldLevel === 0) bus.emit('BUILDING_BUILT', { buildingId: site.slot.id, kind: site.slot.kind, level: st.level });
     else bus.emit('BUILDING_UPGRADED', { buildingId: site.slot.id, kind: site.slot.kind, oldLevel, newLevel: st.level });
-    this.hud.toast(`${def.name} ${oldLevel === 0 ? 'construída' : `nível ${st.level}`}. Bóris: ${Phaser.Utils.Array.GetRandom(BORIS_LINES.built)}`, 'good');
+    this.hud.toast(`${def.name} ${oldLevel === 0 ? L('construída', 'built') : `${L('nível', 'level')} ${st.level}`}. ${L('Bóris', 'Boris')}: ${Phaser.Utils.Array.GetRandom(BORIS_LINES.built)}`, 'good');
   }
 }

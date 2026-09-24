@@ -4,6 +4,7 @@ import { state, resetSave } from '../core/state';
 import { meta, saveMeta, UPGRADES, lv, legacyFor } from '../core/meta';
 import { REGIONS, RegionId } from '../data/regions';
 import { CHAPTERS } from '../data/story';
+import { L } from '../core/i18n';
 
 const CSS = `
 .mand{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:#050308ee;color:#f3e2c8;font:14px Georgia,serif}
@@ -54,13 +55,13 @@ export class Mandate {
   end(ascended: boolean, population: number, onCancel?: () => void, title?: string, extra = 0) {
     const gain = legacyFor(ascended) + extra;
     const n = state.night.night, r = state.resources;
-    const root = this.show(`<h2>${title ?? (ascended ? 'Ascensão da Casa' : 'Propriedade confiscada')}</h2>
-      <div class="sub">${ascended ? 'Vesper: A casa superior está impressionada. Isso quase nunca acontece.' : 'Vesper: Três noites sem Sangria. A propriedade volta para mim. Você, por enquanto, não.'}</div>
-      <div class="stats"><div>Noites: <b>${n}</b></div><div>Prestígio: <b>${Math.floor(r.prestige)}</b></div>
-      <div>Humanos: <b>${population}</b></div><div>Contratos: <b>${state.contracts.done.length}</b></div></div>
-      <div class="legacy">+${gain} Legado de Sangue</div>
-      <button class="go" data-a="next">Continuar para a Casa Vampírica</button>
-      ${onCancel ? '<button class="ghost" data-a="cancel">Ainda não — continuar este mandato</button>' : ''}`);
+    const root = this.show(`<h2>${title ?? (ascended ? L('Ascensão da Casa', 'Ascension of the House') : L('Propriedade confiscada', 'Property confiscated'))}</h2>
+      <div class="sub">${ascended ? L('Vesper: A casa superior está impressionada. Isso quase nunca acontece.', 'Vesper: The upper house is impressed. That almost never happens.') : L('Vesper: Três noites sem Sangria. A propriedade volta para mim. Você, por enquanto, não.', 'Vesper: Three nights without the Bloodletting. The property returns to me. You, for now, do not.')}</div>
+      <div class="stats"><div>${L('Noites', 'Nights')}: <b>${n}</b></div><div>${L('Prestígio', 'Prestige')}: <b>${Math.floor(r.prestige)}</b></div>
+      <div>${L('Humanos', 'Humans')}: <b>${population}</b></div><div>${L('Contratos', 'Contracts')}: <b>${state.contracts.done.length}</b></div></div>
+      <div class="legacy">+${gain} ${L('Legado de Sangue', 'Blood Legacy')}</div>
+      <button class="go" data-a="next">${L('Continuar para a Casa Vampírica', 'Continue to the Vampire House')}</button>
+      ${onCancel ? `<button class="ghost" data-a="cancel">${L('Ainda não — continuar este mandato', 'Not yet — keep playing this mandate')}</button>` : ''}`);
     root.querySelector<HTMLButtonElement>('[data-a="next"]')!.onclick = () => {
       meta.legacy += gain;
       meta.mandates += 1;
@@ -79,11 +80,11 @@ export class Mandate {
     const row = (u: typeof UPGRADES[number]) => {
       const l = lv(u.id), max = l >= u.max, cost = u.cost(l);
       return `<div class="up"><div class="t"><b>${u.name}</b> <small>${l}/${u.max}</small><br><small>${u.desc}</small></div>
-        <button data-u="${u.id}"${max || meta.legacy < cost ? ' disabled' : ''}>${max ? 'Máximo' : `${cost} Legado`}</button></div>`;
+        <button data-u="${u.id}"${max || meta.legacy < cost ? ' disabled' : ''}>${max ? L('Máximo', 'Max') : `${cost} ${L('Legado', 'Legacy')}`}</button></div>`;
     };
-    const root = this.show(`<h2>Casa Vampírica</h2><div class="sub">Melhorias permanentes para todos os próximos mandatos</div>
-      <div class="legacy">${meta.legacy} Legado de Sangue</div>${UPGRADES.map(row).join('')}
-      <button class="go" data-a="map">Escolher a próxima região</button>`);
+    const root = this.show(`<h2>${L('Casa Vampírica', 'Vampire House')}</h2><div class="sub">${L('Melhorias permanentes para todos os próximos mandatos', 'Permanent upgrades for every future mandate')}</div>
+      <div class="legacy">${meta.legacy} ${L('Legado de Sangue', 'Blood Legacy')}</div>${UPGRADES.map(row).join('')}
+      <button class="go" data-a="map">${L('Escolher a próxima região', 'Choose the next region')}</button>`);
     root.querySelectorAll<HTMLButtonElement>('[data-u]').forEach(b => b.onclick = () => {
       const u = UPGRADES.find(x => x.id === b.dataset.u)!;
       const cost = u.cost(lv(u.id));
@@ -105,10 +106,10 @@ export class Mandate {
         `<span>${current ? '★ ' : ''}${dom ? '👑 ' : ''}${g.name}</span></button>`;
     }).join('');
     const g = REGIONS[selected], dom = meta.domains?.[selected], open = domains() >= g.unlock && (!dom || allDone());
-    const root = this.show(`<h2>Mapa Regional</h2><div class="sub">${starting ? 'Onde será o próximo mandato?' : `Mandato atual: ${REGIONS[state.region].name}`}</div>
+    const root = this.show(`<h2>${L('Mapa Regional', 'Regional Map')}</h2><div class="sub">${starting ? L('Onde será o próximo mandato?', 'Where will the next mandate be?') : `${L('Mandato atual', 'Current mandate')}: ${REGIONS[state.region].name}`}</div>
       <div class="map">${pins}</div>
-      <div class="reg"><b>${g.name}</b> · ${g.tag}<br><small>${g.desc}</small><br><small style="color:#c9a98a">${CHAPTERS[selected].title} · meta ${CHAPTERS[selected].rate} de Sangue/min</small>${dom ? `<br><small style="color:#e8b54a">👑 Domínio da Casa · ${dom.regent}${allDone() ? ' · pode ser jogado de novo' : ''}</small>` : ''}${!dom && domains() < g.unlock ? `<br><small style="color:#ff9aa4">Abre com ${g.unlock} Domínio${g.unlock === 1 ? '' : 's'} conquistado${g.unlock === 1 ? '' : 's'} (você tem ${domains()}).</small>` : ''}</div>
-      ${starting ? `<button class="go" data-a="start"${open ? '' : ' disabled'}>Iniciar novo mandato em ${g.name}</button>` : '<button class="ghost" data-a="close">Fechar</button>'}`);
+      <div class="reg"><b>${g.name}</b> · ${g.tag}<br><small>${g.desc}</small><br><small style="color:#c9a98a">${CHAPTERS[selected].title} · ${L(`meta ${CHAPTERS[selected].rate} de Sangue/min`, `goal ${CHAPTERS[selected].rate} Blood/min`)}</small>${dom ? `<br><small style="color:#e8b54a">👑 ${L('Domínio da Casa', 'Domain of the House')} · ${dom.regent}${allDone() ? L(' · pode ser jogado de novo', ' · can be replayed') : ''}</small>` : ''}${!dom && domains() < g.unlock ? `<br><small style="color:#ff9aa4">${L(`Abre com ${g.unlock} Domínio${g.unlock === 1 ? '' : 's'} conquistado${g.unlock === 1 ? '' : 's'} (você tem ${domains()}).`, `Opens with ${g.unlock} Domain${g.unlock === 1 ? '' : 's'} conquered (you have ${domains()}).`)}</small>` : ''}</div>
+      ${starting ? `<button class="go" data-a="start"${open ? '' : ' disabled'}>${L(`Iniciar novo mandato em ${g.name}`, `Start a new mandate in ${g.name}`)}</button>` : `<button class="ghost" data-a="close">${L('Fechar', 'Close')}</button>`}`);
     root.querySelectorAll<HTMLButtonElement>('[data-r]').forEach(b => b.onclick = () => this.map(starting, b.dataset.r as RegionId));
     root.querySelector<HTMLButtonElement>('[data-a="close"]')?.addEventListener('click', () => this.close());
     root.querySelector<HTMLButtonElement>('[data-a="start"]')?.addEventListener('click', () => {

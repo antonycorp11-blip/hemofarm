@@ -73,3 +73,49 @@ Arquivos em `assets_raw/`. Fundo transparente ou magenta #FF00FF.
 - **7 climas e 6 arenas por região:** pântano com água, cemitério com lápides, ponte de 3 raias, fogo, muralhas de 7 raias.
 - **Caçada:** 12 etapas, deck, draft, mercador, eventos, fogueira, relíquias e chefe. As cartas conquistadas passam a valer na fazenda.
 - **Arte:** provisória, com tinta. Os blocos 20–22 entram automaticamente pelo `process_assets.py`, com os nomes já mapeados.
+
+## Fase 15 — História "A Herança" (GDD A9) · 🟡
+- **Carta da Tia Leonor** na primeira abertura, antes da primeira fala do tutorial.
+- **Diário de Leonor:** 16 páginas encontradas em marcos do jogo; botão no HUD com contador de páginas novas, item no menu e tecla J. Fica salvo entre mandatos (`src/world/Story.ts`, `src/data/lore.ts`).
+- **Ganchos de noite:** de 3 a 4 por capítulo, em `CHAPTERS[...].nights` (`src/data/story.ts`), disparados pelo `Conquest`.
+- **Chefes com passado:** falas finais de Ulf, Grenda, Korvus, Sóror e Capitão.
+- **Eventos novos:** Porão Trancado, Carta Sem Remetente, Uivo com Nome e Caravana da Cripta. Só aparecem depois do tutorial.
+- **Coração × Presa:** `meta.soul`, alterado por eventos, vendas, rebeliões, Banquete, Folga, Presentes e Hora extra.
+- **Finale na Cripta:** revelação da Leonor, escolha entre Casa Eterna, Revolta (Coração 25+) e Pacto (12+ páginas), epílogo e créditos.
+- **Falta:** arte `portrait_leonor` (hoje é uma silhueta) e `title_logo_en`.
+
+## Fase 16 — Inglês + PC · ✅
+- **Idiomas:** todo texto está em `L('pt', 'en')` (`src/core/i18n.ts`). Padrão é o idioma do navegador. A troca fica em Ajustes e na tela de título e recarrega o jogo (o save é mantido).
+- **Ajustes:** idioma, som, música, tamanho da interface (Auto/100/125/150%), tela cheia e lista de atalhos.
+- **PC:**
+  - A interface cresce em telas grandes (`src/ui/display.ts`).
+  - Fazenda: WASD/setas movem a câmera, +/− dão zoom, 1–3 mudam a velocidade, Espaço pausa, C/R/O/K/T/J/M/F abrem painéis e Esc abre o menu.
+  - Batalha: 1–9 escolhem cartas, Q/W/E magias, a mira segue o mouse, botão direito ou Esc cancelam e Espaço começa a luta.
+  - Enter/Espaço avançam diálogos.
+  - O áudio silencia com a aba em segundo plano.
+- **Correções:**
+  - Clicar num botão de janela não "clica" mais no lote do mapa embaixo.
+  - `npm run assets` voltou a funcionar: `exists()` era usada antes de ser definida.
+
+## Auditoria (24/09/2026)
+Robôs no Playwright:
+- 16 noites aceleradas em PT e EN, com tudo construído e com o mínimo;
+- batalhas de todos os modos jogadas até o fim;
+- início de mandato nas 6 regiões.
+
+Nenhum erro de código em nenhum cenário. Correções feitas:
+- **Vazamentos de animação:** plantas maduras, anel de seleção e dica do tutorial deixavam animações rodando sobre objetos destruídos (+100 por noite). Agora ficam estáveis em ~70.
+- **Chão desenhado:** só o que está na tela (~1.100 em vez de ~5.000 objetos).
+- **Tensão proporcional ao tamanho da fazenda:** acima de 12 humanos, fome e coletas pesam proporcionalmente. Fazendas grandes tinham rebelião quase toda noite.
+- **Alfa dos ataques comuns:** virou "Alfa da Matilha"; o nome do chefe (Ulf, Grenda…) só aparece na luta do chefe. Antes, "Ulf" aparecia em todas as regiões, mesmo depois de derrotado.
+- **Estrelas:** mostram a nota real; a Lua Cheia dobra as marcas, não as estrelas. A luta do chefe termina com "X caiu!".
+- **Falas por modo:** "Humano: …" só em ataques à fazenda; Caçada e Lua de Sangue têm falas próprias. "Humano:" agora é traduzido.
+- **Caçada:** a Mãe da Matilha recua em vez de "cair" (ela só cai na história).
+- **História:**
+  - a página "estrada sul" só abre pela Sangria;
+  - o contrato do tutorial não conta Presa;
+  - o texto da Lia foi corrigido;
+  - o Pacto e o final trágico contam páginas lidas;
+  - libertar alguém no uivo só vale se alguém saiu.
+- **"Onde?" do tutorial:** sempre responde; em passos sem lugar no mapa, destaca o botão do HUD.
+- **Atalhos de teclado:** não disparam com janelas abertas.

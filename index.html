@@ -47,6 +47,10 @@
     @keyframes glow{to{filter:drop-shadow(0 0 10px #d8122a)}}
     #loading.ready .bar,#loading.ready .bat,#loading.ready .s{display:none}
     #loading.ready .play{display:block}
+    #loading .lang{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:max(10px,env(safe-area-inset-right,0px));display:flex;gap:6px}
+    #loading .lang button{background:#120a10cc;border:1px solid #4a1620;border-radius:6px;color:#c9b8a8;font:13px Georgia,serif;padding:6px 10px;cursor:pointer}
+    #loading .lang button.on{border-color:#e8b54a;color:#f6d9a0}
+    #loading .play:hover{filter:drop-shadow(0 0 12px #d8122a) brightness(1.1)}
   </style>
 </head>
 <body>

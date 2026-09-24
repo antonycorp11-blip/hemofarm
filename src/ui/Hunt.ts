@@ -8,6 +8,7 @@ import { sfx } from '../core/sfx';
 import { ARENAS, ArenaId, UNITS, UnitId, WEATHER, WeatherId, huntRaid, rollWeather } from '../data/battle';
 import type { BattleData, BattleResult } from '../scenes/BattleScene';
 import { Modal, icon } from './Modal';
+import { L } from '../core/i18n';
 
 type NodeType = 'battle' | 'elite' | 'event' | 'shop' | 'rest' | 'boss';
 interface HNode { type: NodeType; arena: ArenaId; weather: WeatherId }
@@ -20,39 +21,44 @@ const MAX_LIVES = 8;
 const KEY = 'hemo.hunt';
 
 const NODE_DESC: Record<NodeType, string> = {
-  battle: 'Uma luta normal. Vencer dá ossos e a escolha de uma carta nova (ou melhoria) para o seu deck.',
-  elite: 'Luta difícil com um líder da matilha. Vencer dá mais ossos e uma relíquia da Caçada.',
-  event: 'Um encontro na trilha com duas escolhas. Pode dar vidas, ossos, cartas... ou custar algo.',
-  shop: 'Gaste ossos em cartas, melhorias, voluntários e relíquias.',
-  rest: 'Descanse (+2 voluntários) ou treine (melhora uma carta).',
-  boss: 'A Mãe da Matilha. Vencê-la termina a Caçada com a recompensa máxima.',
+  battle: L('Uma luta normal. Vencer dá ossos e a escolha de uma carta nova (ou melhoria) para o seu deck.', 'A normal fight. Winning gives bones and a choice of a new card (or upgrade) for your deck.'),
+  elite: L('Luta difícil com um líder da matilha. Vencer dá mais ossos e uma relíquia da Caçada.', 'A hard fight with a pack leader. Winning gives more bones and a Hunt relic.'),
+  event: L('Um encontro na trilha com duas escolhas. Pode dar vidas, ossos, cartas... ou custar algo.', 'An encounter on the trail with two choices. It may give lives, bones, cards... or cost you something.'),
+  shop: L('Gaste ossos em cartas, melhorias, voluntários e relíquias.', 'Spend bones on cards, upgrades, volunteers and relics.'),
+  rest: L('Descanse (+2 voluntários) ou treine (melhora uma carta).', 'Rest (+2 volunteers) or train (upgrade a card).'),
+  boss: L('A Mãe da Matilha. Vencê-la termina a Caçada com a recompensa máxima.', 'The Pack Mother. Beating her ends the Hunt with the top reward.'),
 };
 
 const NODE: Record<NodeType, { name: string; icon: string; frame: number }> = {
-  battle: { name: 'Batalha', icon: '⚔', frame: 0 }, elite: { name: 'Elite', icon: '☠', frame: 1 }, event: { name: 'Evento', icon: '?', frame: 2 },
-  shop: { name: 'Mercador', icon: '⚖', frame: 3 }, rest: { name: 'Fogueira', icon: '🔥', frame: 4 }, boss: { name: 'Mãe da Matilha', icon: '☾', frame: 5 },
+  battle: { name: L('Batalha', 'Battle'), icon: '⚔', frame: 0 }, elite: { name: 'Elite', icon: '☠', frame: 1 }, event: { name: L('Evento', 'Event'), icon: '?', frame: 2 },
+  shop: { name: L('Mercador', 'Merchant'), icon: '⚖', frame: 3 }, rest: { name: L('Fogueira', 'Campfire'), icon: '🔥', frame: 4 }, boss: { name: L('Mãe da Matilha', 'Pack Mother'), icon: '☾', frame: 5 },
 };
 
 // Battle-only relics of the hunt.
 const HRELICS: Record<string, { name: string; desc: string; icon: string; boost?: { dmg?: number; hp?: number; gen?: number; cost?: number }; bank?: number }> = {
-  presas: { name: 'Presas de Lua', desc: 'Defensores +20% de dano.', icon: 'icon_defense', boost: { dmg: 0.2 } },
-  escudo: { name: 'Brasão da Casa', desc: 'Defensores +25% de vida.', icon: 'icon_defense', boost: { hp: 0.25 } },
-  calice: { name: 'Cálice de Prata', desc: 'Geradores +40% de Sangue.', icon: 'icon_blood', boost: { gen: 0.4 } },
-  bolsa: { name: 'Bolsa do Tesoureiro', desc: 'Cartas 10% mais baratas.', icon: 'icon_gold', boost: { cost: 0.1 } },
-  reserva: { name: 'Reserva de Sangue', desc: '+60 de Sangue no início de cada luta.', icon: 'icon_blood', bank: 60 },
-  foice: { name: 'Foice Afiada', desc: 'Defensores +10% de dano e +10% de vida.', icon: 'icon_defense', boost: { dmg: 0.1, hp: 0.1 } },
+  presas: { name: L('Presas de Lua', 'Moon Fangs'), desc: L('Defensores +20% de dano.', 'Defenders +20% damage.'), icon: 'icon_defense', boost: { dmg: 0.2 } },
+  escudo: { name: L('Brasão da Casa', 'House Crest'), desc: L('Defensores +25% de vida.', 'Defenders +25% health.'), icon: 'icon_defense', boost: { hp: 0.25 } },
+  calice: { name: L('Cálice de Prata', 'Silver Chalice'), desc: L('Geradores +40% de Sangue.', 'Generators +40% Blood.'), icon: 'icon_blood', boost: { gen: 0.4 } },
+  bolsa: { name: L('Bolsa do Tesoureiro', 'Treasurer\'s Purse'), desc: L('Cartas 10% mais baratas.', 'Cards 10% cheaper.'), icon: 'icon_gold', boost: { cost: 0.1 } },
+  reserva: { name: L('Reserva de Sangue', 'Blood Reserve'), desc: L('+60 de Sangue no início de cada luta.', '+60 Blood at the start of each fight.'), icon: 'icon_blood', bank: 60 },
+  foice: { name: L('Foice Afiada', 'Sharpened Scythe'), desc: L('Defensores +10% de dano e +10% de vida.', 'Defenders +10% damage and +10% health.'), icon: 'icon_defense', boost: { dmg: 0.1, hp: 0.1 } },
 };
 
 const EVENTS = [
-  { title: 'Aldeões assustados', text: 'Uma família foge dos lobos pela trilha e pede abrigo atrás das suas linhas.', a: 'Acolher (+1 voluntário)', b: 'Pedir pagamento (+25 ossos)',
+  { title: L('Aldeões assustados', 'Frightened villagers'), text: L('Uma família foge dos lobos pela trilha e pede abrigo atrás das suas linhas.', 'A family fleeing the wolves down the trail asks for shelter behind your lines.'),
+    a: L('Acolher (+1 voluntário)', 'Take them in (+1 volunteer)'), b: L('Pedir pagamento (+25 ossos)', 'Ask for payment (+25 bones)'),
     run: (r: Run, a: boolean) => { if (a) r.lives = Math.min(MAX_LIVES, r.lives + 1); else r.bones += 25; } },
-  { title: 'Altar de Sangue', text: 'Uma pedra antiga pede um tributo. Em troca, oferece poder.', a: 'Oferecer um voluntário (relíquia)', b: 'Seguir em frente',
+  { title: L('Altar de Sangue', 'Blood Altar'), text: L('Uma pedra antiga pede um tributo. Em troca, oferece poder.', 'An ancient stone asks for tribute. In return, it offers power.'),
+    a: L('Oferecer um voluntário (relíquia)', 'Offer a volunteer (relic)'), b: L('Seguir em frente', 'Move on'),
     run: (r: Run, a: boolean, h: Hunt) => { if (a && r.lives > 1) { r.lives--; h.giveRelic(); } } },
-  { title: 'Ferreiro Ghoul', text: 'Um ghoul de avental afia armas por um punhado de ossos.', a: 'Pagar 20 ossos (melhora uma carta)', b: 'Recusar',
+  { title: L('Ferreiro Ghoul', 'Ghoul Blacksmith'), text: L('Um ghoul de avental afia armas por um punhado de ossos.', 'A ghoul in an apron sharpens weapons for a handful of bones.'),
+    a: L('Pagar 20 ossos (melhora uma carta)', 'Pay 20 bones (upgrade a card)'), b: L('Recusar', 'Refuse'),
     run: (r: Run, a: boolean, h: Hunt) => { if (a && r.bones >= 20) { r.bones -= 20; h.upgradeRandom(); } } },
-  { title: 'Cova Aberta', text: 'Uma cova recém-aberta, cheia de ossos... e de lobos dormindo em volta.', a: 'Saquear (+40 ossos, −1 voluntário)', b: 'Deixar quieto',
+  { title: L('Cova Aberta', 'Open Grave'), text: L('Uma cova recém-aberta, cheia de ossos... e de lobos dormindo em volta.', 'A freshly dug grave, full of bones... and with wolves sleeping around it.'),
+    a: L('Saquear (+40 ossos, −1 voluntário)', 'Loot it (+40 bones, −1 volunteer)'), b: L('Deixar quieto', 'Leave it be'),
     run: (r: Run, a: boolean) => { if (a && r.lives > 1) { r.bones += 40; r.lives--; } } },
-  { title: 'Vampiro Errante', text: 'Um vampiro sem casa oferece seus serviços por uma noite de abrigo.', a: 'Recrutar (carta nova)', b: 'Pedir ossos (+15)',
+  { title: L('Vampiro Errante', 'Wandering Vampire'), text: L('Um vampiro sem casa oferece seus serviços por uma noite de abrigo.', 'A houseless vampire offers his services for a night\'s shelter.'),
+    a: L('Recrutar (carta nova)', 'Recruit (new card)'), b: L('Pedir ossos (+15)', 'Ask for bones (+15)'),
     run: (r: Run, a: boolean, h: Hunt) => { if (a) h.giveCard(); else r.bones += 15; } },
 ];
 
@@ -76,7 +82,7 @@ export class Hunt {
   open() {
     this.host.pause(true);
     if (this.run) { this.map(); return; }
-    const box = this.modal.show(`<h2>Caçada</h2><div class="sub">Uma campanha longa contra a matilha, longe da fazenda</div>
+    const box = this.modal.show(L(`<h2>Caçada</h2><div class="sub">Uma campanha longa contra a matilha, longe da fazenda</div>
       <div class="row"><div class="t"><b>O que é</b><br><small>Aureliano leva um grupo de voluntários floresta adentro para caçar a matilha antes que ela chegue à fazenda.
       É uma sequência de batalhas de tower defense, separada da fazenda: <b>nada da fazenda é gasto e ninguém da fazenda é levado</b>.</small></div></div>
       <div class="row"><div class="t"><b>Como jogar</b><br><small>1. Um mapa com 12 etapas; em cada uma você escolhe um caminho (⚔ batalha, ☠ elite, ? evento, ⚖ mercador, 🔥 fogueira).<br>
@@ -85,7 +91,16 @@ export class Hunt {
       4. No fim, a Mãe da Matilha. Se os voluntários acabarem, a Caçada termina com o que você já conquistou.</small></div></div>
       <div class="row"><div class="t"><b>Recompensas</b><br><small>Marcas de caça (Arsenal), Essência para a fazenda, e toda carta conquistada passa a defender a fazenda também.</small></div></div>
       <div class="row"><div class="t"><small>Melhor etapa: ${meta.huntBest ?? 0}/${FLOORS} · Caçadas: ${meta.hunts ?? 0} · Cartas liberadas na fazenda: ${meta.cards?.length ?? 0}</small></div></div>
-      <button class="go" data-go>Começar a Caçada</button>`, { onClose: () => this.host.pause(false) });
+      <button class="go" data-go>Começar a Caçada</button>`, `<h2>The Hunt</h2><div class="sub">A long campaign against the pack, far from the farm</div>
+      <div class="row"><div class="t"><b>What it is</b><br><small>Aureliano leads a group of volunteers deep into the forest to hunt the pack before it reaches the farm.
+      It's a series of tower defense battles, separate from the farm: <b>nothing from the farm is spent and nobody from the farm is taken</b>.</small></div></div>
+      <div class="row"><div class="t"><b>How to play</b><br><small>1. A map with 12 stages; at each one you choose a path (⚔ battle, ☠ elite, ? event, ⚖ merchant, 🔥 campfire).<br>
+      2. You start with 4 cards and 5 volunteers (lives). Every wolf that gets past the fence costs a volunteer.<br>
+      3. After each win, pick a new card or upgrade one in your deck. The deck grows with every fight.<br>
+      4. At the end, the Pack Mother. If you run out of volunteers, the Hunt ends with what you've already won.</small></div></div>
+      <div class="row"><div class="t"><b>Rewards</b><br><small>Hunt marks (Armory), Essence for the farm, and every card you win defends the farm too.</small></div></div>
+      <div class="row"><div class="t"><small>Best stage: ${meta.huntBest ?? 0}/${FLOORS} · Hunts: ${meta.hunts ?? 0} · Cards unlocked on the farm: ${meta.cards?.length ?? 0}</small></div></div>
+      <button class="go" data-go>Start the Hunt</button>`), { onClose: () => this.host.pause(false) });
     box.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => { this.start(); this.map(); };
   }
 
@@ -122,14 +137,14 @@ export class Hunt {
       }).join('') + '</div>';
     const deck = r.deck.map(id => `<span style="padding:2px 7px;border-radius:10px;background:#241218;font-size:11px">${UNITS[id].name}${r.cardLv[id] ? ` ${'★'.repeat(r.cardLv[id])}` : ''}</span>`).join(' ');
     const relics = r.relics.map(id => `<span title="${HRELICS[id].desc}">${icon(HRELICS[id].icon, 18)}</span>`).join('');
-    const box = this.modal.show(`<h2>Caçada · etapa ${r.floor + 1}/${FLOORS}</h2>
-      <div class="sub">${'♥'.repeat(r.lives)} voluntários · ${r.bones} ossos ${relics}</div>
+    const box = this.modal.show(`<h2>${L('Caçada · etapa', 'Hunt · stage')} ${r.floor + 1}/${FLOORS}</h2>
+      <div class="sub">${'♥'.repeat(r.lives)} ${L('voluntários', 'volunteers')} · ${r.bones} ${L('ossos', 'bones')} ${relics}</div>
       <div style="display:flex;gap:4px;overflow-x:auto;padding:6px 2px 10px;${nodeImg ? '' : ''}background:${this.hasBg() ? 'url(assets/hunt_map_bg.jpg) center/cover' : 'linear-gradient(90deg,#140b10,#1f1016)'};border-radius:10px">
         ${r.map.map(col).join('<div style="align-self:center;color:#4a3a38">›</div>')}</div>
-      <div class="muted" style="font-size:12px;margin:6px 0">⚔ batalha · ☠ elite · ? evento · ⚖ mercador · 🔥 fogueira · ☾ chefe — toque num nó <b>brilhando</b> para ver o que é.<br>Deck: ${deck}</div>
-      <button class="go" data-quit style="filter:brightness(.7)">Abandonar a Caçada</button>`, { wide: true, onClose: () => this.host.pause(false) });
+      <div class="muted" style="font-size:12px;margin:6px 0">${L('⚔ batalha · ☠ elite · ? evento · ⚖ mercador · 🔥 fogueira · ☾ chefe — toque num nó <b>brilhando</b> para ver o que é.', '⚔ battle · ☠ elite · ? event · ⚖ merchant · 🔥 campfire · ☾ boss — tap a <b>glowing</b> node to see what it is.')}<br>Deck: ${deck}</div>
+      <button class="go" data-quit style="filter:brightness(.7)">${L('Abandonar a Caçada', 'Abandon the Hunt')}</button>`, { wide: true, onClose: () => this.host.pause(false) });
     box.querySelectorAll<HTMLButtonElement>('[data-n]').forEach(b => b.onclick = () => this.peek(Number(b.dataset.n)));
-    box.querySelector<HTMLButtonElement>('[data-quit]')!.onclick = () => { if (confirm('Abandonar? Você recebe as recompensas das etapas vencidas.')) this.over(false); };
+    box.querySelector<HTMLButtonElement>('[data-quit]')!.onclick = () => { if (confirm(L('Abandonar? Você recebe as recompensas das etapas vencidas.', 'Abandon? You get the rewards for the stages you won.'))) this.over(false); };
   }
 
   // Explain a node before committing to it.
@@ -137,11 +152,11 @@ export class Hunt {
     const r = this.run!, n = r.map[r.floor][i];
     const fight = n.type === 'battle' || n.type === 'elite' || n.type === 'boss';
     const w = WEATHER[n.weather], a = ARENAS[n.arena];
-    const box = this.modal.show(`<h2>${NODE[n.type].icon} ${NODE[n.type].name}</h2><div class="sub">Etapa ${r.floor + 1}/${FLOORS}</div>
+    const box = this.modal.show(`<h2>${NODE[n.type].icon} ${NODE[n.type].name}</h2><div class="sub">${L('Etapa', 'Stage')} ${r.floor + 1}/${FLOORS}</div>
       <div class="row"><div class="t">${NODE_DESC[n.type]}</div></div>
-      ${fight ? `<div class="row"><div class="t"><b>${a.name}</b> · ${a.lanes} raias<br><small>${a.desc}</small></div></div>
+      ${fight ? `<div class="row"><div class="t"><b>${a.name}</b> · ${a.lanes} ${L('raias', 'lanes')}<br><small>${a.desc}</small></div></div>
       <div class="row"><div class="t"><b>${w.icon} ${w.name}</b><br><small>${w.desc}</small></div></div>` : ''}
-      <div class="cards3" style="grid-template-columns:1fr 1fr"><button class="pick" data-back><b>Voltar ao mapa</b></button><button class="pick" data-go style="border-color:#e8b54a"><b>${fight ? 'Lutar' : 'Seguir'} ▸</b></button></div>`,
+      <div class="cards3" style="grid-template-columns:1fr 1fr"><button class="pick" data-back><b>${L('Voltar ao mapa', 'Back to the map')}</b></button><button class="pick" data-go style="border-color:#e8b54a"><b>${fight ? L('Lutar', 'Fight') : L('Seguir', 'Go')} ▸</b></button></div>`,
       { onClose: () => this.host.pause(false) });
     box.querySelector<HTMLButtonElement>('[data-back]')!.onclick = () => this.map();
     box.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => this.enter(i);
@@ -177,7 +192,7 @@ export class Hunt {
     const lanes = ARENAS[n.arena].lanes;
     const { b, bank } = this.boost();
     this.modal.close();
-    const title = n.type === 'boss' ? 'Chefe: Mãe da Matilha' : n.type === 'elite' ? `Elite · etapa ${r.floor + 1}` : `Caçada · etapa ${r.floor + 1}`;
+    const title = n.type === 'boss' ? L('Chefe: Mãe da Matilha', 'Boss: Pack Mother') : n.type === 'elite' ? `Elite · ${L('etapa', 'stage')} ${r.floor + 1}` : `${L('Caçada · etapa', 'Hunt · stage')} ${r.floor + 1}`;
     this.host.battle({ raid: huntRaid(r.floor, n.type as 'battle' | 'elite' | 'boss', lanes), mode: 'hunt', arena: n.arena, weather: n.weather, deck: r.deck,
       cardLv: r.cardLv, lives: r.lives, bank, boost: b, title }, res => {
       this.host.pause(true);
@@ -188,7 +203,7 @@ export class Hunt {
       if (n.type === 'elite') this.giveRelic();
       if (n.type === 'boss') { this.over(true); return; }
       sfx.coin();
-      this.draft(`+${bones} ossos${n.type === 'elite' ? ' · relíquia nova' : ''}`);
+      this.draft(`+${bones} ${L('ossos', 'bones')}${n.type === 'elite' ? L(' · relíquia nova', ' · new relic') : ''}`);
     });
   }
 
@@ -206,8 +221,8 @@ export class Hunt {
 
   private offerHtml(o: Offer, price?: number) {
     const u = UNITS[o.id], lv = this.run!.cardLv[o.id] ?? 0;
-    return `<b>${o.kind === 'card' ? u.name : `${u.name} ★${lv + 1}`}</b><span style="font-size:12px">${o.kind === 'card' ? u.desc : '+20% de força nesta Caçada.'}</span>` +
-      `<small>${o.kind === 'card' ? `Custo ${u.cost} Sangue` : 'Melhoria'}${price ? ` · ${price} ossos` : ''}</small>`;
+    return `<b>${o.kind === 'card' ? u.name : `${u.name} ★${lv + 1}`}</b><span style="font-size:12px">${o.kind === 'card' ? u.desc : L('+20% de força nesta Caçada.', '+20% strength in this Hunt.')}</span>` +
+      `<small>${o.kind === 'card' ? L(`Custo ${u.cost} Sangue`, `Costs ${u.cost} Blood`) : L('Melhoria', 'Upgrade')}${price ? ` · ${price} ${L('ossos', 'bones')}` : ''}</small>`;
   }
 
   private take(o: Offer) {
@@ -219,9 +234,9 @@ export class Hunt {
   private draft(gain: string) {
     const r = this.run!;
     const offers = this.offers();
-    const box = this.modal.show(`<h2>Vitória!</h2><div class="sub">${gain} · escolha uma recompensa</div>
+    const box = this.modal.show(`<h2>${L('Vitória!', 'Victory!')}</h2><div class="sub">${gain} · ${L('escolha uma recompensa', 'choose a reward')}</div>
       <div class="cards3">${offers.map((o, i) => `<button class="pick" data-o="${i}">${this.offerHtml(o)}</button>`).join('')}</div>
-      <button class="go" data-skip style="filter:brightness(.7)">Pular (+10 ossos)</button>`, { closable: false });
+      <button class="go" data-skip style="filter:brightness(.7)">${L('Pular (+10 ossos)', 'Skip (+10 bones)')}</button>`, { closable: false });
     box.querySelectorAll<HTMLButtonElement>('[data-o]').forEach(b => b.onclick = () => { this.take(offers[Number(b.dataset.o)]); this.next(); });
     box.querySelector<HTMLButtonElement>('[data-skip]')!.onclick = () => { r.bones += 10; this.next(); };
   }
@@ -230,19 +245,19 @@ export class Hunt {
     const r = this.run!;
     const pool = Object.keys(HRELICS).filter(id => !r.relics.includes(id));
     const id = Phaser.Utils.Array.GetRandom(pool);
-    if (id) { r.relics.push(id); this.host.toast(`Relíquia da Caçada: ${HRELICS[id].name} (${HRELICS[id].desc})`, 'good'); }
+    if (id) { r.relics.push(id); this.host.toast(`${L('Relíquia da Caçada', 'Hunt relic')}: ${HRELICS[id].name} (${HRELICS[id].desc})`, 'good'); }
   }
 
   giveCard() {
     const r = this.run!;
     const id = Phaser.Utils.Array.GetRandom((Object.keys(UNITS) as UnitId[]).filter(x => !r.deck.includes(x)));
-    if (id) { r.deck.push(id); r.drafted.push(id); this.host.toast(`Nova carta na Caçada: ${UNITS[id].name}.`, 'good'); }
+    if (id) { r.deck.push(id); r.drafted.push(id); this.host.toast(`${L('Nova carta na Caçada', 'New card in the Hunt')}: ${UNITS[id].name}.`, 'good'); }
   }
 
   upgradeRandom() {
     const r = this.run!;
     const id = Phaser.Utils.Array.GetRandom(r.deck.filter(x => (r.cardLv[x] ?? 0) < 3));
-    if (id) { r.cardLv[id] = (r.cardLv[id] ?? 0) + 1; this.host.toast(`${UNITS[id].name} melhorou (★${r.cardLv[id]}).`, 'good'); }
+    if (id) { r.cardLv[id] = (r.cardLv[id] ?? 0) + 1; this.host.toast(L(`${UNITS[id].name} melhorou (★${r.cardLv[id]}).`, `${UNITS[id].name} improved (★${r.cardLv[id]}).`), 'good'); }
   }
 
   // ---------- other nodes ----------
@@ -262,13 +277,13 @@ export class Hunt {
     const items: { html: string; price: number; buy: () => void }[] = [
       ...cards.map(o => ({ html: this.offerHtml(o, 35), price: 35, buy: () => this.take(o) })),
       ...(up ? [{ html: this.offerHtml({ kind: 'up', id: up }, 30), price: 30, buy: () => this.take({ kind: 'up', id: up }) }] : []),
-      { html: '<b>Curandeira</b><span style="font-size:12px">+2 voluntários</span><small>25 ossos</small>', price: 25, buy: () => { r.lives = Math.min(MAX_LIVES, r.lives + 2); } },
-      ...(relic ? [{ html: `<b>${HRELICS[relic].name}</b><span style="font-size:12px">${HRELICS[relic].desc}</span><small>60 ossos</small>`, price: 60, buy: () => { r.relics.push(relic); } }] : []),
+      { html: L('<b>Curandeira</b><span style="font-size:12px">+2 voluntários</span><small>25 ossos</small>', '<b>Healer</b><span style="font-size:12px">+2 volunteers</span><small>25 bones</small>'), price: 25, buy: () => { r.lives = Math.min(MAX_LIVES, r.lives + 2); } },
+      ...(relic ? [{ html: `<b>${HRELICS[relic].name}</b><span style="font-size:12px">${HRELICS[relic].desc}</span><small>60 ${L('ossos', 'bones')}</small>`, price: 60, buy: () => { r.relics.push(relic); } }] : []),
     ];
     const render = () => {
-      const box = this.modal.show(`<h2>Mercador da Trilha</h2><div class="sub">${r.bones} ossos · ${'♥'.repeat(r.lives)}</div>
+      const box = this.modal.show(`<h2>${L('Mercador da Trilha', 'Trail Merchant')}</h2><div class="sub">${r.bones} ${L('ossos', 'bones')} · ${'♥'.repeat(r.lives)}</div>
         <div class="cards3">${items.map((it, i) => `<button class="pick" data-i="${i}"${r.bones < it.price ? ' disabled style="opacity:.45"' : ''}>${it.html}</button>`).join('')}</div>
-        <button class="go" data-go>Seguir viagem</button>`, { closable: false });
+        <button class="go" data-go>${L('Seguir viagem', 'Move on')}</button>`, { closable: false });
       box.querySelectorAll<HTMLButtonElement>('[data-i]').forEach(b => b.onclick = () => {
         const it = items[Number(b.dataset.i)];
         if (r.bones < it.price) return;
@@ -287,9 +302,9 @@ export class Hunt {
   private rest() {
     const r = this.run!;
     const up = r.deck.filter(id => (r.cardLv[id] ?? 0) < 3);
-    const box = this.modal.show(`<h2>Fogueira</h2><div class="sub">Os voluntários descansam. Escolha uma coisa.</div>
-      <div class="cards3" style="grid-template-columns:1fr 1fr"><button class="pick" data-a="heal"><b>Descansar</b><span>+2 voluntários</span></button>
-      <button class="pick" data-a="up"${up.length ? '' : ' disabled'}><b>Treinar</b><span>Melhora uma carta aleatória do deck</span></button></div>`, { closable: false });
+    const box = this.modal.show(`<h2>${L('Fogueira', 'Campfire')}</h2><div class="sub">${L('Os voluntários descansam. Escolha uma coisa.', 'The volunteers rest. Choose one thing.')}</div>
+      <div class="cards3" style="grid-template-columns:1fr 1fr"><button class="pick" data-a="heal"><b>${L('Descansar', 'Rest')}</b><span>${L('+2 voluntários', '+2 volunteers')}</span></button>
+      <button class="pick" data-a="up"${up.length ? '' : ' disabled'}><b>${L('Treinar', 'Train')}</b><span>${L('Melhora uma carta aleatória do deck', 'Upgrades a random card in the deck')}</span></button></div>`, { closable: false });
     box.querySelectorAll<HTMLButtonElement>('[data-a]').forEach(b => b.onclick = () => {
       if (b.dataset.a === 'heal') r.lives = Math.min(MAX_LIVES, r.lives + 2); else this.upgradeRandom();
       this.next();
@@ -319,11 +334,12 @@ export class Hunt {
     this.run = undefined;
     this.save();
     sfx[won ? 'chime' : 'bad']();
-    const box = this.modal.show(`<h2>${won ? 'A Mãe da Matilha caiu!' : 'Fim da Caçada'}</h2>
-      <div class="sub">${won ? 'Aureliano: Isso vai para os livros. Os livros que eu mesmo escrevo.' : `Etapas vencidas: ${floors}/${FLOORS}.`}</div>
-      <div class="gains"><span>★ +${marks} marcas de caça</span><span>${icon('icon_research')} +${essence} Essência</span></div>
-      ${fresh.length ? `<div class="row"><div class="t"><b>Novas cartas na defesa da fazenda</b><br><small>${fresh.map(id => UNITS[id].name).join(', ')}</small></div></div>` : ''}
-      <button class="go" data-ok>Voltar à fazenda</button>`, { onClose: () => this.host.pause(false) });
+    // She only truly falls in the story's last chapter; in the Hunt she retreats into the forest.
+    const box = this.modal.show(`<h2>${won ? L('A Mãe da Matilha recuou!', 'The Pack Mother retreated!') : L('Fim da Caçada', 'The Hunt is over')}</h2>
+      <div class="sub">${won ? L('Aureliano: Ela sumiu entre as árvores, sem pressa. Como se voltasse para casa. Isso vai para os livros.', 'Aureliano: She vanished into the trees, unhurried. As if heading home. This goes in the books.') : L(`Etapas vencidas: ${floors}/${FLOORS}.`, `Stages won: ${floors}/${FLOORS}.`)}</div>
+      <div class="gains"><span>★ +${marks} ${L('marcas de caça', 'hunt marks')}</span><span>${icon('icon_research')} +${essence} ${L('Essência', 'Essence')}</span></div>
+      ${fresh.length ? `<div class="row"><div class="t"><b>${L('Novas cartas na defesa da fazenda', 'New cards for the farm\'s defense')}</b><br><small>${fresh.map(id => UNITS[id].name).join(', ')}</small></div></div>` : ''}
+      <button class="go" data-ok>${L('Voltar à fazenda', 'Back to the farm')}</button>`, { onClose: () => this.host.pause(false) });
     box.querySelector<HTMLButtonElement>('[data-ok]')!.onclick = () => this.modal.close();
   }
 }

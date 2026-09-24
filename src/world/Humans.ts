@@ -1,6 +1,9 @@
 // Human routine (GDD §6.2): leave home → eat → socialize → queue for collection → recover → sleep.
 // Needs drive a small utility choice; every step is visible on the map.
 import Phaser from 'phaser';
+import { onCanvas } from '../core/tap';
+import { L } from '../core/i18n';
+import { flag } from '../core/meta';
 import type { FarmMap } from '../map/bosque';
 import { tileCenter } from '../map/iso';
 import { findPath } from '../sim/pathfind';
@@ -95,7 +98,7 @@ export class Humans {
     const cells = [...this.map.walkable].map(k => k.split(',').map(Number) as P);
     for (let k = 0; k < Math.max(n, saved.length); k++) {
       const sv = saved[k];
-      const named = !saved.length ? NAMED[k] : undefined;
+      const named = !saved.length ? NAMED.filter(n => !(n.look === 'davi' && flag('daviGone')))[k] : undefined;
       const name = sv?.name ?? named?.name;
       this.create({
         tile: sv && this.map.walkable.has(sv.tile.join(',')) ? sv.tile : Phaser.Utils.Array.GetRandom(cells),
@@ -355,6 +358,7 @@ export class Humans {
     const f = h.sprite.frame, pad = 36;
     h.sprite.setInteractive(new Phaser.Geom.Rectangle(-pad, -pad, f.width + pad * 2, f.height + pad * 2), Phaser.Geom.Rectangle.Contains);
     h.sprite.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (!onCanvas(p)) return;
       if (this.downAt && Phaser.Math.Distance.Between(this.downAt.x, this.downAt.y, p.x, p.y) > 8) return;
       this.onSelect?.(h);
     });
@@ -470,7 +474,7 @@ export class Humans {
     this.scene.tweens.add({ targets: c.sprite, alpha: 1, duration: 800 });
     this.scene.time.delayedCall(900, () => this.bubbles.say(c, 'heir', true));
     bus.emit('HEIR_ARRIVED', { humanId: c.id, parents: [a.id, b.id], quality: c.traits.quality, blood: c.traits.blood,
-      code: c.traits.code, parentNames: [a.name ?? `Unidade ${a.traits.code}`, b.name ?? `Unidade ${b.traits.code}`] });
+      code: c.traits.code, parentNames: [a.name ?? `${L('Unidade', 'Unit')} ${a.traits.code}`, b.name ?? `${L('Unidade', 'Unit')} ${b.traits.code}`] });
   }
 
   // Werewolves carried someone off (GDD §12.1): story characters are spared, rare losses hurt.
@@ -487,7 +491,7 @@ export class Humans {
       this.scene.tweens.killTweensOf(h.sprite);
       h.sprite.destroy(); h.marker?.destroy();
       this.drop(h);
-      out.push(`Unidade ${h.traits.code}`);
+      out.push(`${L('Unidade', 'Unit')} ${h.traits.code}`);
       bus.emit('HUMAN_TAKEN', { humanId: h.id, by: 'raid' });
     }
     return out;
@@ -528,7 +532,7 @@ export class Humans {
     const h = pool[0];
     if (!h) return null;
     this.sell(h, to);
-    return `Unidade ${h.traits.code}`;
+    return `${L('Unidade', 'Unit')} ${h.traits.code}`;
   }
 
   // Rebellion demand "free our spokesperson": a rebel (not a story character) walks out of the farm for good.
@@ -538,7 +542,25 @@ export class Humans {
     if (!h) return null;
     h.rebel = false;
     this.sell(h, to);
-    return `Unidade ${h.traits.code}`;
+    return `${L('Unidade', 'Unit')} ${h.traits.code}`;
+  }
+
+  // Consequence: a story character (Davi) leaves the farm for good, walking out through the gate.
+  releaseNamed(prefix: string, to: { x: number; y: number }) {
+    const h = this.list.find(x => x.name?.startsWith(prefix) && !x.taken);
+    if (!h) return false;
+    this.sell(h, to);
+    return true;
+  }
+
+  // Story event "the howl with a name": the lowest-quality common human walks out through the gate for good.
+  release(to: { x: number; y: number }) {
+    const pool = this.list.filter(h => !h.taken && !h.name && !h.contract)
+      .sort((a, b) => Q[a.traits.quality].rank - Q[b.traits.quality].rank);
+    const h = pool[0];
+    if (!h || this.population <= 3) return null;
+    this.sell(h, to);
+    return `${L('Unidade', 'Unit')} ${h.traits.code}`;
   }
 
   // Micro-event: two humans near each other start arguing (no modal, just life on the map).

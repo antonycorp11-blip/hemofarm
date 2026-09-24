@@ -22,10 +22,17 @@ export function unlockAudio() {
     musicBus = ctx.createGain(); musicBus.gain.value = meta.music === false ? 0 : MUSIC_VOL; musicBus.connect(master);
     // Preload the short effects; music loads when first requested.
     for (const k of Object.values(SAMPLE).flat()) load(k);
-    // Phones suspend audio when the app goes to the background: resume on return.
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) void ctx?.resume(); });
+    // Silence in a background tab (portals require it); phones suspend audio anyway, so resume on return.
+    document.addEventListener('visibilitychange', () => { if (document.hidden) void ctx?.suspend(); else if (!held) void ctx?.resume(); });
     if (pendingMusic) music(pendingMusic);
   } catch { /* no audio on this device */ }
+}
+
+// Ad breaks (portal SDKs) and other full stops: all audio waits until released.
+let held = false;
+export function holdAudio(on: boolean) {
+  held = on;
+  if (on) void ctx?.suspend(); else if (!document.hidden) void ctx?.resume();
 }
 
 export function setMute(m: boolean) {
@@ -116,7 +123,7 @@ const VOICES: Record<string, Voice> = {
   rubelia: { set: 'female_standard', rate: 1.05 }, lia: { set: 'female_light', rate: 1.05 }, davi: { set: 'male_standard', rate: 1 },
   hematico: { set: 'quick', rate: 1.1 }, ulf: { set: 'demon', rate: 0.85 }, merchant: { set: 'male_standard', rate: 0.85 },
   inspector: { set: 'male_standard', rate: 0.9 }, human_m: { set: 'male_standard', rate: 1.1 }, human_f: { set: 'female_standard', rate: 1.15 },
-  count: { set: 'male_deep', rate: 0.95 }, mother: { set: 'demon', rate: 0.7 },
+  count: { set: 'male_deep', rate: 0.95 }, mother: { set: 'demon', rate: 0.7 }, leonor: { set: 'female_standard', rate: 0.85 },
 };
 let voicesLoaded = false;
 let lastVoice = 0;

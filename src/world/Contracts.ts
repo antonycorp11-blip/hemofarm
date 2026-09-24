@@ -1,6 +1,7 @@
 // Human sheet + buyer contracts (GDD §6, §10): inspect a human, decide to keep or sell,
 // send matching humans to the Boarding Yard and deliver them for Gold + Prestige.
 import Phaser from 'phaser';
+import { onCanvas } from '../core/tap';
 import { bus } from '../core/events';
 import { state } from '../core/state';
 import { CONTRACTS, ContractDef, Requirement, BUYER_NAMES, MAX_OFFERS } from '../data/contracts';
@@ -15,9 +16,10 @@ import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';
 import type { Buildings } from './Buildings';
 import type { Human, Humans } from './Humans';
+import { L } from '../core/i18n';
 
 const def = (id: string) => CONTRACTS.find(c => c.id === id)!;
-const SHORT: Record<string, string> = { rubelia: 'Rubélia', hematico: 'Hemático', vesper: 'Vesper', merchant: 'Mercador' };
+const SHORT: Record<string, string> = { rubelia: L('Rubélia', 'Rubelia'), hematico: L('Hemático', 'Hematic'), vesper: 'Vesper', merchant: L('Mercador', 'Merchant') };
 
 export function meets(h: Human, r: Requirement) {
   const t = h.traits;
@@ -31,8 +33,8 @@ export function describe(r: Requirement) {
   if (r.temper) parts.push(TEMPER[r.temper].name);
   if (r.trait) parts.push(TRAIT[r.trait].name);
   if (r.minQuality) parts.push(`${QUALITY[r.minQuality].name}+`);
-  if (r.minMorale) parts.push(`moral ≥ ${r.minMorale}`);
-  return parts.length ? parts.join(' · ') : 'qualquer humano';
+  if (r.minMorale) parts.push(`${L('moral', 'morale')} ≥ ${r.minMorale}`);
+  return parts.length ? parts.join(' · ') : L('qualquer humano', 'any human');
 }
 
 export class Contracts {
@@ -67,9 +69,9 @@ export class Contracts {
   private regentHtml(h: Human) {
     if (!this.crownHook || !state.tutorial.done || h.name || QUALITY[h.traits.quality].rank < 2) return '';
     const c = this.crownHook.can(h);
-    if (!c.ok && c.why === 'Esta região já tem um Regente.') return '';
-    return `<div class="card" style="border-color:#8a6aff;margin-top:8px"><h4>🦇 Transformar em Regente</h4><div class="muted">Um vampiro para governar esta região em seu nome. ` +
-      `Pilar da conquista.</div><button class="go" data-a="regent"${c.ok ? '' : ' disabled'} style="background:#4a2a7a">${c.ok ? 'Transformar' : c.why}</button></div>`;
+    if (!c.ok && state.conquest.regent) return ''; // this region already has one
+    return `<div class="card" style="border-color:#8a6aff;margin-top:8px"><h4>🦇 ${L('Transformar em Regente', 'Turn into Regent')}</h4><div class="muted">${L('Um vampiro para governar esta região em seu nome. Pilar da conquista.', 'A vampire to rule this region in your name. A pillar of the conquest.')}` +
+      `</div><button class="go" data-a="regent"${c.ok ? '' : ' disabled'} style="background:#4a2a7a">${c.ok ? L('Transformar', 'Transform') : c.why}</button></div>`;
   }
 
   // ---------- contract auras ----------
@@ -88,12 +90,13 @@ export class Contracts {
       let a = this.auras.get(h.id);
       if (!a) {
         const aura = this.scene.add.ellipse(0, 0, 64, 26, 0xe8b54a, 0.35).setStrokeStyle(3, 0xf6d9a0, 0.9).setBlendMode(Phaser.BlendModes.ADD);
-        const tag = this.scene.add.text(0, 0, 'Enviar ao Pátio ▸', { fontFamily: 'Georgia, serif', fontSize: '26px', fontStyle: 'bold', color: '#1a0a0e',
+        const tag = this.scene.add.text(0, 0, L('Enviar ao Pátio ▸', 'Send to the Yard ▸'), { fontFamily: 'Georgia, serif', fontSize: '26px', fontStyle: 'bold', color: '#1a0a0e',
           backgroundColor: '#e8b54a', padding: { x: 12, y: 6 } }).setOrigin(0.5, 1).setInteractive({ useHandCursor: true });
         tag.on('pointerup', (p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+          if (!onCanvas(p)) return;
           e.stopPropagation();
           if (p.getDistance() > 12) return; // it was a drag of the map
-          if (!yard) { this.hud.toast('Bóris: Falta construir o Pátio de Embarque.'); return; }
+          if (!yard) { this.hud.toast(L('Bóris: Falta construir o Pátio de Embarque.', 'Boris: The Boarding Yard still needs to be built.')); return; }
           this.assign(h);
         });
         a = { aura, tag };
@@ -119,37 +122,37 @@ export class Contracts {
     const tag = (img: string, text: string) => `<span class="tag"><img src="assets/${img}.webp" alt="">${text}</span>`;
     const value = Math.round(80 * QUALITY[t.quality].mult * (t.blood === 'carmesim' ? 3 : t.blood === 'umbra' ? 1.5 : 1) * (t.trait ? 1.6 : 1));
     let action: string;
-    if (h.contract) action = `<button class="go" data-a="unassign">Retirar do contrato</button>`;
-    else if (h.name) action = `<p class="muted">${h.name.split(' ')[0]} não está à venda: personagens da história ficam na fazenda.</p>`;
-    else if (!c) action = `<p class="muted">Nenhum contrato ativo. Veja as ofertas no pergaminho do HUD.</p>`;
-    else if (!meets(h, c.req)) action = `<p class="muted">Não atende ao contrato atual (${describe(c.req)}).</p>`;
-    else if (!this.buildings.level('boarding')) action = `<p class="muted">Atende ao contrato, mas falta construir o Pátio de Embarque.</p>`;
-    else action = `<button class="go" data-a="assign">Enviar ao Pátio · ${c.title}</button>`;
+    if (h.contract) action = `<button class="go" data-a="unassign">${L('Retirar do contrato', 'Remove from contract')}</button>`;
+    else if (h.name) action = `<p class="muted">${L(`${h.name.split(' ')[0]} não está à venda: personagens da história ficam na fazenda.`, `${h.name.split(' ')[0]} is not for sale: story characters stay on the farm.`)}</p>`;
+    else if (!c) action = `<p class="muted">${L('Nenhum contrato ativo. Veja as ofertas no pergaminho do HUD.', 'No active contract. See the offers in the HUD scroll.')}</p>`;
+    else if (!meets(h, c.req)) action = `<p class="muted">${L('Não atende ao contrato atual', 'Doesn\'t fit the current contract')} (${describe(c.req)}).</p>`;
+    else if (!this.buildings.level('boarding')) action = `<p class="muted">${L('Atende ao contrato, mas falta construir o Pátio de Embarque.', 'Fits the contract, but the Boarding Yard isn\'t built yet.')}</p>`;
+    else action = `<button class="go" data-a="assign">${L('Enviar ao Pátio', 'Send to the Yard')} · ${c.title}</button>`;
     this.panel.open({
-      title: h.name ?? `Unidade ${t.code}`,
-      subtitle: `${QUALITY[t.quality].name} · valor estimado ${value} Ouro`,
+      title: h.name ?? `${L('Unidade', 'Unit')} ${t.code}`,
+      subtitle: `${QUALITY[t.quality].name} · ${L(`valor estimado ${value} Ouro`, `estimated value ${value} Gold`)}`,
       desc: '',
       stats: [],
       html: `<div class="tags">${tag(`blood_${t.blood}`, BLOOD[t.blood].name)}${tag(`quality_${t.quality}`, QUALITY[t.quality].name)}` +
         `${tag(`temper_${t.temper}`, TEMPER[t.temper].name)}${t.trait ? tag(`trait_${t.trait}`, TRAIT[t.trait].name) : ''}</div>` +
-        meter('Vitalidade', h.vitality, '#d8122a') + meter('Moral', h.morale, '#6fbf73') + meter('Fome', h.hunger, '#e8b54a') +
+        meter(L('Vitalidade', 'Vitality'), h.vitality, '#d8122a') + meter(L('Moral', 'Morale'), h.morale, '#6fbf73') + meter(L('Fome', 'Hunger'), h.hunger, '#e8b54a') +
         `<p class="muted" style="margin:8px 0">${TEMPER[t.temper].desc}${t.trait ? ` ${TRAIT[t.trait].desc}` : ''}</p>` +
-        `<div style="display:flex;gap:6px;margin-bottom:8px"><button class="go" data-a="collect"${this.humans.canQueue(h) ? '' : ' disabled'}>Enviar à coleta</button>` +
-        `<button class="go" data-a="feed"${state.resources.food >= 1 && h.hunger > 5 ? '' : ' disabled'}>Alimentar · 1 Comida</button></div>` +
+        `<div style="display:flex;gap:6px;margin-bottom:8px"><button class="go" data-a="collect"${this.humans.canQueue(h) ? '' : ' disabled'}>${L('Enviar à coleta', 'Send to collection')}</button>` +
+        `<button class="go" data-a="feed"${state.resources.food >= 1 && h.hunger > 5 ? '' : ' disabled'}>${L('Alimentar · 1 Comida', 'Feed · 1 Food')}</button></div>` +
         this.bondHtml(h) + action + this.regentHtml(h),
       bind: root => {
         root.querySelector<HTMLButtonElement>('[data-a="assign"]')?.addEventListener('click', () => this.assign(h));
         root.querySelector<HTMLButtonElement>('[data-a="regent"]')?.addEventListener('click', () => {
-          if (confirm(`Transformar ${this.label(h)} em vampiro Regente? Ele deixa o rebanho para governar a região.`)) { this.crownHook!.crown(h); this.panel.close(); }
+          if (confirm(L(`Transformar ${this.label(h)} em vampiro Regente? Ele deixa o rebanho para governar a região.`, `Turn ${this.label(h)} into a vampire Regent? They leave the herd to rule the region.`))) { this.crownHook!.crown(h); this.panel.close(); }
         });
         root.querySelector<HTMLButtonElement>('[data-a="unassign"]')?.addEventListener('click', () => { this.humans.unassign(h); this.openHuman(h); });
         root.querySelector<HTMLButtonElement>('[data-a="pair"]')?.addEventListener('click', () => this.openPairing(h));
         root.querySelector<HTMLButtonElement>('[data-a="collect"]')?.addEventListener('click', () => {
-          if (this.humans.sendToCollect(h)) { this.hud.toast(`${this.label(h)} entrou na fila de coleta.`); this.panel.close(); }
+          if (this.humans.sendToCollect(h)) { this.hud.toast(L(`${this.label(h)} entrou na fila de coleta.`, `${this.label(h)} joined the collection line.`)); this.panel.close(); }
         });
         root.querySelector<HTMLButtonElement>('[data-a="feed"]')?.addEventListener('click', () => { if (this.humans.feed(h)) this.openHuman(h); });
         root.querySelector<HTMLButtonElement>('[data-a="unpair"]')?.addEventListener('click', () => {
-          if (confirm('Desfazer o par? O progresso do parente se perde.')) { this.humans.unbond(h); this.openHuman(h); }
+          if (confirm(L('Desfazer o par? O progresso do parente se perde.', 'Break up the pair? The relative\'s progress is lost.'))) { this.humans.unbond(h); this.openHuman(h); }
         });
       },
       onClose: () => this.select(undefined),
@@ -157,22 +160,22 @@ export class Contracts {
   }
 
   // ---------- bonds (GDD_ADENDO A2) ----------
-  private label(h: Human) { return h.name ?? `Unidade ${h.traits.code}`; }
+  private label(h: Human) { return h.name ?? `${L('Unidade', 'Unit')} ${h.traits.code}`; }
 
   private bondHtml(h: Human) {
     const p = this.humans.partnerOf(h);
     if (!p) {
-      return `<div class="row" style="margin:6px 0"><span>♡ Sem par</span></div>` +
-        (h.contract ? '' : `<button class="go" data-a="pair" style="margin-bottom:8px">Formar par</button>`);
+      return `<div class="row" style="margin:6px 0"><span>♡ ${L('Sem par', 'Single')}</span></div>` +
+        (h.contract ? '' : `<button class="go" data-a="pair" style="margin-bottom:8px">${L('Formar par', 'Make a pair')}</button>`);
     }
     const family = this.buildings.built('family').length > 0;
     const kin = Math.round(this.humans.kinOf(h));
     const odds = heirOdds(h.traits, p.traits, fx('heirQ'));
-    return `<div class="card"><div>❤ Par: <b>${this.label(p)}</b> · ${BLOOD[p.traits.blood].name} · ${QUALITY[p.traits.quality].name}</div>` +
-      (family ? `<div class="row"><span style="width:74px">Parente</span><div class="meter"><i style="width:${kin}%;background:#ff8a8a"></i></div><span style="width:28px;text-align:right">${kin}</span></div>`
-        : `<div class="muted">Construa a Casa das Famílias para o casal mandar buscar parentes.</div>`) +
-      `<div class="muted">Chance de o parente subir de qualidade: ${odds.upgrade}%${odds.combo ? ` · ${odds.combo.pct}% de sair ${BLOOD[odds.combo.out].name}` : ''}</div>` +
-      `<button class="go" data-a="unpair" style="margin-top:6px">Desfazer par</button></div>`;
+    return `<div class="card"><div>❤ ${L('Par', 'Partner')}: <b>${this.label(p)}</b> · ${BLOOD[p.traits.blood].name} · ${QUALITY[p.traits.quality].name}</div>` +
+      (family ? `<div class="row"><span style="width:74px">${L('Parente', 'Relative')}</span><div class="meter"><i style="width:${kin}%;background:#ff8a8a"></i></div><span style="width:28px;text-align:right">${kin}</span></div>`
+        : `<div class="muted">${L('Construa a Casa das Famílias para o casal mandar buscar parentes.', 'Build the Family House so the couple can send for relatives.')}</div>`) +
+      `<div class="muted">${L('Chance de o parente subir de qualidade', 'Chance the relative rises in quality')}: ${odds.upgrade}%${odds.combo ? ` · ${odds.combo.pct}% ${L('de sair', 'to be born')} ${BLOOD[odds.combo.out].name}` : ''}</div>` +
+      `<button class="go" data-a="unpair" style="margin-top:6px">${L('Desfazer par', 'Break up')}</button></div>`;
   }
 
   // Arranged pairing: pick a partner, best candidates first, with the odds for their heirs.
@@ -182,15 +185,15 @@ export class Contracts {
     const row = (c: Human) => {
       const o = heirOdds(h.traits, c.traits, fx('heirQ'));
       return `<div class="card"><h4>${this.label(c)}</h4><div class="muted">${BLOOD[c.traits.blood].name} · ${QUALITY[c.traits.quality].name} · ${TEMPER[c.traits.temper].name}` +
-        `${c.traits.trait ? ` · ${TRAIT[c.traits.trait].name}` : ''}</div><div class="muted">Qualidade do parente sobe: ${o.upgrade}%` +
-        `${o.combo ? ` · ${o.combo.pct}% ${BLOOD[o.combo.out].name}` : ''}</div><button class="go" data-pair="${c.id}">Formar par</button></div>`;
+        `${c.traits.trait ? ` · ${TRAIT[c.traits.trait].name}` : ''}</div><div class="muted">${L('Qualidade do parente sobe', 'Relative quality rises')}: ${o.upgrade}%` +
+        `${o.combo ? ` · ${o.combo.pct}% ${BLOOD[o.combo.out].name}` : ''}</div><button class="go" data-pair="${c.id}">${L('Formar par', 'Make a pair')}</button></div>`;
     };
     this.panel.open({
-      title: `Par para ${this.label(h)}`,
-      subtitle: 'Bóris registra como "parceria estratégica"',
+      title: L(`Par para ${this.label(h)}`, `Partner for ${this.label(h)}`),
+      subtitle: L('Bóris registra como "parceria estratégica"', 'Boris files it as a "strategic partnership"'),
       desc: '',
       stats: [],
-      html: cands.length ? cands.map(row).join('') : '<p class="muted">Ninguém disponível. Todo mundo já tem par.</p>',
+      html: cands.length ? cands.map(row).join('') : `<p class="muted">${L('Ninguém disponível. Todo mundo já tem par.', 'Nobody available. Everyone already has a partner.')}</p>`,
       bind: root => root.querySelectorAll<HTMLButtonElement>('[data-pair]').forEach(b => b.addEventListener('click', () => {
         const c = this.humans.all.find(x => x.id === Number(b.dataset.pair));
         if (c) { this.humans.bond(h, c, true); this.openHuman(h); }
@@ -201,7 +204,7 @@ export class Contracts {
 
   private select(h?: Human) {
     this.selected = h;
-    this.ring?.destroy();
+    if (this.ring) { this.scene.tweens.killTweensOf(this.ring); this.ring.destroy(); }
     this.ring = undefined;
     if (!h) return;
     this.ring = this.scene.add.graphics().setDepth(h.sprite.depth - 1);
@@ -212,10 +215,10 @@ export class Contracts {
   private assign(h: Human) {
     const c = this.active;
     if (!c) return;
-    if (this.assigned().length >= c.count) { this.hud.toast('Bóris: O contrato já tem gente suficiente no pátio.'); return; }
+    if (this.assigned().length >= c.count) { this.hud.toast(L('Bóris: O contrato já tem gente suficiente no pátio.', 'Boris: The contract already has enough people in the yard.')); return; }
     this.humans.assign(h, c.id);
     const n = this.assigned().length;
-    this.hud.toast(`${n}/${c.count} a caminho do Pátio de Embarque.`);
+    this.hud.toast(L(`${n}/${c.count} a caminho do Pátio de Embarque.`, `${n}/${c.count} on the way to the Boarding Yard.`));
     this.panel.close();
   }
 
@@ -226,23 +229,23 @@ export class Contracts {
     const card = (d: ContractDef, active: boolean) => {
       const eligible = this.humans.all.filter(h => !h.taken && meets(h, d.req)).length;
       const left = active ? state.contracts.active!.night + d.nights - state.night.night : d.nights;
-      return `<div class="card"><h4>${d.title}</h4><div class="muted">${BUYER_NAMES[d.buyer]} · prazo ${left} noite${left === 1 ? '' : 's'}</div>` +
+      return `<div class="card"><h4>${d.title}</h4><div class="muted">${BUYER_NAMES[d.buyer]} · ${L(`prazo ${left} noite${left === 1 ? '' : 's'}`, `due in ${left} night${left === 1 ? '' : 's'}`)}</div>` +
         `<div style="margin:5px 0">${d.count}× ${describe(d.req)}</div>` +
-        `<div class="muted">Recompensa: ${goldOf(d)} Ouro · ${d.reward.prestige} Prestígio · você tem ${eligible} elegíve${eligible === 1 ? 'l' : 'is'}</div>` +
-        (active ? `<div style="margin-top:5px">No pátio: ${this.assigned().length}/${d.count}</div><button class="go" data-cancel>Desistir</button>`
-          : c ? '' : `<button class="go" data-accept="${d.id}">Aceitar</button>`) + '</div>';
+        `<div class="muted">${L(`Recompensa: ${goldOf(d)} Ouro · ${d.reward.prestige} Prestígio · você tem ${eligible} elegíve${eligible === 1 ? 'l' : 'is'}`, `Reward: ${goldOf(d)} Gold · ${d.reward.prestige} Prestige · you have ${eligible} eligible`)}</div>` +
+        (active ? `<div style="margin-top:5px">${L('No pátio', 'In the yard')}: ${this.assigned().length}/${d.count}</div><button class="go" data-cancel>${L('Desistir', 'Give up')}</button>`
+          : c ? '' : `<button class="go" data-accept="${d.id}">${L('Aceitar', 'Accept')}</button>`) + '</div>';
     };
     this.panel.open({
-      title: 'Contratos',
-      subtitle: c ? 'Um contrato ativo por vez' : 'Escolha um comprador',
+      title: L('Contratos', 'Contracts'),
+      subtitle: c ? L('Um contrato ativo por vez', 'One active contract at a time') : L('Escolha um comprador', 'Choose a buyer'),
       desc: '',
       stats: [],
       html: (c ? card(c, true) : '') + (offers.length ? offers.map(d => card(d, false)).join('')
-        : '<p class="muted">Sem ofertas agora. Novos compradores chegam a cada noite.</p>') +
-        `<p class="muted">Toque num humano para ver a ficha e enviá-lo ao Pátio de Embarque. Humanos vendidos deixam a fazenda.</p>`,
+        : `<p class="muted">${L('Sem ofertas agora. Novos compradores chegam a cada noite.', 'No offers right now. New buyers arrive every night.')}</p>`) +
+        `<p class="muted">${L('Toque num humano para ver a ficha e enviá-lo ao Pátio de Embarque. Humanos vendidos deixam a fazenda.', 'Tap a human to see their record and send them to the Boarding Yard. Sold humans leave the farm.')}</p>`,
       bind: root => {
         root.querySelectorAll<HTMLButtonElement>('[data-accept]').forEach(b => b.addEventListener('click', () => this.accept(b.dataset.accept!)));
-        root.querySelector('[data-cancel]')?.addEventListener('click', () => { if (confirm('Desistir do contrato? O comprador não vai gostar.')) this.fail(true); });
+        root.querySelector('[data-cancel]')?.addEventListener('click', () => { if (confirm(L('Desistir do contrato? O comprador não vai gostar.', 'Give up the contract? The buyer won\'t like it.'))) this.fail(true); });
       },
     });
   }
@@ -267,7 +270,7 @@ export class Contracts {
     if (!state.contracts.done.includes(d.id)) state.contracts.done.push(d.id);
     bus.emit('CONTRACT_COMPLETED', { contractId: d.id, delivered: who.length, gold });
     this.hud.toast(`${SHORT[d.buyer] ?? BUYER_NAMES[d.buyer]}: ${d.done}`, 'good', 7000);
-    this.hud.toast(`Contrato entregue: +${gold} Ouro · +${d.reward.prestige} Prestígio`, 'good');
+    this.hud.toast(L(`Contrato entregue: +${gold} Ouro · +${d.reward.prestige} Prestígio`, `Contract delivered: +${gold} Gold · +${d.reward.prestige} Prestige`), 'good');
     this.scene.fx('fx_coins', exit.x, exit.y - 60, 1.6);
     if (state.contracts.offers.length < 1) this.refreshOffers();
   }
@@ -279,7 +282,7 @@ export class Contracts {
     state.contracts.active = undefined;
     state.resources.prestige = Math.max(0, state.resources.prestige - 5);
     bus.emit('CONTRACT_FAILED', { contractId: d.id });
-    this.hud.toast(gaveUp ? 'Contrato cancelado. −5 Prestígio.' : `${SHORT[d.buyer] ?? BUYER_NAMES[d.buyer]}: O prazo acabou. Vou lembrar disso. (−5 Prestígio)`, 'bad', 6000);
+    this.hud.toast(gaveUp ? L('Contrato cancelado. −5 Prestígio.', 'Contract cancelled. −5 Prestige.') : `${SHORT[d.buyer] ?? BUYER_NAMES[d.buyer]}: ${L('O prazo acabou. Vou lembrar disso. (−5 Prestígio)', 'Time\'s up. I\'ll remember this. (−5 Prestige)')}`, 'bad', 6000);
     this.panel.close();
   }
 

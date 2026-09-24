@@ -2,6 +2,7 @@
 import { bus, GameEvents } from './events';
 import { state } from './state';
 import { TUTORIAL, Line, Step } from '../data/tutorial';
+import { L } from './i18n';
 
 export interface TutorialUI {
   say(lines: Line[], onDone: () => void): void;
@@ -37,7 +38,7 @@ export class Tutorial {
     this.ui.objective(null);
   }
 
-  // "Onde?" button: jump straight to the strongest hint for the current objective.
+  // "Where?" button: jump straight to the strongest hint for the current objective.
   where() {
     if (!this.waiting) return;
     this.hintLevel = 3;
@@ -96,9 +97,9 @@ export class Tutorial {
     this.ui.objective(null);
     const r = step.reward;
     if (r) for (const k of Object.keys(r) as (keyof typeof r)[]) state.resources[k] += r[k]!;
-    const names = { gold: 'Ouro', blood: 'Sangue', food: 'Comida', prestige: 'Prestígio', essence: 'Essência' } as const;
+    const names = { gold: L('Ouro', 'Gold'), blood: L('Sangue', 'Blood'), food: L('Comida', 'Food'), prestige: L('Prestígio', 'Prestige'), essence: L('Essência', 'Essence') } as const;
     const gains = r ? Object.entries(r).map(([k, v]) => `+${v} ${names[k as keyof typeof names]}`).join(' · ') : '';
-    this.ui.toast(`Missão concluída: ${step.objective!.text}${gains ? ` · ${gains}` : ''}`);
+    this.ui.toast(`${L('Missão concluída', 'Mission complete')}: ${step.objective!.text}${gains ? ` · ${gains}` : ''}`);
     const next = () => this.run(state.tutorial.step + 1);
     if (step.done?.length) this.ui.say(step.done, next); else next();
   }
@@ -107,6 +108,6 @@ export class Tutorial {
     state.tutorial.done = true;
     bus.emit('TUTORIAL_DONE', {});
     this.ui.objective(null);
-    this.ui.toast('Tutorial concluído. A fazenda é sua — e as dívidas também.');
+    this.ui.toast(L('Tutorial concluído. A fazenda é sua — e as dívidas também.', 'Tutorial complete. The farm is yours — and so are the debts.'));
   }
 }

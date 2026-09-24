@@ -7,6 +7,7 @@ import { bus } from '../core/events';
 import { more } from '../core/bonus';
 import { FarmMap, slotGeometry } from '../map/bosque';
 import type { Buildings } from './Buildings';
+import { L } from '../core/i18n';
 
 const EVERY = [14000, 24000];
 const LIFE = 12000;
@@ -55,7 +56,7 @@ export class BloodOrbs {
       state.resources.blood += bonus;
       sfx.drop();
       bus.emit('ORB_TAPPED', { amount: bonus });
-      this.scene.floatText(orb.x, orb.y - 10, `+${bonus} Sangue`, '#ff3348');
+      this.scene.floatText(orb.x, orb.y - 10, L(`+${bonus} Sangue`, `+${bonus} Blood`), '#ff3348');
       orb.play('orb_pop').once('animationcomplete', () => this.remove(orb));
     });
   }

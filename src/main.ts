@@ -1,7 +1,32 @@
+import './core/wipe'; // must stay the first import
 import Phaser from 'phaser';
 import { FarmScene } from './scenes/FarmScene';
 import { BattleScene } from './scenes/BattleScene';
 import { state } from './core/state';
+import { bus } from './core/events';
+import { L, lang, setLang } from './core/i18n';
+
+// Title screen in the chosen language, with a PT/EN switch right there (portals send players from everywhere).
+(() => {
+  document.title = L('Hemofazenda', 'Hemofarm');
+  const box = document.getElementById('loading');
+  if (!box) return;
+  box.querySelector('.s')!.textContent = L('Preparando a noite…', 'Preparing the night…');
+  box.querySelector('.play')!.textContent = L('JOGAR', 'PLAY');
+  const logo = box.querySelector<HTMLImageElement>('.logo')!;
+  logo.alt = L('Hemofazenda: Cultivando para a Noite', 'Hemofarm: Growing for the Night');
+  if (lang === 'en') { const en = new Image(); en.onload = () => { logo.src = en.src; }; en.src = '/assets/title_logo_en.webp'; }
+  const sw = document.createElement('div');
+  sw.className = 'lang';
+  sw.innerHTML = `<button data-l="pt"${lang === 'pt' ? ' class="on"' : ''}>Português</button><button data-l="en"${lang === 'en' ? ' class="on"' : ''}>English</button>`;
+  sw.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.onclick = () => setLang(b.dataset.l as 'pt' | 'en'));
+  box.appendChild(sw);
+  // PC: Enter or Space starts once the game is ready.
+  window.addEventListener('keydown', function start(e) {
+    const play = box.querySelector<HTMLButtonElement>('.play');
+    if ((e.key === 'Enter' || e.key === ' ') && box.classList.contains('ready') && play) { e.preventDefault(); play.click(); window.removeEventListener('keydown', start); }
+  });
+})();
 
 // Some embedded browsers report WebGL support but fail to create a context: probe first.
 const hasWebGL = (() => {
@@ -41,7 +66,7 @@ window.visualViewport?.addEventListener('resize', syncSoon);
 game.events.once('ready', syncSoon);
 
 // Dev-only handle for inspecting state from the browser console.
-if (import.meta.env.DEV) Object.assign(window as any, { game, hemo: { state } });
+if (import.meta.env.DEV) Object.assign(window as any, { game, hemo: { state, bus } });
 
 // Installable PWA: cache the game so it opens instantly and works offline.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

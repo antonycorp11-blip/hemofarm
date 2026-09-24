@@ -11,6 +11,9 @@ os.makedirs(OUT, exist_ok=True)
 manifest = {}
 
 
+def exists(n): return os.path.exists(f'{RAW}/{n}.png')
+
+
 def load(n):
     return Image.open(f'{RAW}/{n}.png').convert('RGBA')
 
@@ -146,6 +149,7 @@ def slice_sheet(im, gap=6, min_size=12):
             if piece.width >= min_size and piece.height >= min_size: out.append(piece)
     return out
 
+
 # ---- 4x4 character sheets (16 frames: walk front, walk back, 2 action rows). Scale from the walk frames.
 CHARS = {'human_b': 44, 'human_c': 44, 'davi': 44, 'lia': 44, 'boris': 50, 'ghoul_worker': 46, 'ghoul_guard': 48,
          'vampire_buyer': 50, 'rubelia': 50, 'hematico': 48, 'aureliano': 50, 'vesper': 52, 'wolf_scout': 60,
@@ -199,7 +203,7 @@ for n, frames, h in [('tombstone_set', 4, 56), ('hunt_nodes', 6, 96)]:
     save(n, out, frameW=fw, frameH=fh, frames=frames)
 
 # ---- portraits (dialogue): square, not trimmed so framing stays identical
-for n in ['vesper', 'boris', 'rubelia', 'hematico', 'aureliano', 'davi', 'lia', 'ulf', 'inspector', 'merchant']:
+for n in ['vesper', 'boris', 'rubelia', 'hematico', 'aureliano', 'davi', 'lia', 'ulf', 'inspector', 'merchant', 'leonor']:
     k = f'portrait_{n}'
     if exists(k): save(k, load(k).resize((256, 256), Image.LANCZOS))
 
@@ -251,7 +255,7 @@ if exists('harvest_basket'): save('harvest_basket', fit(trim(load('harvest_baske
 # ---- HTML UI kit (not loaded by Phaser): frames keep their proportions at a fixed width for CSS border-image
 UI = {'frame_panel': 240, 'frame_dialog': 240, 'frame_portrait': 240, 'frame_tooltip': 240, 'frame_card': 240,
       'frame_bubble': 240, 'button_normal': 240, 'button_pressed': 240, 'bar_frame': 240, 'bar_fills': 240, 'card_unit': 200,
-      'codex_page': 600, 'title_logo': 900}
+      'codex_page': 600, 'title_logo': 900, 'title_logo_en': 900}
 for n, w in UI.items():
     if exists(n): save(n, fit(trim(load(n)), w=w), px=True)
 for n in ['temper_calmo', 'temper_cinico', 'temper_dramatico', 'temper_lider', 'temper_curioso', 'trait_lunar', 'trait_especiado',

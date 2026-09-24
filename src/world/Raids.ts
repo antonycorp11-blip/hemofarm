@@ -9,6 +9,8 @@ import type { BattleResult } from '../scenes/BattleScene';
 import type { Hud } from '../ui/Hud';
 import type { Buildings } from './Buildings';
 import type { Humans } from './Humans';
+import { L } from '../core/i18n';
+import { flag, setFlag } from '../core/meta';
 
 const WARN_MS = 45000;      // time to answer before the raid resolves itself
 const RAID_AT = 0.4;        // fraction of the night when the howls start
@@ -52,10 +54,24 @@ export class Raids {
     const arena: ArenaId = tutorial ? 'farm' : REGION_ARENA[state.region] ?? 'farm';
     const weather: WeatherId = tutorial ? 'clear' : rollWeather(r.kind === 'big');
     this.opts = { arena, weather };
-    this.current = buildRaid(state.night.night, r.kind === 'big', tutorial, Math.min(0.5, fx('raidSize')), ARENAS[arena].lanes);
+    // Consequences of the "howl with a name" (GDD_ADENDO A10), once each: the human you let go steers the pack away;
+    // the howl you locked out comes back angrier.
+    let shrink = Math.min(0.5, fx('raidSize'));
+    let echo = '', kind: 'good' | 'bad' = 'good';
+    if (!tutorial && flag('wolfFreed') && !flag('wolfFreedPaid')) {
+      setFlag('wolfFreedPaid'); shrink += 0.35;
+      echo = L('Aureliano: Vieram menos lobos hoje. Um deles ficou na orla, só olhando para a fazenda. Acho que é aquele que você deixou ir.',
+        'Aureliano: Fewer wolves came tonight. One of them stayed at the treeline, just watching the farm. I think it\'s the one you let go.');
+    } else if (!tutorial && flag('howlLocked') && !flag('howlLockedPaid')) {
+      setFlag('howlLockedPaid'); shrink -= 0.35; kind = 'bad';
+      echo = L('Aureliano: Eles voltaram com raiva. O uivo que você trancou do lado de fora trouxe amigos.',
+        'Aureliano: They came back angry. The howl you locked out brought friends.');
+    }
+    this.current = buildRaid(state.night.night, r.kind === 'big', tutorial, shrink, ARENAS[arena].lanes);
+    if (echo) this.hud.toast(echo, kind, 9000);
     const wx = weather !== 'clear' ? ` ${WEATHER[weather].icon} ${WEATHER[weather].name}` : '';
-    this.hud.raidChip(`${r.kind === 'big' ? 'Lua cheia: ataque grande!' : 'Lobisomens na trilha!'}${wx}`, () => this.defend());
-    this.hud.toast(`Aureliano: ${r.kind === 'big' ? 'Lua cheia. Eles vêm em bando. Às raias!' : 'Uivos na trilha norte. Toque no alerta para defender.'}`, 'bad', 7000);
+    this.hud.raidChip(`${r.kind === 'big' ? L('Lua cheia: ataque grande!', 'Full moon: big attack!') : L('Lobisomens na trilha!', 'Werewolves on the trail!')}${wx}`, () => this.defend());
+    this.hud.toast(`Aureliano: ${r.kind === 'big' ? L('Lua cheia. Eles vêm em bando. Às raias!', 'Full moon. They come as a pack. To the lanes!') : L('Uivos na trilha norte. Toque no alerta para defender.', 'Howls on the north trail. Tap the alert to defend.')}`, 'bad', 7000);
     bus.emit('RAID_WARNING', { big: r.kind === 'big' });
   }
 
@@ -76,9 +92,9 @@ export class Raids {
       const gold = Math.round((60 + state.night.night * 25) * more('defense')), prestige = Math.round((5 + state.night.night) * more('defense'));
       state.resources.gold += gold;
       state.resources.prestige += prestige;
-      this.hud.toast(`Aureliano: Eles recuaram. +${gold} Ouro · +${prestige} Prestígio pela defesa.`, 'good', 7000);
+      this.hud.toast(L(`Aureliano: Eles recuaram. +${gold} Ouro · +${prestige} Prestígio pela defesa.`, `Aureliano: They pulled back. +${gold} Gold · +${prestige} Prestige for the defense.`), 'good', 7000);
     } else if (lost.length) {
-      this.hud.toast(`Os lobisomens levaram ${lost.join(', ')}.`, 'bad', 7000);
+      this.hud.toast(L(`Os lobisomens levaram ${lost.join(', ')}.`, `The werewolves took ${lost.join(', ')}.`), 'bad', 7000);
     }
     bus.emit('RAID_ENDED', { result: res.won ? 'won' : 'lost', losses: lost.length });
   }
@@ -96,8 +112,8 @@ export class Raids {
     const lost = this.humans.takeByRaid(losses);
     const blood = Math.round(state.resources.blood * 0.15);
     state.resources.blood -= blood;
-    this.hud.toast(lost.length ? `Ninguém defendeu a cerca. Levaram ${lost.join(', ')} e ${blood} de Sangue.`
-      : `A torre e os ghouls seguraram o ataque sozinhos. Perdemos ${blood} de Sangue na bagunça.`, lost.length ? 'bad' : '', 8000);
+    this.hud.toast(lost.length ? L(`Ninguém defendeu a cerca. Levaram ${lost.join(', ')} e ${blood} de Sangue.`, `Nobody defended the fence. They took ${lost.join(', ')} and ${blood} Blood.`)
+      : L(`A torre e os ghouls seguraram o ataque sozinhos. Perdemos ${blood} de Sangue na bagunça.`, `The tower and the ghouls held the attack on their own. We lost ${blood} Blood in the mess.`), lost.length ? 'bad' : '', 8000);
     bus.emit('RAID_ENDED', { result: 'auto', losses: lost.length });
   }
 }
