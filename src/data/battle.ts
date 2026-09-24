@@ -66,7 +66,8 @@ export const WOLVES: Record<WolfId, WolfDef> = {
   brute: { name: L('Bruto', 'Brute'), tex: 'wolf_brute', hp: 480, speed: 0.33, dmg: 45, reward: 12, h: 80 },
   leaper: { name: L('Saltador', 'Leaper'), tex: 'wolf_leaper', hp: 110, speed: 0.8, dmg: 12, reward: 7, h: 62 },
   howler: { name: L('Uivador', 'Howler'), tex: 'wolf_howler', hp: 100, speed: 0.5, dmg: 8, reward: 8, h: 60 },
-  alpha: { name: L('Ulf Quebra-Cerca', 'Ulf Fencebreaker'), tex: 'wolf_alpha', hp: 1400, speed: 0.28, dmg: 60, reward: 40, h: 88 },
+  // Full moons bring an alpha of the pack; in a region's boss fight it carries the boss's name (BattleData.alphaName).
+  alpha: { name: L('Alfa da Matilha', 'Pack Alpha'), tex: 'wolf_alpha', hp: 1400, speed: 0.28, dmg: 60, reward: 40, h: 88 },
   digger: { name: L('Escavador', 'Digger'), tex: 'wolf_scout', art: 'wolf_digger', tint: 0xb89070, hp: 90, speed: 0.8, dmg: 10, reward: 6, h: 60, dig: true },
   shaman: { name: L('Xamã', 'Shaman'), tex: 'wolf_howler', art: 'wolf_shaman', tint: 0x90ffb0, hp: 110, speed: 0.45, dmg: 6, reward: 9, h: 60, heal: true },
   armored: { name: L('Couraçado', 'Armored'), tex: 'wolf_brute', art: 'wolf_armored', tint: 0xb0b8c8, hp: 300, speed: 0.4, dmg: 20, reward: 10, h: 78, armor: 8 },
@@ -129,7 +130,7 @@ export const REGION_ARENA: Record<string, ArenaId> = { bosque: 'farm', pantano: 
 export interface Spawn { at: number; wolf: WolfId; lane: number }
 export interface Raid { night: number; big: boolean; spawns: Spawn[]; waves: number[]; endless?: boolean; lanes?: number }
 
-// Raids grow with the nights; full moons (every 4th night) are big and may bring Ulf.
+// Raids grow with the nights; full moons (every 4th night) are big and may bring an alpha.
 export function buildRaid(night: number, big: boolean, tutorial = false, shrink = 0, lanes = LANES): Raid {
   const spawns: Spawn[] = [];
   // First fight is a lesson: four scouts then one hunter, one at a time, only in the three middle lanes.

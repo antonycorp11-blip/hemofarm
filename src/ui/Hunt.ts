@@ -334,8 +334,9 @@ export class Hunt {
     this.run = undefined;
     this.save();
     sfx[won ? 'chime' : 'bad']();
-    const box = this.modal.show(`<h2>${won ? L('A Mãe da Matilha caiu!', 'The Pack Mother has fallen!') : L('Fim da Caçada', 'The Hunt is over')}</h2>
-      <div class="sub">${won ? L('Aureliano: Isso vai para os livros. Os livros que eu mesmo escrevo.', 'Aureliano: This goes in the books. The books I write myself.') : L(`Etapas vencidas: ${floors}/${FLOORS}.`, `Stages won: ${floors}/${FLOORS}.`)}</div>
+    // She only truly falls in the story's last chapter; in the Hunt she retreats into the forest.
+    const box = this.modal.show(`<h2>${won ? L('A Mãe da Matilha recuou!', 'The Pack Mother retreated!') : L('Fim da Caçada', 'The Hunt is over')}</h2>
+      <div class="sub">${won ? L('Aureliano: Ela sumiu entre as árvores, sem pressa. Como se voltasse para casa. Isso vai para os livros.', 'Aureliano: She vanished into the trees, unhurried. As if heading home. This goes in the books.') : L(`Etapas vencidas: ${floors}/${FLOORS}.`, `Stages won: ${floors}/${FLOORS}.`)}</div>
       <div class="gains"><span>★ +${marks} ${L('marcas de caça', 'hunt marks')}</span><span>${icon('icon_research')} +${essence} ${L('Essência', 'Essence')}</span></div>
       ${fresh.length ? `<div class="row"><div class="t"><b>${L('Novas cartas na defesa da fazenda', 'New cards for the farm\'s defense')}</b><br><small>${fresh.map(id => UNITS[id].name).join(', ')}</small></div></div>` : ''}
       <button class="go" data-ok>${L('Voltar à fazenda', 'Back to the farm')}</button>`, { onClose: () => this.host.pause(false) });

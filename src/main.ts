@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { FarmScene } from './scenes/FarmScene';
 import { BattleScene } from './scenes/BattleScene';
 import { state } from './core/state';
+import { bus } from './core/events';
 import { L, lang, setLang } from './core/i18n';
 
 // Title screen in the chosen language, with a PT/EN switch right there (portals send players from everywhere).
@@ -65,7 +66,7 @@ window.visualViewport?.addEventListener('resize', syncSoon);
 game.events.once('ready', syncSoon);
 
 // Dev-only handle for inspecting state from the browser console.
-if (import.meta.env.DEV) Object.assign(window as any, { game, hemo: { state } });
+if (import.meta.env.DEV) Object.assign(window as any, { game, hemo: { state, bus } });
 
 // Installable PWA: cache the game so it opens instantly and works offline.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

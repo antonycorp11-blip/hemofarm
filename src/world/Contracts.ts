@@ -204,7 +204,7 @@ export class Contracts {
 
   private select(h?: Human) {
     this.selected = h;
-    this.ring?.destroy();
+    if (this.ring) { this.scene.tweens.killTweensOf(this.ring); this.ring.destroy(); }
     this.ring = undefined;
     if (!h) return;
     this.ring = this.scene.add.graphics().setDepth(h.sprite.depth - 1);

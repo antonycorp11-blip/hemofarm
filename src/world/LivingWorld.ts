@@ -46,8 +46,8 @@ export class LivingWorld {
       toast: (m, k = '') => hud.toast(m, k),
     };
     // Tension reacts to what happens on the farm.
-    bus.on('BLOOD_COLLECTED', () => { this.api.tension(0.4); this.collects.push(performance.now()); });
-    bus.on('HUMAN_ATE', () => this.api.tension(-0.15));
+    bus.on('BLOOD_COLLECTED', () => { this.api.tension(0.4 * this.share); this.collects.push(performance.now()); });
+    bus.on('HUMAN_ATE', () => this.api.tension(-0.15 * this.share));
     bus.on('TITHE_FAILED', () => this.api.tension(10));
     bus.on('TITHE_PAID', () => this.api.tension(-5));
     bus.on('HUMAN_TAKEN', () => this.api.tension(3));
@@ -57,6 +57,9 @@ export class LivingWorld {
   }
 
   private get active() { return state.tutorial.done || state.night.night >= 2; }
+  // Tension is about the SHARE of the farm that's unhappy: up to 12 humans each one weighs fully, beyond that each weighs
+  // less (otherwise a big farm always has a few hungry stragglers and lives in permanent rebellion).
+  private get share() { return Math.min(1, 12 / Math.max(12, this.humans.population)); }
 
   update(dt: number) {
     const w = state.world, s = dt / 1000;
@@ -66,7 +69,7 @@ export class LivingWorld {
 
     // Slow drift from the farm's condition.
     const pop = this.humans.population, cap = this.buildings.totalCapacity, morale = this.humans.avgMorale;
-    let drift = 0.05 * this.humans.hungryCount();
+    let drift = 0.05 * this.humans.hungryCount() * this.share;
     if (pop > cap) drift += 0.2;
     if (morale > 65) drift -= 0.03;
     if (morale < 35) drift += 0.03;
@@ -206,11 +209,11 @@ export class LivingWorld {
     this.collects = this.collects.filter(t => now - t < 60000);
     const f: { label: string; perMin: number }[] = [];
     const hungry = this.humans.hungryCount();
-    if (hungry) f.push({ label: L(`${hungry} humano${hungry > 1 ? 's' : ''} com fome`, `${hungry} hungry human${hungry > 1 ? 's' : ''}`), perMin: 3 * hungry });
+    if (hungry) f.push({ label: L(`${hungry} humano${hungry > 1 ? 's' : ''} com fome`, `${hungry} hungry human${hungry > 1 ? 's' : ''}`), perMin: 3 * hungry * this.share });
     if (pop > cap) f.push({ label: L(`Superlotação (${pop}/${cap} camas)`, `Overcrowding (${pop}/${cap} beds)`), perMin: 12 });
     if (morale < 35) f.push({ label: L(`Moral baixa (${Math.round(morale)})`, `Low morale (${Math.round(morale)})`), perMin: 1.8 });
     if (morale > 65) f.push({ label: L(`Moral alta (${Math.round(morale)})`, `High morale (${Math.round(morale)})`), perMin: -1.8 });
-    if (this.collects.length) f.push({ label: L(`${this.collects.length} coletas no último minuto`, `${this.collects.length} collections in the last minute`), perMin: 0.4 * this.collects.length });
+    if (this.collects.length) f.push({ label: L(`${this.collects.length} coletas no último minuto`, `${this.collects.length} collections in the last minute`), perMin: 0.4 * this.collects.length * this.share });
     if ((w.resentment ?? 0) > 0) f.push({ label: L(`Ressentimento (rebelião reprimida · ${Math.ceil(w.resentment! / 60000)} min)`, `Resentment (repressed rebellion · ${Math.ceil(w.resentment! / 60000)} min)`), perMin: 2.4 });
     return f;
   }

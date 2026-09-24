@@ -38,6 +38,7 @@ export interface Meta {
   letterSeen?: boolean;        // Aunt Leonor's letter was shown
   diary?: string[];            // diary pages found
   diaryNew?: number;           // pages found but not read yet (HUD badge)
+  diaryRead?: string[];        // pages actually opened in the diary (the endings count what you READ)
   soul?: number;               // Heart (+) × Fang (−), −100..100
   endings?: string[];          // endings reached
   flags?: Record<string, number>; // story choices remembered across mandates (consequences, epilogue)

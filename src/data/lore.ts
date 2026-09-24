@@ -28,8 +28,8 @@ export const DIARY: DiaryPage[] = [
     text: L('Rubélia pagou bem pelo primeiro par. Eles acenaram da carruagem, como se fossem a uma festa. Não dormi aquela noite. Nem a seguinte.',
       'Rubelia paid well for the first pair. They waved from the carriage, as if going to a party. I didn\'t sleep that night. Or the next.') },
   { id: 'first_bond', title: L('Famílias', 'Families'),
-    text: L('Lia chegou aqui como parente de dois Rubra. Ela nunca soube que fui eu que escolhi os pares. Me perdoe, Lia. Você é a melhor coisa que eu já planejei.',
-      'Lia came here as the relative of two Rubra. She never knew I was the one who chose the pairs. Forgive me, Lia. You\'re the best thing I ever planned.') },
+    text: L('Lia chegou aqui como parente de um casal da fazenda. Ela nunca soube que fui eu que escolhi o par. Me perdoe, Lia. Você é a melhor coisa que eu já planejei.',
+      'Lia came here as the relative of a couple on the farm. She never knew I was the one who chose the pair. Forgive me, Lia. You\'re the best thing I ever planned.') },
   { id: 'first_raid', title: L('Os lobos', 'The wolves'),
     text: L('Os lobos não atacam a esmo. Vêm na lua cheia e só levam quem está perto da cerca. Quase como se viessem buscar alguém. Quase como se fossem convidados.',
       'The wolves don\'t attack at random. They come at the full moon and only take whoever is near the fence. Almost as if they came to fetch someone. Almost as if they were invited.') },
@@ -71,7 +71,7 @@ export const DIARY: DiaryPage[] = [
 export const PACT_PAGES = 12;   // diary pages needed for the Pact ending
 export const REVOLT_HEART = 25; // Heart needed for the Revolt ending
 export const ELDER_FANG = 50;   // Fang needed for the secret ending
-export const TRAGIC_PAGES = 6;  // fewer pages than this and you never recognize her
+export const TRAGIC_PAGES = 6;  // fewer pages READ than this and you never recognize her
 
 // After the Pack Mother falls in the Crypt: she stands up, and she is human again.
 export const REVEAL: Line[] = [
@@ -121,7 +121,7 @@ export const ENDINGS = {
   },
   pact: {
     id: 'pact', title: L('Pacto', 'Pact'),
-    choice: L('Aceitar a mordida de Leonor', 'Accept Leonor\'s bite'), need: L(`${PACT_PAGES}+ páginas do diário`, `${PACT_PAGES}+ diary pages`),
+    choice: L('Aceitar a mordida de Leonor', 'Accept Leonor\'s bite'), need: L(`${PACT_PAGES}+ páginas do diário lidas`, `${PACT_PAGES}+ diary pages read`),
     lines: [
       { who: 'leonor', text: L('Vai doer menos que a primeira cota. Eu prometo.', 'It\'ll hurt less than the first quota. I promise.') },
       { who: 'hematico', text: L('Fascinante! Um administrador meio lobo! Posso tirar uma amostra? Uma pequenina?', 'Fascinating! A half-wolf administrator! May I take a sample? A tiny one?') },
@@ -156,7 +156,7 @@ Object.assign(ENDINGS, {
   },
   tragic: {
     id: 'tragic', title: L('A Página que Faltou', 'The Missing Page'),
-    choice: '', need: L(`menos de ${TRAGIC_PAGES} páginas do diário`, `fewer than ${TRAGIC_PAGES} diary pages`),
+    choice: '', need: L(`menos de ${TRAGIC_PAGES} páginas do diário lidas`, `fewer than ${TRAGIC_PAGES} diary pages read`),
     lines: [
       { who: 'aureliano', text: L('Ela caiu. Espere… está dizendo alguma coisa.', 'She\'s down. Wait… she\'s saying something.') },
       { who: 'leonor', text: L('Você… não leu… as páginas… Eu escondi tantas…', 'You… didn\'t read… the pages… I hid so many…') },
