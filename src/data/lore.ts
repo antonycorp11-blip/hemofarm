@@ -70,6 +70,8 @@ export const DIARY: DiaryPage[] = [
 
 export const PACT_PAGES = 12;   // diary pages needed for the Pact ending
 export const REVOLT_HEART = 25; // Heart needed for the Revolt ending
+export const ELDER_FANG = 50;   // Fang needed for the secret ending
+export const TRAGIC_PAGES = 6;  // fewer pages than this and you never recognize her
 
 // After the Pack Mother falls in the Crypt: she stands up, and she is human again.
 export const REVEAL: Line[] = [
@@ -82,10 +84,10 @@ export const REVEAL: Line[] = [
   { who: 'leonor', text: L('A escolha é sua, meu bem. Sempre foi. Por isso eu deixei a fazenda para você.', 'The choice is yours, dear. It always was. That\'s why I left the farm to you.') },
 ];
 
-export type EndingId = 'house' | 'revolt' | 'pact';
+export type EndingId = 'house' | 'revolt' | 'pact' | 'elder' | 'tragic';
 export interface Ending { id: EndingId; title: string; choice: string; need: string; lines: Line[]; epilogue: string[] }
 
-export const ENDINGS: Record<EndingId, Ending> = {
+export const ENDINGS = {
   house: {
     id: 'house', title: L('Casa Eterna', 'Eternal House'),
     choice: L('Entregar Leonor ao Conde', 'Hand Leonor to the Count'), need: L('Sempre disponível', 'Always available'),
@@ -133,10 +135,90 @@ export const ENDINGS: Record<EndingId, Ending> = {
       L('Na lua cheia, Leonor janta com você na varanda. Aureliano monta guarda para os dois lados.', 'At the full moon, Leonor dines with you on the porch. Aureliano stands guard for both sides.'),
     ],
   },
+} as Record<EndingId, Ending>; // elder and tragic are added below
+
+// The secret ending (Fang) and the tragic one (you never read enough to know who she was). GDD_ADENDO A10.
+Object.assign(ENDINGS, {
+  elder: {
+    id: 'elder', title: L('O Novo Ancião', 'The New Elder'),
+    choice: L('Descer aos caixões e beber dos Anciãos', 'Go down to the coffins and drink from the Elders'), need: L(`Presa ${ELDER_FANG}+ · final secreto`, `Fang ${ELDER_FANG}+ · secret ending`),
+    lines: [
+      { who: 'vesper', text: L('O que você está fazendo? Esses tubos são sagrados. Afaste-se dos caixões!', 'What are you doing? Those pipes are sacred. Step away from the coffins!') },
+      { who: 'leonor', text: L('Não. Não era isso. Eu te deixei a fazenda para você escolher, não para você virar eles.', 'No. Not this. I left you the farm so you could choose, not so you could become them.') },
+      { who: 'hematico', text: L('A Vigília… está toda indo para uma pessoa só. Fascinante. Aterrorizante. Principalmente aterrorizante.', 'The Vigil… it\'s all flowing into one person. Fascinating. Terrifying. Mostly terrifying.') },
+    ],
+    epilogue: [
+      L('Você bebeu até os caixões ficarem secos. Os Anciãos nunca acordaram. Nem vão.', 'You drank until the coffins ran dry. The Elders never woke. They never will.'),
+      L('Vesper se ajoelhou antes que alguém mandasse. A Casa Rubra agora tem um só nome: o seu.', 'Vesper knelt before anyone told him to. House Rubra now has a single name: yours.'),
+      L('Leonor voltou para a floresta. A Matilha uiva mais baixo desde então, como quem tem medo.', 'Leonor went back to the forest. The Pack howls more quietly since then, like something afraid.'),
+      L('As cotas nunca foram tão altas. Ninguém ousa atrasar.', 'The quotas have never been higher. No one dares to be late.'),
+    ],
+  },
+  tragic: {
+    id: 'tragic', title: L('A Página que Faltou', 'The Missing Page'),
+    choice: '', need: L(`menos de ${TRAGIC_PAGES} páginas do diário`, `fewer than ${TRAGIC_PAGES} diary pages`),
+    lines: [
+      { who: 'aureliano', text: L('Ela caiu. Espere… está dizendo alguma coisa.', 'She\'s down. Wait… she\'s saying something.') },
+      { who: 'leonor', text: L('Você… não leu… as páginas… Eu escondi tantas…', 'You… didn\'t read… the pages… I hid so many…') },
+      { who: 'vesper', text: L('Uma loba a menos. Excelente trabalho, administrador.', 'One less she-wolf. Excellent work, administrator.') },
+    ],
+    epilogue: [
+      L('Só dias depois, arrumando o sótão, você encontrou o resto do diário.', 'Only days later, tidying the attic, did you find the rest of the diary.'),
+      L('A última página dizia: "Se a Mãe da Matilha vier até você, sou eu. Não tenha medo."', 'The last page said: "If the Pack Mother comes to you, it\'s me. Don\'t be afraid."'),
+      L('Os Anciãos acordaram na lua seguinte. A fazenda continuou pagando. Sempre paga.', 'The Elders woke at the next moon. The farm kept paying. It always pays.'),
+    ],
+  },
+} satisfies Partial<Record<EndingId, Ending>>);
+
+// "What became of them": one line per character, built from the choices you made. `f` reads a story flag.
+export function fates(ending: EndingId, f: (k: string) => number, soul: number): string[] {
+  const out: string[] = [];
+  if (f('daviGone')) out.push(L('Davi: foi embora na segunda repressão. Dizem que lidera uma aldeia livre nas montanhas, e que não fala o seu nome.', 'Davi: left after the second crackdown. They say he leads a free village in the mountains, and never says your name.'));
+  else out.push({
+    revolt: L('Davi: chefe da guarda da Vila Leonor. Ainda reclama dos colchões. Por esporte.', 'Davi: captain of the guard of Leonor Village. Still complains about the mattresses. For sport.'),
+    pact: L('Davi: aprendeu a conversar com lobos. Diz que eles escutam melhor que vampiros.', 'Davi: learned to talk to wolves. Says they listen better than vampires.'),
+    house: L('Davi: nunca mais fez uma piada.', 'Davi: never made another joke.'),
+    elder: L('Davi: fugiu na primeira noite do seu reinado, levando metade da fila de coleta.', 'Davi: fled on the first night of your reign, taking half the collection line with him.'),
+    tragic: L('Davi: foi o único que chorou pela loba grisalha. Ninguém entendeu por quê.', 'Davi: was the only one who wept for the grey she-wolf. Nobody understood why.'),
+  }[ending]);
+  out.push(f('letterBurned') ? L('Lia: nunca soube que a tia escreveu para ela. A carta queimou antes.', 'Lia: never knew her aunt wrote to her. The letter burned first.')
+    : f('letterRead') ? L('Lia: guarda a carta da Leonor debaixo do travesseiro e a lê para cada família nova.', 'Lia: keeps Leonor\'s letter under her pillow and reads it to every new family.')
+    : L('Lia: continua cuidando das famílias, uma cama de cada vez.', 'Lia: keeps looking after the families, one bed at a time.'));
+  out.push(soul >= 25 ? L('Aureliano: deixou a Casa e hoje monta guarda para os humanos. Por Korvus.', 'Aureliano: left the House and now stands guard for the humans. For Korvus.')
+    : L('Aureliano: continua servindo à Casa. Um olho aberto, o outro fechado.', 'Aureliano: still serves the House. One eye open, the other shut.'));
+  if (f('wolfFreed')) out.push(L('O humano que você deixou ir corre com a Matilha. Nas noites de lua, uiva o seu nome, e soa como gratidão.', 'The human you let go runs with the Pack. On moonlit nights he howls your name, and it sounds like gratitude.'));
+  if (f('howlLocked')) out.push(L('O uivo que você trancou do lado de fora nunca mais chamou ninguém da fazenda.', 'The howl you locked out never called anyone from the farm again.'));
+  if (f('cellarToldCount')) out.push(L('Vesper guardou o mapa das ilhas que você entregou. Os barcos do Capitão pararam de voltar.', 'Vesper kept the island map you handed over. The Captain\'s boats stopped coming back.'));
+  else if (f('cellarOpened')) out.push(L('O mapa das ilhas passou de mão em mão entre os humanos. Mais barcos partiram.', 'The island map passed from hand to hand among the humans. More boats set sail.'));
+  if (f('caravanPaid') >= 2) out.push(L(`Os Anciãos lembram de cada uma das ${f('caravanPaid')} caravanas que você pagou.`, `The Elders remember each of the ${f('caravanPaid')} caravans you paid.`));
+  if (f('soldToCount')) out.push(L(`${f('soldToCount')} humano${f('soldToCount') > 1 ? 's' : ''} vendido${f('soldToCount') > 1 ? 's' : ''} ao conde de passagem nunca foram vistos de novo.`, `${f('soldToCount')} human${f('soldToCount') > 1 ? 's' : ''} sold to the passing count ${f('soldToCount') > 1 ? 'were' : 'was'} never seen again.`));
+  return out;
+}
+
+// How the cast reacts to who you've become (Heart × Fang), now and then at the start of a night.
+export const REACTIONS: Record<'heart' | 'mid' | 'fang', Line[]> = {
+  heart: [
+    { who: 'davi', text: L('Não confio em vampiro. Mas em você… talvez.', 'I don\'t trust vampires. But you… maybe.') },
+    { who: 'lia', text: L('Os vizinhos perguntaram se aqui é seguro. Eu disse que sim. Não me faça mentir.', 'The neighbors asked if it\'s safe here. I said yes. Don\'t make me a liar.') },
+    { who: 'vesper', text: L('Você anda generoso demais com o estoque. Mandei o Fiscal dar uma olhada. Por carinho.', 'You\'ve been far too generous with the stock. I sent the Inspector to take a look. Out of affection.') },
+    { who: 'boris', text: L('Registrei um sorriso na fila de coleta. Precisei criar um formulário novo.', 'I logged a smile in the collection line. I had to create a new form.') },
+    { who: 'aureliano', text: L('A Leonor tratava eles assim. Eu achava fraqueza. Estou revendo.', 'Leonor treated them like this. I thought it was weakness. I\'m reconsidering.') },
+  ],
+  mid: [
+    { who: 'boris', text: L('Relatório: a fazenda está exatamente no meio. Como uma cerca.', 'Report: the farm sits exactly in the middle. Like a fence.') },
+    { who: 'hematico', text: L('A Vigília oscila conforme suas decisões. Você é meu experimento favorito.', 'The Vigil wavers with your decisions. You are my favorite experiment.') },
+    { who: 'davi', text: L('Ainda estou tentando decidir se você é como ela ou como eles.', 'I\'m still trying to decide if you\'re like her or like them.') },
+  ],
+  fang: [
+    { who: 'vesper', text: L('Finalmente um administrador com apetite. A casa superior comenta. Os compradores também.', 'At last, an administrator with appetite. The upper house talks. So do the buyers.') },
+    { who: 'davi', text: L('A Leonor também começou assim. Depois mudou. Você vai mudar?', 'Leonor started like this too. Then she changed. Will you?') },
+    { who: 'aureliano', text: L('Eu sigo ordens. Mas não gosto de todas.', 'I follow orders. But I don\'t like all of them.') },
+    { who: 'rubelia', text: L('Adoro sua nova política de estoque. Tão… decidida. Mande mais.', 'I adore your new stock policy. So… decisive. Send more.') },
+  ],
 };
 
 export const CREDITS = {
   title: L('Fim', 'The End'),
   thanks: L('Obrigado por jogar Hemofazenda.', 'Thank you for playing Hemofarm.'),
-  more: L('Existem três finais. A Cripta pode ser jogada de novo depois de conquistar todas as regiões.', 'There are three endings. The Crypt can be replayed after conquering every region.'),
+  more: L('Existem cinco finais, um deles secreto. A Cripta pode ser jogada de novo depois de conquistar todas as regiões.', 'There are five endings, one of them secret. The Crypt can be replayed after conquering every region.'),
 };

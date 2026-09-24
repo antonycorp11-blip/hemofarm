@@ -5,7 +5,7 @@ import { Humans } from '../world/Humans';
 import { Bubbles } from '../world/Bubbles';
 import { Hud } from '../ui/Hud';
 import { state, load, save, resetSave, NIGHT_MS, CARRIAGE_LEAD_MS } from '../core/state';
-import { loadMeta, applyNewGame, applyMods, goalFor, meta, saveMeta } from '../core/meta';
+import { loadMeta, applyNewGame, applyMods, goalFor, meta, saveMeta, flag } from '../core/meta';
 import { REGIONS } from '../data/regions';
 import { Mandate } from '../ui/Mandate';
 import { sfx, unlockAudio, setMute, setMusic, farmMusic, battleMusic } from '../core/sfx';
@@ -25,7 +25,7 @@ const QUALITY_NAME = Object.fromEntries(Object.entries(QUALITY).map(([k, v]) => 
 import { Dialogue } from '../ui/Dialogue';
 import { applySkin } from '../ui/skin';
 import { Tutorial } from '../core/tutorial';
-import { SHORT, Step } from '../data/tutorial';
+import { SHORT, Step, type Line } from '../data/tutorial';
 import { slotGeometry } from '../map/bosque';
 import { iso } from '../map/iso';
 import { Tithe } from '../world/Tithe';
@@ -160,8 +160,7 @@ export class FarmScene extends Phaser.Scene {
     this.mandate = new Mandate();
     this.dialogue = new Dialogue();
     this.conquest = new Conquest(this, this.humans, this.hud, this.modal, {
-      // Story lines wait for any conversation already on screen.
-      say: (lines, done) => { const go = () => (this.dialogue.open ? this.time.delayedCall(2500, go) : this.dialogue.say(lines, done ?? (() => undefined))); go(); },
+      say: (lines, done) => this.storySay(lines, done),
       fx: (k, x, y, sc) => this.fx(k, x, y, sc),
       bossFight: () => this.bossFight(),
       conquer: () => { this.conquest.recordDomain(); this.mandate.end(true, this.humans.population, undefined, L(`${REGIONS[state.region].name} conquistado!`, `${REGIONS[state.region].name} conquered!`), 40); },
@@ -169,7 +168,7 @@ export class FarmScene extends Phaser.Scene {
       finale: () => this.story.finale(),
     }, tileCenter(20, 31));
     this.story = new Story(this.hud, this.modal, {
-      say: (lines, done) => { const go = () => (this.dialogue.open ? this.time.delayedCall(2500, go) : this.dialogue.say(lines, done ?? (() => undefined))); go(); },
+      say: (lines, done) => this.storySay(lines, done),
     });
     this.contracts.crownHook = { can: h => this.conquest.canCrown(h), crown: h => this.conquest.crown(h) };
     this.setupMandate();
@@ -408,6 +407,18 @@ export class FarmScene extends Phaser.Scene {
     const ch = CHAPTERS[state.region] ?? CHAPTERS.bosque;
     const arena = REGION_ARENA[state.region] ?? 'farm', lanes = ARENAS[arena].lanes;
     const raid = buildRaid(state.night.night + 2, true, false, 0, lanes);
+    // Consequences (GDD_ADENDO A10): Leonor's island map shows where the Captain anchors; every caravan paid to the
+    // Crypt fed the Elders, and the Pack Mother comes to stop them the harder for it.
+    let bossHp = 1, why = '';
+    if (state.region === 'costa' && flag('cellarOpened')) {
+      bossHp = 0.75;
+      why = L('Mercador: Com o mapa da sua tia, sei onde o Capitão ancora. Ele vai chegar cansado.', 'Merchant: With your aunt\'s map, I know where the Captain anchors. He\'ll arrive tired.');
+    }
+    if (ch.boss.wolf === 'mother') {
+      bossHp = Phaser.Math.Clamp(1 + 0.15 * flag('caravanPaid') - 0.1 * flag('caravanRefused'), 0.7, 1.6);
+      if (bossHp > 1) why = L(`Hemático: Os Anciãos se mexem. Cada caravana que você pagou deixou a Mãe da Matilha mais desesperada. E mais forte.`, `Hematic: The Elders are stirring. Every caravan you paid made the Pack Mother more desperate. And stronger.`);
+      else if (bossHp < 1) why = L('Hemático: Os Anciãos estão famintos e fracos. A Mãe da Matilha também sabe disso. Ela vem sem pressa.', 'Hematic: The Elders are hungry and weak. The Pack Mother knows it too. She comes unhurried.');
+    }
     raid.spawns = raid.spawns.filter(sp => sp.wolf !== 'alpha' && sp.wolf !== 'mother'); // only the region's boss leads this one
     raid.spawns.push({ at: raid.waves[1] ?? 40000, wolf: ch.boss.wolf, lane: Math.floor(lanes / 2) });
     raid.spawns.sort((a, b) => a.at - b.at);
@@ -415,8 +426,7 @@ export class FarmScene extends Phaser.Scene {
       const lost = this.humans.takeByRaid(res.grabbed);
       if (lost.length) this.hud.toast(L(`Os lobisomens levaram ${lost.join(', ')}.`, `The werewolves took ${lost.join(', ')}.`), 'bad', 7000);
       this.conquest.bossResult(!!res.bossKilled);
-    }, { arena, weather: 'fullmoon', title: ch.boss.name });
-    this.time.delayedCall(800, () => this.hud.toast(ch.boss.taunt, 'bad', 6000));
+    }, { arena, weather: 'fullmoon', title: ch.boss.name, bossHp, notes: [ch.boss.taunt, ...(why ? [why] : [])] });
   }
 
 
@@ -522,6 +532,14 @@ export class FarmScene extends Phaser.Scene {
     });
   }
 
+  // Story lines wait for any conversation already on screen. Once Davi has left the farm (GDD_ADENDO A10), his lines go too.
+  private storySay(lines: Line[], done?: () => void) {
+    const left = flag('daviGone') ? lines.filter(l => l.who !== 'davi') : lines;
+    if (!left.length) { done?.(); return; }
+    const go = () => (this.dialogue.open ? this.time.delayedCall(2500, go) : this.dialogue.say(left, done ?? (() => undefined)));
+    go();
+  }
+
   // ---------- tutorial ----------
   private setupTutorial() {
     const dialogue = this.dialogue;
@@ -578,6 +596,12 @@ export class FarmScene extends Phaser.Scene {
       get diaryNew() { return self.story?.unread ?? 0; },
     }, {
       onNewGame: () => { resetting = true; resetSave(); location.reload(); },
+      onWipeAll: () => {
+        resetting = true;
+        (window as unknown as { __hemoResetting?: boolean }).__hemoResetting = true;
+        try { for (const k of Object.keys(localStorage)) if (k.startsWith('hemo.') && k !== 'hemo.lang' && k !== 'hemo.wipe') localStorage.removeItem(k); } catch { /* storage blocked */ }
+        location.reload();
+      },
       onSkipTutorial: () => this.tutorial.skip(),
       tutorialActive: () => !state.tutorial.done,
       onWhere: () => (state.tutorial.done ? this.conquest.open() : this.tutorial.where()),

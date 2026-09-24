@@ -95,7 +95,7 @@ export interface HudSource { population: number; avgMorale: number; ordersReady:
 export interface HudActions { onNewGame(): void; onSkipTutorial(): void; tutorialActive(): boolean; onWhere(): void; onContracts(): void;
   onSpeed(): void; onPayTithe(): void; onMap(): void; onAscend(): void; onSound(): void;
   onTension(): void; onOrders(): void; onTree(): void; onRelics(): void; onAlbum(): void; onArsenal(): void; onBloodMoon(): void; onHunt(): void;
-  onMusic(): void; onDiary(): void; onUiScale(v: number): void; onFullscreen(): void;
+  onMusic(): void; onDiary(): void; onUiScale(v: number): void; onFullscreen(): void; onWipeAll(): void;
   info(): { goal: number; region: string; mute: boolean; music: boolean; uiScale: number; fullscreen: boolean; desktop: boolean } }
 
 export class Hud {
@@ -401,6 +401,9 @@ export class Hud {
       ].map(([k, v]) => `<div><b>${k}</b> — ${v}</div>`).join('');
       box.appendChild(keys);
     }
+    add(L('Apagar todo o progresso', 'Erase all progress'), () => {
+      if (confirm(L('Apagar TUDO: partida, diário, finais, regiões conquistadas e Legado? Não tem volta.', 'Erase EVERYTHING: current game, diary, endings, conquered regions and Legacy? This can\'t be undone.'))) this.actions.onWipeAll();
+    }, 'danger', true);
     add(L('Voltar', 'Back'), () => this.openMenu(), '', true);
     this.menu.classList.add('on');
   }

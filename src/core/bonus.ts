@@ -28,6 +28,11 @@ function compute() {
   }
   for (const id of state.relics) for (const [k, v] of RELICS[id]?.fx ?? []) add(k, v);
   add('blood', (meta.album?.length ?? 0) * 0.01);   // every lineage discovered: +1% Blood forever
+  // Who you are shows (GDD_ADENDO A10): the herd trusts a kind administrator, the House rewards a hungry one.
+  const soul = meta.soul ?? 0;
+  if (soul >= 25) { add('regen', 0.1); add('moraleUp', 1); }
+  if (soul <= -25) add('contractGold', 0.15);
+  if (meta.flags?.letterRead) add('kin', 0.1);       // Lia read Leonor's letter to everyone: families write home more
   add('blood', Object.keys(meta.domains ?? {}).length * 0.05); // every Domain of the House: +5% Blood
   return c;
 }
