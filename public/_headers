@@ -1,0 +1,18 @@
+# Cloudflare — cabeçalhos (convertido do vercel.json)
+
+# Só a ATHG (e o próprio jogo / dev local) pode exibir o jogo em iframe.
+/*
+  Content-Security-Policy: frame-ancestors 'self' https://athg.antonycorp11.workers.dev http://localhost:*
+  X-Content-Type-Options: nosniff
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=3600
