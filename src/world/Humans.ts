@@ -1,6 +1,7 @@
 // Human routine (GDD §6.2): leave home → eat → socialize → queue for collection → recover → sleep.
 // Needs drive a small utility choice; every step is visible on the map.
 import Phaser from 'phaser';
+import { onCanvas } from '../core/tap';
 import { L } from '../core/i18n';
 import { flag } from '../core/meta';
 import type { FarmMap } from '../map/bosque';
@@ -357,6 +358,7 @@ export class Humans {
     const f = h.sprite.frame, pad = 36;
     h.sprite.setInteractive(new Phaser.Geom.Rectangle(-pad, -pad, f.width + pad * 2, f.height + pad * 2), Phaser.Geom.Rectangle.Contains);
     h.sprite.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (!onCanvas(p)) return;
       if (this.downAt && Phaser.Math.Distance.Between(this.downAt.x, this.downAt.y, p.x, p.y) > 8) return;
       this.onSelect?.(h);
     });

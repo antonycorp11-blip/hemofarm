@@ -1,6 +1,7 @@
 // Buildings on the map: empty plots, construction in progress and finished levels.
 // Tap a plot/building to open the build panel; every level change is visible within a second.
 import Phaser from 'phaser';
+import { onCanvas } from '../core/tap';
 import { bus } from '../core/events';
 import { state } from '../core/state';
 import { BUILDINGS, BORIS_LINES, BuildingKind, Level, TRACKS, trackCost } from '../data/buildings';
@@ -83,7 +84,7 @@ export class Buildings {
     // Tap area: the footprint plus the space above it where the building stands.
     const w = slot.size * 128, h = slot.size * 64 + 140;
     const hit = this.scene.add.zone(center.x, center.y - 70 + slot.size * 16, w * 0.8, h).setInteractive();
-    hit.on('pointerup', (p: Phaser.Input.Pointer) => this.onTap(p, slot));
+    hit.on('pointerup', (p: Phaser.Input.Pointer) => { if (onCanvas(p)) this.onTap(p, slot); });
 
     const site: Site = { slot, plot, hit, lit: false };
     this.sites.set(slot.id, site);

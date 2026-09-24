@@ -1,5 +1,6 @@
 // Vegetable plots (GDD_ADENDO A3): plant → grow → harvest, worked by humans who then don't queue for collection.
 import Phaser from 'phaser';
+import { onCanvas } from '../core/tap';
 import { bus } from '../core/events';
 import { state } from '../core/state';
 import { CROPS, CropId, WORK_MS } from '../data/crops';
@@ -48,6 +49,7 @@ export class Farms {
     const shape = new Phaser.Geom.Polygon([a.x - l.x, 0, w, r.y - a.y, b.x - l.x, h, 0, l.y - a.y]);
     const zone = this.scene.add.zone((l.x + r.x) / 2, (a.y + b.y) / 2, w, h).setInteractive(shape, Phaser.Geom.Polygon.Contains);
     zone.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (!onCanvas(p)) return;
       if (this.editorActive()) return;
       if (this.downAt && Phaser.Math.Distance.Between(this.downAt.x, this.downAt.y, p.x, p.y) > TAP_SLOP) return;
       this.openPanel(pen.id);

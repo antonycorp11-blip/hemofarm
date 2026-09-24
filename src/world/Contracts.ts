@@ -1,6 +1,7 @@
 // Human sheet + buyer contracts (GDD §6, §10): inspect a human, decide to keep or sell,
 // send matching humans to the Boarding Yard and deliver them for Gold + Prestige.
 import Phaser from 'phaser';
+import { onCanvas } from '../core/tap';
 import { bus } from '../core/events';
 import { state } from '../core/state';
 import { CONTRACTS, ContractDef, Requirement, BUYER_NAMES, MAX_OFFERS } from '../data/contracts';
@@ -92,6 +93,7 @@ export class Contracts {
         const tag = this.scene.add.text(0, 0, L('Enviar ao Pátio ▸', 'Send to the Yard ▸'), { fontFamily: 'Georgia, serif', fontSize: '26px', fontStyle: 'bold', color: '#1a0a0e',
           backgroundColor: '#e8b54a', padding: { x: 12, y: 6 } }).setOrigin(0.5, 1).setInteractive({ useHandCursor: true });
         tag.on('pointerup', (p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+          if (!onCanvas(p)) return;
           e.stopPropagation();
           if (p.getDistance() > 12) return; // it was a drag of the map
           if (!yard) { this.hud.toast(L('Bóris: Falta construir o Pátio de Embarque.', 'Boris: The Boarding Yard still needs to be built.')); return; }
