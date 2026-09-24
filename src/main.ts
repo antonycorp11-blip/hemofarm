@@ -43,14 +43,6 @@ const game = new Phaser.Game({
   scene: [FarmScene, BattleScene],
 });
 
-// Phaser listens for mouseup/touchend on the whole window, so tapping a button of an HTML window that sits over a lot or a
-// human also "clicked" the map underneath (e.g. closing a letter opened a building panel). A press that started outside
-// the canvas never reaches Phaser; a drag that started on the map and ends over the HUD still does.
-let downOnGame = false;
-const onGame = (e: Event) => !!(e.target as Element | null)?.closest?.('#game');
-for (const t of ['mousedown', 'touchstart']) document.addEventListener(t, e => { downOnGame = onGame(e); }, true);
-for (const t of ['mouseup', 'touchend']) document.addEventListener(t, e => { if (!downOnGame && !onGame(e)) e.stopPropagation(); });
-
 // An exception inside a frame would stop Phaser's loop for good (the game "freezes"). Log it and keep running instead.
 const seen = new Set<string>();
 const step = game.step.bind(game);
