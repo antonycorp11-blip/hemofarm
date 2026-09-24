@@ -1,3 +1,4 @@
+import './core/wipe'; // must stay the first import
 import Phaser from 'phaser';
 import { FarmScene } from './scenes/FarmScene';
 import { BattleScene } from './scenes/BattleScene';
