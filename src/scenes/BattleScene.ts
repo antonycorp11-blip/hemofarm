@@ -21,6 +21,8 @@ export interface BattleData {
   lives?: number; bank?: number;                         // own Blood pool and lives (endless / hunt)
   boost?: { dmg?: number; hp?: number; gen?: number; cost?: number }; // Caçada relics
   title?: string;
+  bossHp?: number;                                       // story consequences: region boss health multiplier
+  notes?: string[];                                      // lines shown in the battle after the intro (boss taunt, consequences)
 }
 
 interface Unit { def: UnitDef; id: UnitId; tex: string; lane: number; col: number; spr: Phaser.GameObjects.Sprite; hp: number; cd: number; stunUntil: number; stoneUntil: number;
@@ -136,6 +138,7 @@ export class BattleScene extends Phaser.Scene {
     const intro = this.endless ? L('Lua de Sangue. Ondas sem fim, Sangue próprio. Ninguém da fazenda corre perigo, só o seu orgulho.', 'Blood Moon. Endless waves, its own Blood. Nobody from the farm is in danger, only your pride.')
       : this.mode === 'hunt' ? `${this.cfg.title ?? L('Caçada', 'The Hunt')} · ${this.arena.name}.` : `${BATTLE_LINES.start} ${L('Você tem alguns segundos para se preparar.', 'You have a few seconds to prepare.')}`;
     this.toast(`Aureliano: ${intro}${this.weather !== 'clear' ? ` ${L('Clima', 'Weather')}: ${w.name} (${w.desc})` : ''}${this.arena !== ARENAS.farm ? ` ${this.arena.desc}` : ''}`, 9000);
+    (this.cfg.notes ?? []).forEach((n, i) => this.time.delayedCall(9500 * (i + 1), () => this.toast(n, 8000)));
   }
 
   // Art that doesn't exist yet falls back to an existing sheet with a tint (the art replaces it once it's in the folder).
@@ -996,7 +999,7 @@ export class BattleScene extends Phaser.Scene {
     const spr = this.add.sprite(c.x, c.y, tex, 0).setOrigin(0.5, 1).setScale(scale).setFlipX(true).setDepth(c.y);
     if (tint) spr.setTint(tint);
     spr.play(this.anim(`${tex}_walk`, tex, [0, 1, 2, 3], base.speed > 0.8 ? 10 : 7));
-    const hp = base.hp * (1 + (this.cfg.raid.night - 1) * 0.06) * (this.weather === 'fullmoon' ? 1.25 : 1);
+    const hp = base.hp * (1 + (this.cfg.raid.night - 1) * 0.06) * (this.weather === 'fullmoon' ? 1.25 : 1) * (base.boss || id === 'alpha' ? this.cfg.bossHp ?? 1 : 1);
     const w: Wolf = { def: { ...base, hp }, id, tex, lane, j, spr, hp, bite: 0, slowUntil: 0, buffUntil: 0, jumped: false, skill: 4000, busy: false, dead: false,
       hidden: false, phase: 0, bob: Math.random() * 6 };
     this.wolves.push(w);

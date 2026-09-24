@@ -12,6 +12,7 @@ export interface WorldApi {
   morale(d: number): void;           // everyone
   tension(d: number): void;
   soul(d: number): void;             // + Heart · − Fang
+  flag(k: string): void;             // remember this choice; it comes back later (GDD_ADENDO A10)
   pause(what: 'collect' | 'food' | 'build', ms: number): void;
   sellBest(): string | null;         // sells the best non-named human, returns their label
   release(): string | null;          // a common human walks out through the gate for good, returns their label
@@ -38,6 +39,7 @@ export interface GameEventDef {
   weight?: number;
   minNight?: number;
   story?: boolean;                   // part of the mystery: only after the tutorial
+  once?: boolean;                    // happens a single time in the whole campaign
 }
 
 const rand = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
@@ -81,7 +83,7 @@ export const EVENTS: GameEventDef[] = [
       'A passing count saw your best human through the carriage window. He pays double. Now. No questions.'),
     choices: [
       { label: L('Vender o melhor humano', 'Sell your best human'), cost: L(`+ Ouro alto · o humano deixa a fazenda · ${FANG}`, `+ lots of Gold · the human leaves the farm · ${FANG}`),
-        apply: w => { const who = w.sellBest(); if (who) { w.gold(420); w.prestige(8); w.tension(4); w.soul(-5); w.toast(L(`${who} foi vendido ao conde. +420 Ouro.`, `${who} was sold to the count. +420 Gold.`), 'good'); } },
+        apply: w => { const who = w.sellBest(); if (who) { w.gold(420); w.prestige(8); w.tension(4); w.soul(-5); w.flag('soldToCount'); w.toast(L(`${who} foi vendido ao conde. +420 Ouro.`, `${who} was sold to the count. +420 Gold.`), 'good'); } },
         reply: { who: 'rubelia', text: L('Negócio fechado. O conde já está pálido de alegria. Mais pálido.', 'Deal done. The count is already pale with joy. Paler.') } },
       { label: L('Recusar', 'Refuse'), cost: L(`+4 moral · ${HEART}`, `+4 morale · ${HEART}`), apply: w => { w.morale(4); w.soul(3); }, reply: { who: 'davi', text: L('Ficamos. Hoje, pelo menos.', 'We stay. Tonight, at least.') } },
     ],
@@ -146,40 +148,42 @@ export const EVENTS: GameEventDef[] = [
   },
   // ---- the mystery (GDD_ADENDO A9) ----
   {
-    id: 'porao', title: L('O Porão Trancado', 'The Locked Cellar'), who: 'boris', weight: 2, story: true,
+    id: 'porao', title: L('O Porão Trancado', 'The Locked Cellar'), who: 'boris', weight: 3, story: true, once: true,
     text: L('Achei um porão trancado embaixo da casa da sua tia. A fechadura tem marcas de garras. Do lado de dentro.',
       'I found a locked cellar under your aunt\'s house. The lock has claw marks. On the inside.'),
     choices: [
-      { label: L('Abrir', 'Open it'), cost: L(`+150 Ouro · ${HEART}`, `+150 Gold · ${HEART}`), apply: w => { w.gold(150); w.soul(2); },
+      { label: L('Abrir', 'Open it'), cost: L(`+150 Ouro · ${HEART} · o mapa pode ser útil um dia`, `+150 Gold · ${HEART} · the map may come in handy one day`), apply: w => { w.gold(150); w.soul(2); w.flag('cellarOpened'); },
         reply: { who: 'boris', text: L('Economias dela, uma coleira arrebentada e um mapa das ilhas. Fico com a coleira. Para os arquivos.', 'Her savings, a snapped collar and a map of the islands. I\'ll keep the collar. For the archives.') } },
-      { label: L('Avisar o Conde', 'Tell the Count'), cost: L(`+10 Prestígio · ${FANG}`, `+10 Prestige · ${FANG}`), apply: w => { w.prestige(10); w.soul(-3); },
-        reply: { who: 'vesper', text: L('Muito obediente. Mandarei emparedar. Não se preocupe com o que está dentro.', 'Very obedient. I\'ll have it bricked up. Don\'t worry about what\'s inside.') } },
+      { label: L('Avisar o Conde', 'Tell the Count'), cost: L(`+10 Prestígio · cota 10% menor para sempre · ${FANG} · algo se perde`, `+10 Prestige · quota 10% lower forever · ${FANG} · something is lost`),
+        apply: w => { w.prestige(10); w.soul(-3); w.flag('cellarToldCount'); },
+        reply: { who: 'vesper', text: L('Muito obediente. Mandarei queimar o que estiver lá dentro. A Casa lembrará da sua lealdade.', 'Very obedient. I\'ll have whatever is inside burned. The House will remember your loyalty.') } },
       { label: L('Deixar trancado', 'Leave it locked'), cost: L('nada acontece. Por enquanto.', 'nothing happens. For now.'), apply: () => undefined },
     ],
     ignore: () => undefined,
   },
   {
-    id: 'carta', title: L('A Carta Sem Remetente', 'The Unsigned Letter'), who: 'lia', weight: 2, story: true, minNight: 2,
+    id: 'carta', title: L('A Carta Sem Remetente', 'The Unsigned Letter'), who: 'lia', weight: 3, story: true, once: true, minNight: 2,
     text: L('Chegou uma carta sem remetente, pelo portão dos fundos: "Os pares que você escolhe viram famílias. Cuide deles." A letra é da sua tia.',
       'A letter with no sender came through the back gate: "The pairs you choose become families. Look after them." The handwriting is your aunt\'s.'),
     choices: [
-      { label: L('Ler para todos na praça', 'Read it aloud in the square'), cost: L(`+8 moral · −6 tensão · ${HEART}`, `+8 morale · −6 tension · ${HEART}`), apply: w => { w.morale(8); w.tension(-6); w.soul(3); },
+      { label: L('Ler para todos na praça', 'Read it aloud in the square'), cost: L(`+8 moral · −6 tensão · ${HEART} · parentes chegam mais rápido`, `+8 morale · −6 tension · ${HEART} · relatives arrive faster`),
+        apply: w => { w.morale(8); w.tension(-6); w.soul(3); w.flag('letterRead'); },
         reply: { who: 'lia', text: L('Ela lembrou da gente. Mesmo de longe.', 'She remembered us. Even from far away.') } },
-      { label: L('Queimar', 'Burn it'), cost: L(`+4 Prestígio · ${FANG}`, `+4 Prestige · ${FANG}`), apply: w => { w.prestige(4); w.soul(-2); },
+      { label: L('Queimar', 'Burn it'), cost: L(`+4 Prestígio · ${FANG} · Lia vai lembrar`, `+4 Prestige · ${FANG} · Lia will remember`), apply: w => { w.prestige(4); w.soul(-2); w.flag('letterBurned'); },
         reply: { who: 'davi', text: L('Papel queima rápido. Lembrança, não.', 'Paper burns fast. Memories don\'t.') } },
     ],
     ignore: w => w.tension(4),
   },
   {
-    id: 'uivo', title: L('O Uivo com Nome', 'The Howl with a Name'), who: 'davi', weight: 2, story: true, minNight: 3,
+    id: 'uivo', title: L('O Uivo com Nome', 'The Howl with a Name'), who: 'davi', weight: 3, story: true, once: true, minNight: 3,
     text: L('Um uivo chamou o nome de um dos nossos. Ele diz que conhece a voz. Quer ir até a cerca. Agora.',
       'A howl called the name of one of our people. He says he knows the voice. He wants to go to the fence. Now.'),
     choices: [
       { label: L('Deixar ir', 'Let him go'), cost: L(`um humano comum parte · −10 tensão · ${HEART}`, `a common human leaves · −10 tension · ${HEART}`),
-        apply: w => { const who = w.release(); w.tension(-10); w.soul(4); if (who) w.toast(L(`${who} atravessou o portão e não olhou para trás.`, `${who} walked through the gate and didn't look back.`), 'good'); },
+        apply: w => { const who = w.release(); w.tension(-10); w.soul(4); w.flag('wolfFreed'); if (who) w.toast(L(`${who} atravessou o portão e não olhou para trás.`, `${who} walked through the gate and didn't look back.`), 'good'); },
         reply: { who: 'davi', text: L('Ele sorriu. Faz tempo que não vejo alguém sorrir aqui.', 'He smiled. It\'s been a while since I saw anyone smile here.') } },
       { label: L('Trancar todos nas casas', 'Lock everyone indoors'), cost: L(`sem coleta por 60 s · +6 tensão · ${FANG}`, `no collection for 60 s · +6 tension · ${FANG}`),
-        apply: w => { w.pause('collect', 60000); w.tension(6); w.soul(-3); }, reply: { who: 'aureliano', text: L('Portas trancadas. O uivo durou até o amanhecer.', 'Doors locked. The howl lasted until dawn.') } },
+        apply: w => { w.pause('collect', 60000); w.tension(6); w.soul(-3); w.flag('howlLocked'); }, reply: { who: 'aureliano', text: L('Portas trancadas. O uivo durou até o amanhecer. Parecia… ofendido.', 'Doors locked. The howl lasted until dawn. It sounded… offended.') } },
       { label: L('Mandar Aureliano à cerca', 'Send Aureliano to the fence'), cost: L('+4 Prestígio', '+4 Prestige'), apply: w => w.prestige(4),
         reply: { who: 'aureliano', text: L('Não havia ninguém. Só pegadas. De pés descalços, que viravam patas.', 'Nobody was there. Only tracks. Bare feet, turning into paws.') } },
     ],
@@ -190,9 +194,9 @@ export const EVENTS: GameEventDef[] = [
     text: L('Uma caravana da Cripta pede 80 de Sangue extra, "pelos Anciãos". Quem paga agora ganha a gratidão da Casa. Quem não paga ganha a atenção dela.',
       'A caravan from the Crypt asks for 80 extra Blood, "for the Elders". Those who pay now earn the House\'s gratitude. Those who don\'t earn its attention.'),
     choices: [
-      { label: L('Pagar', 'Pay'), cost: L(`−80 Sangue · +14 Prestígio · ${FANG}`, `−80 Blood · +14 Prestige · ${FANG}`), can: w => w.resources().blood >= 80,
-        apply: w => { w.blood(-80); w.prestige(14); w.soul(-3); }, reply: { who: 'vesper', text: L('Os Anciãos agradecem. Eles se mexeram no sono. Um bom sinal. Para eles.', 'The Elders thank you. They stirred in their sleep. A good sign. For them.') } },
-      { label: L('Recusar', 'Refuse'), cost: L(`−6 Prestígio · ${HEART}`, `−6 Prestige · ${HEART}`), apply: w => { w.prestige(-6); w.soul(2); },
+      { label: L('Pagar', 'Pay'), cost: L(`−80 Sangue · +14 Prestígio · ${FANG} · os Anciãos despertam um pouco`, `−80 Blood · +14 Prestige · ${FANG} · the Elders stir a little`), can: w => w.resources().blood >= 80,
+        apply: w => { w.blood(-80); w.prestige(14); w.soul(-3); w.flag('caravanPaid'); }, reply: { who: 'vesper', text: L('Os Anciãos agradecem. Eles se mexeram no sono. Um bom sinal. Para eles.', 'The Elders thank you. They stirred in their sleep. A good sign. For them.') } },
+      { label: L('Recusar', 'Refuse'), cost: L(`−6 Prestígio · ${HEART} · os Anciãos passam fome`, `−6 Prestige · ${HEART} · the Elders go hungry`), apply: w => { w.prestige(-6); w.soul(2); w.flag('caravanRefused'); },
         reply: { who: 'vesper', text: L('Anotado. Com tinta vermelha.', 'Noted. In red ink.') } },
       { label: L('Diluir com água de beterraba', 'Dilute it with beet juice'), cost: L('−30 Sangue · sorte', '−30 Blood · luck'), can: w => w.resources().blood >= 30,
         apply: w => { w.blood(-30); if (Math.random() < 0.5) { w.prestige(8); w.toast(L('Os Anciãos não notaram. Aparentemente gostam de beterraba.', 'The Elders didn\'t notice. Apparently they like beets.'), 'good'); } else { w.prestige(-12); w.toast(L('O Hemático notou. E contou. −12 Prestígio.', 'Hematic noticed. And told. −12 Prestige.'), 'bad'); } },
@@ -218,8 +222,11 @@ export const ARGUE_LINES = [
   L('Quem comeu o último pão?', 'Who ate the last bread?'), L('Eu tava aqui antes da lua nascer.', 'I was here before the moon rose.'),
 ];
 
-export const pickEvent = (night: number, recent: string[], storyOk = true) => {
-  const pool = EVENTS.filter(e => (e.minNight ?? 1) <= night && !recent.includes(e.id) && (storyOk || !e.story));
-  const bag = pool.flatMap(e => Array(e.weight ?? 1).fill(e));
+// seen: story events already lived (once). soul tilts the odds: a kind administrator draws the Inspector,
+// a hungry one draws buyers for the best humans.
+export const pickEvent = (night: number, recent: string[], storyOk = true, seen: (id: string) => boolean = () => false, soul = 0) => {
+  const pool = EVENTS.filter(e => (e.minNight ?? 1) <= night && !recent.includes(e.id) && (storyOk || !e.story) && !(e.once && seen(e.id)));
+  const weight = (e: GameEventDef) => (e.weight ?? 1) * ((e.id === 'fiscal' && soul >= 25) || (e.id === 'vip' && soul <= -25) ? 2 : 1);
+  const bag = pool.flatMap(e => Array(weight(e)).fill(e));
   return bag.length ? rand(bag) : rand(EVENTS.filter(e => !e.story));
 };

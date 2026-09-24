@@ -5,7 +5,7 @@ import { bus } from '../core/events';
 import { state } from '../core/state';
 import { ARGUE_LINES, Choice, GameEventDef, WorldApi, pickEvent } from '../data/events';
 import { SHORT } from '../data/tutorial';
-import { addSoul } from '../core/meta';
+import { addSoul, flag, setFlag, meta } from '../core/meta';
 import type { BuildPanel } from '../ui/BuildPanel';
 import type { Hud } from '../ui/Hud';
 import type { Buildings } from './Buildings';
@@ -37,6 +37,7 @@ export class LivingWorld {
       morale: d => humans.adjustMorale(d),
       tension: d => { w.tension = clamp(w.tension + d); },
       soul: d => addSoul(d),
+      flag: k => setFlag(k),
       release: () => humans.release(gateSpot),
       pause: (what, ms) => { w.pause[what] = Math.max(w.pause[what], ms); },
       sellBest: () => humans.sellBest(gateSpot),
@@ -110,8 +111,9 @@ export class LivingWorld {
 
   private raise() {
     const w = state.world;
-    const def = pickEvent(state.night.night, w.recent, state.tutorial.done);
+    const def = pickEvent(state.night.night, w.recent, state.tutorial.done, id => !!flag(`seen:${id}`), meta.soul ?? 0);
     w.recent = [def.id, ...w.recent].slice(0, 4);
+    if (def.once) setFlag(`seen:${def.id}`);
     this.pending = { def, left: EXPIRE_MS };
     this.hud.eventChip(def.title, () => this.open());
     bus.emit('EVENT_RAISED', { eventId: def.id });
@@ -300,7 +302,14 @@ export class LivingWorld {
         root.querySelector<HTMLButtonElement>('[data-repress]')!.addEventListener('click', () => {
           this.api.morale(-15); this.api.prestige(-5); this.api.tension(-45); this.api.soul(-6);
           state.world.resentment = 3 * 5 * 60000;
+          setFlag('repressed');
           this.hud.toast(L('Bóris: Dispersados. Com educação. Quase toda. Eles não vão esquecer tão cedo.', 'Boris: Dispersed. Politely. Mostly. They won\'t forget it soon.'), 'bad', 6000);
+          // Consequence (GDD_ADENDO A10): the first time is a warning; the second time, Davi leaves the farm for good.
+          if (flag('repressed') === 1) this.hud.toast(L('Davi: Uma vez eu entendo. Duas, não. Pense bem.', 'Davi: Once, I understand. Twice, I won\'t. Think carefully.'), 'bad', 8000);
+          else if (!flag('daviGone') && this.humans.releaseNamed('Davi', this.gateSpot)) {
+            setFlag('daviGone');
+            this.hud.toast(L('Davi: Eu avisei. A Leonor não teria feito isso. Adeus, administrador.', 'Davi: I warned you. Leonor wouldn\'t have done this. Goodbye, administrator.'), 'bad', 9000);
+          }
           this.endRebellion();
         });
       },

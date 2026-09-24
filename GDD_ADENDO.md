@@ -175,3 +175,35 @@ Cada final tem epílogo e créditos, e fica registrado no Álbum. Para ver os ou
 ### Arte pedida para este bloco (23)
 - `portrait_leonor`: retrato 1:1 no estilo dos outros. Mulher de uns 50 anos, cabelo grisalho preso, xale escuro e olhos âmbar de lobo. Enquanto não existir, o diálogo usa uma silhueta.
 - `title_logo_en`: logo "Hemofarm: Growing for the Night". Se existir, a tela de título usa este logo em inglês.
+
+## A10 — Escolhas com consequência e cinco finais (24/09/2026)
+
+As escolhas da história viram **marcas** (`meta.flags`) que o jogo guarda entre mandatos e cobra mais tarde. Os eventos da história acontecem uma vez só na campanha.
+
+| Escolha | Consequência depois |
+|---|---|
+| Porão: **abrir** | Na Costa, o Mercador paga 300 de Ouro pelo mapa das ilhas, e o Capitão chega 25% mais fraco. |
+| Porão: **avisar o Conde** | A cota fica 10% menor para sempre, mas Vesper queima uma página do diário (a do Capitão). |
+| Carta: **ler na praça** | Parentes chegam 10% mais rápido. Lia guarda a carta (epílogo). |
+| Carta: **queimar** | Lia nunca sabe da carta (epílogo). |
+| Uivo: **deixar ir** | O próximo ataque vem 35% menor: o humano libertado desvia a matilha. |
+| Uivo: **trancar todos** | O próximo ataque vem 35% maior. |
+| Caravana: **pagar** / **recusar** | A Mãe da Matilha chega com +15% de vida por caravana paga e −10% por recusada (entre 70% e 160%). |
+| Rebelião: **reprimir** | Na 1ª vez, Davi avisa. Na 2ª, Davi vai embora para sempre: some das falas, e a Revolta fica impossível. |
+| Vender ao conde VIP | Aparece no epílogo. |
+
+**Coração × Presa muda o jogo:**
+- **Coração 25+:** humanos recuperam 10% mais rápido e acordam mais animados. O Fiscal aparece o dobro.
+- **Presa 25+:** contratos pagam 15% a mais e compradores VIP aparecem o dobro.
+- O diário mostra o efeito atual. Em cerca de metade das noites, um personagem comenta quem você está virando.
+
+**Finais (5):**
+- **Casa Eterna:** sempre disponível.
+- **Revolta:** Coração 25+ e Davi na fazenda.
+- **Pacto:** 12+ páginas do diário.
+- **O Novo Ancião (secreto):** Presa 50+. Só aparece na lista quando é conquistado.
+- **A Página que Faltou (trágico):** com menos de 6 páginas, você não reconhece a Leonor e a mata sem escolha.
+
+Todo epílogo traz **"O que aconteceu com cada um"**, uma linha por personagem montada a partir das marcas.
+
+**Ajustes:** o botão "Apagar todo o progresso" zera partida, diário, finais e Domínios. O idioma é mantido.

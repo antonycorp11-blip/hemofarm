@@ -2,6 +2,7 @@
 // Needs drive a small utility choice; every step is visible on the map.
 import Phaser from 'phaser';
 import { L } from '../core/i18n';
+import { flag } from '../core/meta';
 import type { FarmMap } from '../map/bosque';
 import { tileCenter } from '../map/iso';
 import { findPath } from '../sim/pathfind';
@@ -96,7 +97,7 @@ export class Humans {
     const cells = [...this.map.walkable].map(k => k.split(',').map(Number) as P);
     for (let k = 0; k < Math.max(n, saved.length); k++) {
       const sv = saved[k];
-      const named = !saved.length ? NAMED[k] : undefined;
+      const named = !saved.length ? NAMED.filter(n => !(n.look === 'davi' && flag('daviGone')))[k] : undefined;
       const name = sv?.name ?? named?.name;
       this.create({
         tile: sv && this.map.walkable.has(sv.tile.join(',')) ? sv.tile : Phaser.Utils.Array.GetRandom(cells),
@@ -540,6 +541,14 @@ export class Humans {
     h.rebel = false;
     this.sell(h, to);
     return `${L('Unidade', 'Unit')} ${h.traits.code}`;
+  }
+
+  // Consequence: a story character (Davi) leaves the farm for good, walking out through the gate.
+  releaseNamed(prefix: string, to: { x: number; y: number }) {
+    const h = this.list.find(x => x.name?.startsWith(prefix) && !x.taken);
+    if (!h) return false;
+    this.sell(h, to);
+    return true;
   }
 
   // Story event "the howl with a name": the lowest-quality common human walks out through the gate for good.

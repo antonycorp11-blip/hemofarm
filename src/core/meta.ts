@@ -40,6 +40,8 @@ export interface Meta {
   diaryNew?: number;           // pages found but not read yet (HUD badge)
   soul?: number;               // Heart (+) × Fang (−), −100..100
   endings?: string[];          // endings reached
+  flags?: Record<string, number>; // story choices remembered across mandates (consequences, epilogue)
+  diaryBurned?: string[];      // pages destroyed for good by a choice
   // Settings
   uiScale?: number;            // 0 = automatic
 }
@@ -54,6 +56,15 @@ export function saveMeta() {
   try { localStorage.setItem(KEY, JSON.stringify(meta)); } catch { /* storage unavailable */ }
 }
 export const lv = (id: string) => meta.levels[id] ?? 0;
+
+// Story choices the game remembers and brings back later (GDD_ADENDO A10). Numbers so they can count.
+export const flag = (k: string) => meta.flags?.[k] ?? 0;
+export function setFlag(k: string, d = 1) {
+  (meta.flags ??= {})[k] = (meta.flags[k] ?? 0) + d;
+  saveMeta();
+}
+// Soul tiers used by reactions, bonuses and endings.
+export const soulTier = () => ((meta.soul ?? 0) >= 25 ? 'heart' : (meta.soul ?? 0) <= -25 ? 'fang' : 'mid');
 
 // Heart (+) × Fang (−): how the administrator treats the herd, across every mandate (GDD_ADENDO A9).
 export function addSoul(d: number) {
@@ -75,7 +86,8 @@ export function legacyFor(ascended: boolean) {
 export function applyMods() {
   const reg = REGIONS[state.region] ?? REGIONS.bosque;
   Object.assign(state.mods, {
-    quota: (1 - 0.08 * lv('tithe')) * (reg.mods.quota ?? 1),
+    // Telling the Count about Leonor's cellar bought his favor: a lighter quota for good.
+    quota: (1 - 0.08 * lv('tithe')) * (reg.mods.quota ?? 1) * (flag('cellarToldCount') ? 0.9 : 1),
     blood: (1 + 0.1 * lv('noble')) * (reg.mods.blood ?? 1),
     regen: reg.mods.regen ?? 1,
     hunger: reg.mods.hunger ?? 1,
