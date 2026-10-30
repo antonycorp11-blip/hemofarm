@@ -68,6 +68,9 @@
     #loading .lang button.on{border-color:#e8b54a;color:#f6d9a0}
     #loading .play:hover{filter:drop-shadow(0 0 12px #d8122a) brightness(1.1)}
   </style>
+  <!-- ATHG: progresso salvo na conta do jogador (continua em qualquer aparelho). Antes dos scripts do jogo. -->
+  <script src="https://athg.antonycorp11.workers.dev/sdk/athg-sdk.js"></script>
+  <script>window.ATHG && ATHG.cloudSync && ATHG.cloudSync()</script>
 </head>
 <body>
   <div id="loading"><img class="logo" src="/assets/title_logo.webp" alt="Hemofazenda: Cultivando para a Noite"><div class="bat"></div><div class="bar"><div class="fill"></div></div><div class="s">Preparando a noite…</div><button class="play">JOGAR</button></div>
